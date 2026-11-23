@@ -36,7 +36,7 @@
 
 ## 工程约束
 
-1. 不手工改已安装 profile 的 `package.json` / `cordis.patch.yml`；安装与启用通过 `plugin_manager`。
+1. 不手工改已安装 profile 的 `package.json` / `cordis.patch.yml`；安装与启用通过 `plugin_manager`。把 `link:` 本地链接换成 registry / git 安装时，必须先让插件页移除该条目（它会清掉 `node_modules` 里的 Junction）；pnpm 不能用 rename 覆盖 Junction，会报 `ERR_PNPM_EPERM` 并把 profile 清单里的条目一起弄丢。删 Junction 只能用 `cmd /c rmdir <link>`，禁止递归删除。
 2. 新增运行时文件必须同时更新 `package.json` 的 `files` 与 `exports`；locale、图标、详情文档保持在包内。
 3. 不引入 Harness Client 包作为模块；设置页只用主题 token 与自有控件。
 4. 状态写入必须原子（临时文件 + rename）；手改坏的 JSON 回落到默认值，不得让插件崩溃。
