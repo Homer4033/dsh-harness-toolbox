@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "压缩分档与工具箱",
-    "description": "五档自动压缩：极轻 / 轻量 / 标准 / 积极 / 最大，选中即写入所有已挂载预设的压缩引擎，无需重启；设置存在 <DSH home>/compression-tiers/settings.json，每档保留自动压力压缩，/compact 仍可手动触发。\n\n四个智能体工具：compression_tiers 读取或切换档位（可按路由覆盖 headroom）；compression_context 报实时占用与剩余空间；compression_compact 排队一次主动压缩，本轮结束后执行并自动继续；github_push 发布当前工作区（网络体检、密钥扫描、60 秒超时，失败给出分类与仍在本地的东西）。\n\n全局规则：设置页原子编辑 <DSH home>/AGENTS.md，系统提示只带最新 2000 字符摘要，智能体没有改写它的工具。\n\n组件管理：四套托管组件 GitHub CLI 2.76.2、git 2.56.1、ffmpeg / ffprobe、Python 3.11.18。检测系统 PATH，可下载托管版（断点续传、掉线自动重试、自检后整树替换、失败回滚、复用已下载的归档），托管版优先并插到本进程 PATH 最前；四套共用一个可整体迁移的下载根目录，同栏有 gh 设备码登录。\n\n会话仓库：标题下的选择器把当前会话绑到一个可写仓库，github_push 默认推到它（只改推送目标，不克隆也不改工作区）。\n\n限制：档位按 ≥256k tokens 窗口设计；只更新预设隔离域里的引擎；与同类插件会互相覆盖策略。",
+    "description": "五档上下文压缩，外加全局规则编辑、四套组件托管下载与会话仓库发布。档位在「设置 → 上下文压缩」切换，选中即写入所有预设的压缩引擎、无需重启，每档保留自动压力压缩；组件在「设置 → 组件管理」检测 PATH 或下载托管版（GitHub CLI、git、ffmpeg / ffprobe、Python，断点续传、失败回滚、托管版优先入 PATH）；会话标题下的「仓库」选择器决定 github_push 推到哪里。四个工具：compression_tiers、compression_context、compression_compact、github_push。会联网从 GitHub release、gyan.dev 与 python-build-standalone 下载组件，并原子编辑 <DSH home>/AGENTS.md；关掉插件后档位停止同步、托管目录离开 PATH、工具与面板消失。限制：档位按 ≥256k tokens 窗口设计，只更新预设隔离域里的引擎。",
     "detail": "docs/DETAIL.zh.md"
   }
 }

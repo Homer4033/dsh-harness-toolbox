@@ -1,9 +1,9 @@
 {
   "name": "dsh-harness-toolbox",
-  "version": "1.8.9",
+  "version": "1.8.10",
   "private": false,
   "type": "module",
-  "description": "Five-tier context compaction for DeepSeek Harness plus global rules editing, a managed component installer (gh, git, ffmpeg/ffprobe, Python) below one migratable download root, GitHub device login and per-session repository publishing.",
+  "description": "Five-tier context compaction, global rules editing, managed installs for gh / git / ffmpeg / Python below one migratable root, and per-session repository publishing for DeepSeek Harness.",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
