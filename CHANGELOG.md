@@ -1,6 +1,13 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.8.8`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.8.9`。
+
+## 1.8.9 — 2026-11-24
+
+- **插件说明重写**：插件页里那段说明原来是 1,343 字（英文 3,190 字符）的一大段流水账——GitHub CLI 讲了两遍、「组件管理」栏出现两次、还留着早已删掉的 1.4.x 仓库面板。现在按「五档压缩 / 四个工具 / 全局规则 / 组件管理 / 会话仓库 / 限制」分成六块，中文 669 字、英文 1,668 字符（各减一半），每块自带主语，浏览器把换行折叠掉也读得通。
+- **显示名改为「压缩分档与工具箱」**（英文 `Compression tiers & toolbox`）：功能早就超出「压缩分档」，包名也是 toolbox；加载器 id、状态目录、工具名都不变。
+- `package.json` 的 `description` 从 470 字符压到 235，`keywords` 补 `toolbox` / `ffmpeg` / `github`，npm 搜索页不再是一长串。
+- 说明里同步了这几版的新事实：掉线自动重试、已完成归档复用、安装替换失败回滚、会话标题下的仓库选择器。
 
 ## 1.8.8 — 2026-11-21
 
