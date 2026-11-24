@@ -34,11 +34,50 @@ window.__ModuleLoader__.load({
       { id: 'python', name: 'Python' },
     ]
 
+    /**
+     * The panel is a small shell: one navigation rail, one page at a time. The
+     * workspace page drops out of the rail entirely when the registry is empty,
+     * which is the same rule as hiding the block (no empty picker, no dead tab).
+     */
+    const SECTIONS = [
+      { id: 'levels', navLabel: 'navLevels', icon: 'M3 4.5h10M3 8h7M3 11.5h4' },
+      { id: 'rules', navLabel: 'navRules', icon: 'M4 2.5h5.5L12.5 5.5v8H4zM9.5 2.5v3h3M6 8h4M6 10.5h3' },
+      { id: 'workspace', navLabel: 'navWorkspace', icon: 'M2.5 5.5h4l1.2 1.5h5.8v5.5h-11z' },
+      { id: 'components', navLabel: 'navComponents', icon: 'M6 2.5h4v3H6zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z' },
+      { id: 'github', navLabel: 'navGithub', icon: 'M8 2.5a5.5 5.5 0 0 0-1.7 10.7c.3.1.4-.1.4-.3v-1c-1.5.3-1.9-.7-1.9-.7-.2-.6-.6-.8-.6-.8-.5-.3 0-.3 0-.3.5 0 .8.5.8.5.5.9 1.3.6 1.6.5 0-.4.2-.6.3-.7-1.2-.1-2.5-.6-2.5-2.7 0-.6.2-1.1.5-1.5-.1-.1-.2-.7 0-1.4 0 0 .5-.2 1.5.5a5 5 0 0 1 2.8 0c1-.7 1.5-.5 1.5-.5.3.7.1 1.3.1 1.4.3.4.5.9.5 1.5 0 2.1-1.3 2.6-2.5 2.7.2.2.4.5.4 1v1.5c0 .2.1.4.4.3A5.5 5.5 0 0 0 8 2.5z' },
+      { id: 'license', navLabel: 'navLicense', icon: 'M4 2.5h8v11H4zM6 6h4M6 8.5h4' },
+    ]
+
+    /** The plugin's own work plus the third-party programs the panel installs. */
+    const PLUGIN_LICENSE = {
+      name: 'dsh-harness-toolbox',
+      license: 'MIT',
+      url: 'https://github.com/Homer4033/dsh-harness-toolbox/blob/main/LICENSE',
+    }
+    const LICENSE_ROWS = [
+      { name: 'GitHub CLI', license: 'MIT', url: 'https://github.com/cli/cli/blob/trunk/LICENSE' },
+      { name: 'Git for Windows (MinGit)', license: 'GPL-2.0', url: 'https://github.com/git-for-windows/git/blob/main/COPYING' },
+      { name: 'FFmpeg', license: 'GPL-2.0-or-later', url: 'https://ffmpeg.org/legal.html' },
+      { name: 'Python (python-build-standalone)', license: 'PSF-2.0 · MIT', url: 'https://github.com/astral-sh/python-build-standalone/blob/main/LICENSE' },
+    ]
+
     const DICTIONARIES = {
       zh: {
         sectionLabel: '压缩分档',
         title: '压缩分档与工具箱',
         levelsAria: '压缩档位',
+        navAria: '面板分页',
+        navLevels: '档位',
+        navRules: '规则',
+        navWorkspace: '工作区',
+        navComponents: '组件',
+        navGithub: 'GitHub',
+        navLicense: '许可',
+        levelsTitle: '档位',
+        licenseTitle: '许可',
+        licenseOwn: '本插件以 MIT 许可发布，源码与许可全文在仓库里。',
+        licenseComponentsTitle: '托管组件',
+        licenseNotice: '这些程序不随插件分发：面板下载的是各自发行方的构建，许可证随安装目录附带。',
         levelGentle: '极轻',
         levelLight: '轻量',
         levelStandard: '标准',
@@ -147,6 +186,18 @@ window.__ModuleLoader__.load({
         sectionLabel: 'Compression tiers',
         title: 'Compression tiers & toolbox',
         levelsAria: 'Compression tier',
+        navAria: 'Panel sections',
+        navLevels: 'Tiers',
+        navRules: 'Rules',
+        navWorkspace: 'Workspace',
+        navComponents: 'Components',
+        navGithub: 'GitHub',
+        navLicense: 'License',
+        levelsTitle: 'Tiers',
+        licenseTitle: 'License',
+        licenseOwn: 'This plugin is released under the MIT license; the source and the full text live in the repository.',
+        licenseComponentsTitle: 'Managed components',
+        licenseNotice: 'These programs are not bundled: the panel downloads each vendor build and its license ships with the install directory.',
         levelGentle: 'Gentle',
         levelLight: 'Light',
         levelStandard: 'Standard',
@@ -259,49 +310,157 @@ window.__ModuleLoader__.load({
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 24px 28px 56px;
+  padding: 22px 24px 48px;
   color: var(--dsw-alias-label-primary);
-}
-.ct-page-inner {
-  display: grid;
-  gap: 16px;
-  width: 100%;
-  max-width: 960px;
-  margin: 0 auto;
+  /* Liquid-glass canvas: two accent washes and a faint vertical tint give the
+     translucent rail and the cards something to refract. The washes are the
+     only decorative paint in the panel; everything else stays on theme tokens. */
+  background:
+    radial-gradient(820px 460px at 8% -2%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 26%, transparent), transparent 70%),
+    radial-gradient(620px 360px at 102% 6%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 15%, transparent), transparent 72%),
+    radial-gradient(560px 320px at 42% 106%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent), transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--dsw-alias-bg-base) 93%, var(--dsw-alias-state-business-primary) 7%), var(--dsw-alias-bg-base) 62%);
+  /* One glass recipe for the navigation rail and every card. */
+  --ct-glass-fill: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 58%, transparent);
+  --ct-glass-rail: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 62%, transparent);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 38%, rgba(255, 255, 255, 0) 64%);
+  --ct-glass-edge: var(--dsw-alias-border-l3);
+  --ct-glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.42), 0 2px 10px rgba(0, 0, 0, 0.22);
+  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  /* The queries below measure this page, which is the panel's own width: a
+     viewport media query would be wrong, because the sidebar takes a fixed slice
+     of the window (a 1200px window leaves far less than 1200px here). The
+     container has to be the page, not the shell: an element cannot be styled by
+     a query on its own container, so a shell-level query would leave the shell
+     in two columns and only flip its children. */
   container-type: inline-size;
 }
-/* Two columns once the panel itself is wide enough for two readable cards:
-   tiers and the global rules on the left, workspace rules and the toolbox on
-   the right. The query is on this page's own width (a container query, not a
-   viewport media query) because the sidebar takes a fixed slice of the window:
-   a 1200px window leaves far less than 1200px for this page. A narrow panel
-   keeps one column, so the five tier buttons and the textareas stay readable. */
-.ct-columns {
+/* The rail plus one page at a time: the panel is a small app shell, not one
+   long scroll. */
+.ct-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
 }
-@container (min-width: 880px) {
-  .ct-columns {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.ct-nav {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 3px;
+  box-sizing: border-box;
+  padding: 12px 10px;
+  border: 1px solid var(--ct-glass-edge);
+  border-radius: 20px;
+  background: var(--ct-glass-rail);
+  background-image: var(--ct-glass-sheen);
+  box-shadow: var(--ct-glass-shadow), var(--ct-glass-inner);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+}
+.ct-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 10px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ct-nav-brand svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--dsw-alias-state-business-primary);
+}
+.ct-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.ct-nav-item svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  opacity: 0.8;
+}
+@media (hover: hover) {
+  .ct-nav-item:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
   }
 }
-.ct-col {
+.ct-nav-item:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+/* The current page keeps the accent: tinted glass, a 2px bar and a soft glow,
+   so the active row reads even against the blurred rail. */
+.ct-nav-item[aria-current='page'] {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: inset 2px 0 0 var(--dsw-alias-state-business-primary), 0 0 22px color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+}
+.ct-nav-item[aria-current='page'] svg {
+  color: var(--dsw-alias-state-business-primary);
+  opacity: 1;
+}
+.ct-content {
   display: grid;
-  align-content: start;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
+  animation: ct-page-in 160ms ease-out;
 }
-.ct-head {
-  display: grid;
-  gap: 4px;
+@keyframes ct-page-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
 }
-.ct-head h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+/* Narrow panel: the rail turns into a horizontal strip above the page. The
+   items wrap instead of scrolling, so no page can be clipped away. */
+@container (max-width: 720px) {
+  .ct-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .ct-nav {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 16px;
+  }
+  .ct-nav-brand {
+    display: none;
+  }
+  .ct-nav-item {
+    flex: none;
+    width: auto;
+    padding: 0 12px;
+  }
 }
 .ct-intro {
   margin: 0;
@@ -313,17 +472,22 @@ window.__ModuleLoader__.load({
   display: grid;
   gap: 12px;
   padding: 16px 18px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 16px;
-  background: var(--dsw-alias-bg-layer-2);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--ct-glass-edge);
+  border-radius: 20px;
+  background: var(--ct-glass-fill);
+  background-image: var(--ct-glass-sheen);
+  box-shadow: var(--ct-glass-shadow), var(--ct-glass-inner);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
 }
 .ct-levels {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
-@media (max-width: 640px) {
+/* Five tiers stay on one row inside the page column; only a genuinely narrow
+   panel drops to two. */
+@container (max-width: 560px) {
   .ct-levels {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -336,13 +500,14 @@ window.__ModuleLoader__.load({
   min-width: 0;
   margin: 0;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 10px 12px;
-  background: transparent;
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 34%, transparent);
   color: var(--dsw-alias-label-primary);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 .ct-level strong {
   font-size: 14px;
@@ -360,8 +525,9 @@ window.__ModuleLoader__.load({
 }
 .ct-level-on,
 .ct-level-on:hover {
-  border-color: var(--dsw-alias-border-selected);
-  background: var(--dsw-alias-bg-module-platform);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 50%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 24px color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);
 }
 .ct-level:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
@@ -408,6 +574,59 @@ window.__ModuleLoader__.load({
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: 0.01em;
+}
+/* License page: one row per work, license id on the right, source link under
+   it. Legal text is allowed here; it is not teaching copy. */
+.ct-license {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ct-license-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  align-items: baseline;
+  padding-top: 10px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.ct-license-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.ct-license-name {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ct-license-tag {
+  justify-self: end;
+  padding: 1px 7px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: 999px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+.ct-license-link {
+  grid-column: 1 / -1;
+  color: var(--dsw-alias-link);
+  font-size: 12px;
+  line-height: 18px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.ct-license-link:hover {
+  text-decoration: underline;
+}
+.ct-license-link:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
 }
 .ct-field {
   display: grid;
@@ -648,12 +867,19 @@ window.__ModuleLoader__.load({
    the input card, so it is present in a blank Session too (the title cluster is
    hidden there) and its menu can open upward without covering the input. */
 .ct-repo-dock {
+  box-sizing: border-box;
+  /* Mirror the composer card's own box: the card is centered with a side
+     clearance, so a full-width dock row parked the pill at the window edge,
+     far right of the input. The row is capped to the card and centered, which
+     puts the pill's right edge on the card's right edge. */
+  width: min(calc(100% - var(--dsh-composer-side-clearance, 16px) * 2), var(--dsh-composer-card-max-width, 720px));
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
-  padding: 0 var(--dsh-composer-side-clearance, 16px);
+  padding: 0;
 }
 .ct-repo-group {
   display: inline-flex;
@@ -934,6 +1160,9 @@ window.__ModuleLoader__.load({
     function actionButton(action, label, options) {
       const config = options || {}
       return h('button', {
+        // Rendered inside an array by actionRow(), so it needs its own key; the
+        // action id is already unique within a row.
+        key: action,
         type: 'button',
         className: 'ct-btn' + (config.primary ? ' ct-btn--primary' : ''),
         'data-action': action,
@@ -1474,6 +1703,9 @@ window.__ModuleLoader__.load({
       const [workspaceText, setWorkspaceText] = React.useState('')
       const [workspaceMessage, setWorkspaceMessage] = React.useState('')
       const [workspaceBusy, setWorkspaceBusy] = React.useState(false)
+      // Which page of the shell is open. Declared last so the hook order above
+      // stays stable for the test harness.
+      const [section, setSection] = React.useState('levels')
       const mounted = React.useRef(true)
       const buttons = React.useRef({})
 
@@ -1912,7 +2144,9 @@ window.__ModuleLoader__.load({
         : t('never')
 
       const panel = state
-        ? h('section', { className: 'ct-panel' },
+        ? h('section', { className: 'ct-panel', key: 'levels' },
+          h('div', { className: 'ct-rules-head' },
+            h('h3', null, t('levelsTitle'))),
           h('div', { className: 'ct-levels', role: 'radiogroup', 'aria-label': t('levelsAria') },
             levels.map(function (level) {
               const id = level.id
@@ -1935,12 +2169,12 @@ window.__ModuleLoader__.load({
             })),
           h('p', { className: 'ct-summary' }, t('currentLabel') + t('sep') + labelOf(t, current)),
           h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, message))
-        : h('p', { className: 'ct-intro', role: 'status' }, message || t('loading'))
+        : h('p', { className: 'ct-intro', key: 'levels', role: 'status' }, message || t('loading'))
 
       const dirty = rules ? rulesText !== rules.text : false
       const rulesCount = rules && typeof rules.chars === 'number' ? rules.chars : 0
       const rulesLimit = rules && typeof rules.maxChars === 'number' ? rules.maxChars : 0
-      const rulesPanel = h('section', { className: 'ct-panel' },
+      const rulesPanel = h('section', { className: 'ct-panel', key: 'rules' },
         h('div', { className: 'ct-rules-head' },
           h('h3', null, t('rulesTitle'))),
         h('label', { className: 'ct-field' },
@@ -2089,7 +2323,7 @@ window.__ModuleLoader__.load({
           }),
         ]))
 
-      const componentsPanel = h('section', { className: 'ct-panel' },
+      const componentsPanel = h('section', { className: 'ct-panel', key: 'components' },
         h('div', { className: 'ct-rules-head' },
           h('h3', null, t('componentsTitle'))),
         componentNodes,
@@ -2156,7 +2390,7 @@ window.__ModuleLoader__.load({
 
       // The signed-in account, the device flow and the network probe. The `gh`
       // binary itself is one row in the component panel above.
-      const ghAuthPanel = h('section', { className: 'ct-panel' },
+      const ghAuthPanel = h('section', { className: 'ct-panel', key: 'github' },
         h('div', { className: 'ct-rules-head' },
           h('h3', null, t('ghAuthTitle'))),
         h('p', { className: 'ct-note' }, authText),
@@ -2185,7 +2419,7 @@ window.__ModuleLoader__.load({
         && (typeof workspaceRow.text === 'string' ? workspaceRow.text : '') !== workspaceText
       const workspacePanel = workspaceList.length === 0
         ? null
-        : h('section', { className: 'ct-panel' },
+        : h('section', { className: 'ct-panel', key: 'workspace' },
           h('div', { className: 'ct-rules-head' },
             h('h3', null, t('workspaceRulesTitle'))),
           h('div', { className: 'ct-field' },
@@ -2223,24 +2457,92 @@ window.__ModuleLoader__.load({
           ]),
           h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, workspaceMessage))
 
+      // Navigation rail. The workspace page only exists while the registry names
+      // at least one workspace: an empty registry keeps the page out of the rail
+      // instead of opening a blank one.
+      const sections = SECTIONS.filter(function (item) {
+        return item.id !== 'workspace' || workspaceList.length > 0
+      })
+      const activeSection = sections.some(function (item) { return item.id === section })
+        ? section
+        : sections[0].id
+      const nav = h('nav', { className: 'ct-nav', 'aria-label': t('navAria') },
+        h('div', { className: 'ct-nav-brand' },
+          h('svg', {
+            viewBox: '0 0 16 16',
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: '1.3',
+            strokeLinecap: 'round',
+            'aria-hidden': 'true',
+          }, h('path', { d: 'M2.5 3.75h11M2.5 6.5h9M2.5 9.25h6.5M2.5 12h4' })),
+          h('span', null, t('sectionLabel'))),
+        sections.map(function (item) {
+          return h('button', {
+            key: item.id,
+            type: 'button',
+            className: 'ct-nav-item',
+            'data-section': item.id,
+            'aria-current': item.id === activeSection ? 'page' : undefined,
+            onClick: function () { setSection(item.id) },
+          },
+          h('svg', {
+            viewBox: '0 0 16 16',
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: '1.35',
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            'aria-hidden': 'true',
+          }, h('path', { d: item.icon })),
+          h('span', null, t(item.navLabel)))
+        }))
+
+      // License page: the plugin itself and the programs this panel can
+      // install. Legal text only, no usage instructions.
+      function licenseRow(row) {
+        return h('li', { className: 'ct-license-row', key: row.name },
+          h('span', { className: 'ct-license-name' }, row.name),
+          h('span', { className: 'ct-license-tag' }, row.license),
+          h('a', {
+            className: 'ct-license-link',
+            href: row.url,
+            target: '_blank',
+            rel: 'noreferrer noopener',
+          }, row.url))
+      }
+      const licensePanel = h('section', { className: 'ct-panel', key: 'license' },
+        h('div', { className: 'ct-rules-head' },
+          h('h3', null, t('licenseTitle'))),
+        h('p', { className: 'ct-note' }, t('licenseOwn')),
+        h('ul', { className: 'ct-license' }, licenseRow(PLUGIN_LICENSE)),
+        h('div', { className: 'ct-rules-head' },
+          h('h3', null, t('licenseComponentsTitle'))),
+        h('ul', { className: 'ct-license' }, LICENSE_ROWS.map(licenseRow)),
+        h('p', { className: 'ct-note' }, t('licenseNotice')))
+
+      const meta = state
+        ? h('div', { className: 'ct-meta', key: 'meta' },
+          h('span', null, t('engines') + t('sep') + engineCount),
+          h('span', null, t('lastCompact') + t('sep') + lastText),
+          state.paths && state.paths.settings
+            ? h('span', null, t('settingsPath') + t('sep') + state.paths.settings)
+            : null)
+        : null
+
+      const pages = {
+        levels: [panel, meta],
+        rules: [rulesPanel],
+        workspace: [workspacePanel],
+        components: [componentsPanel],
+        github: [ghAuthPanel],
+        license: [licensePanel],
+      }
+
       return h('section', { className: 'ct-page' },
-        h('div', { className: 'ct-page-inner' },
-          h('header', { className: 'ct-head' },
-            h('h2', null, t('title'))),
-          // Two columns on a wide panel, one below 900px: the tier picker and
-          // the global rules on the left, the workspace rules and the toolbox on
-          // the right. The meta footer stays full width.
-          h('div', { className: 'ct-columns' },
-            h('div', { className: 'ct-col' }, panel, rulesPanel),
-            h('div', { className: 'ct-col' }, workspacePanel, componentsPanel, ghAuthPanel)),
-          state
-            ? h('div', { className: 'ct-meta' },
-              h('span', null, t('engines') + t('sep') + engineCount),
-              h('span', null, t('lastCompact') + t('sep') + lastText),
-              state.paths && state.paths.settings
-                ? h('span', null, t('settingsPath') + t('sep') + state.paths.settings)
-                : null)
-            : null))
+        h('div', { className: 'ct-shell' },
+          nav,
+          h('div', { className: 'ct-content', key: activeSection }, pages[activeSection])))
     }
 
     /**

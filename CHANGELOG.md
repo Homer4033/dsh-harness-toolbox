@@ -1,6 +1,18 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.9.1`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.10.0`。
+
+## 1.10.0 — 2026-11-25
+
+- **面板改成「液体玻璃外壳 + 左侧分页导航」**：原来那条长滚动 + 两栏拼贴换成一个小外壳——`.ct-shell` 是 `196px minmax(0,1fr)` 栅格（最大 980px、间距 20px），左列固定导航栏，右列**一次只渲染一页**（`key` 切换触发 160ms `ct-page-in` 进场）。六个分页：档位 / 规则 / 工作区 / 组件 / GitHub / 许可；顺序由新的 `SECTIONS` 常量统一给出，没注册工作区时「工作区」页连同导航项一起消失。导航项 34px、12px 圆角，当前页用 `aria-current="page"` + accent 16% 淡染 + 40% 描边 + `inset 2px 0 0` 左竖条 + 柔光。
+- **玻璃配方只有一套**：`--ct-glass-fill` / `-rail` / `-sheen` / `-edge` / `-shadow` / `-inner` 定义在 `.ct-page` 上，导航栏与所有卡片共用；卡片圆角 16→20px，导航栏比卡片低一层（layer-2 混合）。画布用三段 accent 径向渐变（26% / 15% / 8%）压在 base 上——玻璃块背后没有明暗差就只是一块灰。
+- **修掉容器查询写错位置**：`container-type: inline-size` 原来放在 `.ct-shell` 上，而元素不会被**自己**的容器查询命中，于是外壳留在两栏、`@container` 只把导航项改成横向，结果导航被裁在 196px 的槽里（1.10.0 预览时发现）。现在容器是 `.ct-page`，`.ct-shell` 只做栅格；面板宽度 ≤720px 时导航栏变成页面上方的横向条并**换行**（不用 `overflow-x` 横滚，被裁掉的页面等于没有入口）。
+- **新增「许可」页**：本插件 MIT，加四套托管组件的标识与许可全文链接——GitHub CLI（MIT）、Git for Windows / MinGit（GPL-2.0）、FFmpeg（GPL-2.0-or-later）、python-build-standalone（PSF-2.0 · MIT），并说明这些程序不随插件分发、面板下载的是各自发行方的构建。新增 `PLUGIN_LICENSE` / `LICENSE_ROWS` 常量与 `.ct-license*` 样式（名称 + 标识 pill + 链接，链接 `target="_blank" rel="noreferrer noopener"`）。
+- **仓库胶囊终于站到输入卡上**：`conversation.input.dock` 渲染在整宽的 `.composerStack` 里，而输入卡自己按 `--dsh-composer-card-max-width` 居中——1.9.x 的整宽行只做到「不贴窗口边」，胶囊停在输入卡右侧很远。`.ct-repo-dock` 现在按 `min(calc(100% - 2 × --dsh-composer-side-clearance), --dsh-composer-card-max-width)` 收窄并 `margin: 0 auto`，胶囊右缘与输入卡右缘对齐。
+- 新增 `test/client.test.js` 用例：外壳与导航（一次一页、`aria-current`、工作区页缺席）、容器在页面而不在外壳、窄面板换行、玻璃变量与 20px 卡片圆角、许可页四套组件；旧的 `.ct-page-inner` / `.ct-columns` / `.ct-col` 断言改成「必须不存在」。测试 191 条。
+- `actionButton()` 补上 `key: action`：动作行是用数组传给 `actionRow()` 的，真实 React 里每个按钮都需要自己的 key（此前只有测试用的假 React 掩盖了这一点）。
+- 文档：[docs/UI.md](docs/UI.md) 重写（玻璃配方、分页导航、布局与容器查询的坑、许可行、胶囊对齐），[AGENTS.md](AGENTS.md) 第 14/22 条与验证要求同步，README 的使用与许可两节更新。
+- 渲染未验证：静态预览（`temp/preview-build.mjs` + 无头 Chrome，深色 token 取真实主题值）确认了外壳、分页、玻璃、许可页与胶囊对齐；真实 DSH 窗口里的最终观感要刷新页面后确认。
 
 ## 1.9.1 — 2026-11-25
 

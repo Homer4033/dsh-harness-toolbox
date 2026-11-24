@@ -171,6 +171,7 @@ const HOOK_ORDER = [
   'pathDraft', 'pathBusy',
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
+  'section',
 ]
 
 const BASE_PAGE = {
@@ -196,6 +197,7 @@ const BASE_PAGE = {
   workspaceText: '',
   workspaceMessage: '',
   workspaceBusy: false,
+  section: 'levels',
 }
 
 /** One `useState` value per hook, in call order. */
@@ -206,6 +208,11 @@ function pageStates(overrides) {
 
 function renderPage(overrides) {
   return render(pageStates(overrides)).nodes
+}
+
+/** Render one page of the shell, with the nav rail for that state. */
+function renderSection(section, overrides) {
+  return renderPage({ ...(overrides || {}), section })
 }
 
 /** The self-drawn workspace picker element, wherever the page puts it. */
@@ -351,6 +358,10 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.ok(dockCss, 'the dock row keeps its own rule')
   assert.match(dockCss[0], /justify-content: flex-end/)
   assert.match(dockCss[0], /--dsh-composer-side-clearance/)
+  // The dock row is capped to the composer card and centered: a full-width row
+  // parked the pill at the window edge, far right of the input card.
+  assert.match(dockCss[0], /--dsh-composer-card-max-width/)
+  assert.match(dockCss[0], /margin: 0 auto/)
   // No tab-strip slot survives: the pill is no longer appended to the header.
   assert.doesNotMatch(styles[0].textContent, /\.ct-repo-slot/)
   // The main panel is its own scrollport, so the page cannot grow the frame.
@@ -358,22 +369,35 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.ok(pageCss, 'the panel page keeps its own rule')
   assert.match(pageCss[0], /overflow-y: auto/)
   assert.match(pageCss[0], /flex: 1 1 auto/)
-  assert.match(styles[0].textContent, /\.ct-page-inner \{/)
-  // The panel is a two-column grid queried on its own width (the sidebar eats a
-  // fixed slice of the window, so a viewport media query would lie): one column
-  // by default, two once the page itself is at least 880px wide.
-  const pageInnerCss = String(styles[0].textContent).match(/\.ct-page-inner \{[^}]*\}/)
-  assert.ok(pageInnerCss, 'the page keeps its own content box')
-  assert.match(pageInnerCss[0], /max-width: 960px/)
-  assert.match(pageInnerCss[0], /container-type: inline-size/)
-  const columnsCss = String(styles[0].textContent).match(/\.ct-columns \{[^}]*\}/)
-  assert.ok(columnsCss, 'the page lays its cards out in columns')
-  assert.match(columnsCss[0], /grid-template-columns: minmax\(0, 1fr\)/)
-  const wideColumns = String(styles[0].textContent).match(/@container \(min-width: 880px\) \{\s*\.ct-columns \{[^}]*\}/)
-  assert.ok(wideColumns, 'a wide panel splits into two columns')
-  assert.match(wideColumns[0], /repeat\(2, minmax\(0, 1fr\)\)/)
-  assert.match(styles[0].textContent, /\.ct-col \{/)
-  assert.equal(/@media \(max-width: 899px\)/.test(styles[0].textContent), false, 'the layout queries the panel, not the window')
+  // Liquid-glass recipe shared by the rail and the cards.
+  assert.match(pageCss[0], /--ct-glass-fill:/)
+  assert.match(pageCss[0], /--ct-glass-sheen:/)
+  // The page is the query container, not the shell: a container query cannot
+  // style its own container, so a shell-level query left the shell in two
+  // columns and only flipped the rail inside a 196px slot.
+  assert.match(pageCss[0], /container-type: inline-size/)
+  // The shell is one nav rail plus one page at a time, queried on the panel's
+  // own width (the sidebar eats a fixed slice of the window).
+  const shellCss = String(styles[0].textContent).match(/\.ct-shell \{[^}]*\}/)
+  assert.ok(shellCss, 'the panel is a shell')
+  assert.match(shellCss[0], /grid-template-columns: 196px minmax\(0, 1fr\)/)
+  assert.equal(/container-type/.test(shellCss[0]), false, 'the query container is the page')
+  assert.match(shellCss[0], /max-width: 980px/)
+  assert.match(styles[0].textContent, /\.ct-nav \{/)
+  assert.match(styles[0].textContent, /\.ct-nav-item \{/)
+  assert.match(styles[0].textContent, /\.ct-nav-item\[aria-current='page'\]/)
+  assert.match(styles[0].textContent, /\.ct-content \{/)
+  assert.match(styles[0].textContent, /@keyframes ct-page-in/)
+  assert.match(styles[0].textContent, /@container \(max-width: 720px\)/)
+  // The narrow rail wraps its items; clipped pages are not an option.
+  assert.match(styles[0].textContent, /flex-wrap: wrap/)
+  const panelCss = String(styles[0].textContent).match(/\.ct-panel \{[^}]*\}/)
+  assert.match(panelCss[0], /border-radius: 20px/)
+  assert.match(panelCss[0], /--ct-glass-fill/)
+  assert.match(panelCss[0], /backdrop-filter: blur/)
+  // The old single-scroll two-column page is gone on purpose.
+  assert.equal(/\.ct-page-inner|\.ct-columns|\.ct-col \{/.test(styles[0].textContent), false, 'the two-column page is gone')
+  assert.match(styles[0].textContent, /\.ct-license-row \{/)
   // Menus share one surface, one step above the card fill, and the workspace
   // picker is self-drawn: a native select popup paints light-on-light.
   assert.match(styles[0].textContent, /\.ct-menu \{/)
@@ -403,6 +427,8 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'downloadRunning', 'downloadDone', 'downloadUnsupported',
       'stateMissing', 'statePartial', 'stateFailed', 'stateSystem',
       'repoSelectLabel', 'repoNone', 'repoTitle',
+      'navAria', 'navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navGithub', 'navLicense',
+      'levelsTitle', 'licenseTitle', 'licenseOwn', 'licenseComponentsTitle', 'licenseNotice',
     ]) {
       assert.ok(keys.includes(key), `${locale} is missing ${key}`)
     }
@@ -430,7 +456,7 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   )
 })
 
-test('the settings page renders five tier buttons and the global rules editor', () => {
+test('the tiers page renders five tier buttons and the current tier', () => {
   const nodes = renderPage()
   const buttons = nodes.filter((node) => node.type === 'button')
   const tiers = buttons.filter((node) => node.props.role === 'radio')
@@ -438,24 +464,29 @@ test('the settings page renders five tier buttons and the global rules editor', 
   const selected = tiers.filter((node) => node.props['aria-checked'] === 'true')
   assert.equal(selected.length, 1)
   assert.match(String(selected[0].props.className), /ct-level-on/)
-
-  const textareas = nodes.filter((node) => node.type === 'textarea')
-  assert.equal(textareas.length, 1)
-  // Before the rules fetch resolves there is nothing to save.
-  assert.equal(textareas[0].props.disabled, true)
-  const save = buttonOf(nodes, 'rulesSave')
-  assert.ok(save, 'the rules panel has a save button')
-  assert.equal(save.props.disabled, true)
+  // Each tier shows its two ratios on their own lines, so a narrow card does
+  // not wrap "自动 x% · 留 y%" into three.
+  const first = tiers[0]
+  const spans = (Array.isArray(first.props.children) ? first.props.children : [])
+    .filter((child) => child && child.type === 'span')
+  assert.equal(spans.length, 2)
+  assert.match(textOf(spans[0]), /^auto60%$/)
+  assert.match(textOf(spans[1]), /^retain16%$/)
+  // One page at a time: no rules editor on the tiers page.
+  assert.equal(nodes.filter((node) => node.type === 'textarea').length, 0)
+  assert.equal(buttonOf(nodes, 'rulesSave'), null)
   assert.equal(nodes.some((node) => node.type === 'style'), false, 'the stylesheet is global, not page-scoped')
 })
 
-test('the rules editor shows the saved text and enables saving an edit', () => {
+test('the rules page shows the saved text and enables saving an edit', () => {
   const saved = rulesState('Answer in Chinese.\n')
-  const nodes = renderPage({ rules: saved, rulesText: 'Answer in Chinese.\nBe brief.\n' })
+  const nodes = renderSection('rules', { rules: saved, rulesText: 'Answer in Chinese.\nBe brief.\n' })
+  assert.deepEqual(nodes.filter((node) => node.type === 'h3').map((node) => textOf(node)), ['rulesTitle'])
   const save = buttonOf(nodes, 'rulesSave')
   assert.ok(save)
   assert.equal(save.props.disabled, false)
   const textareas = nodes.filter((node) => node.type === 'textarea')
+  assert.equal(textareas.length, 1)
   assert.equal(textareas[0].props.value, 'Answer in Chinese.\nBe brief.\n')
   assert.equal(textareas[0].props.disabled, false)
   const path = 'C:/dsh/AGENTS.md'
@@ -466,7 +497,7 @@ test('the rules editor shows the saved text and enables saving an edit', () => {
 
 test('an unchanged rules draft keeps saving disabled', () => {
   const saved = rulesState('Answer in Chinese.\n')
-  const nodes = renderPage({ rules: saved, rulesText: 'Answer in Chinese.\n' })
+  const nodes = renderSection('rules', { rules: saved, rulesText: 'Answer in Chinese.\n' })
   assert.equal(buttonOf(nodes, 'rulesSave').props.disabled, true)
 })
 
@@ -484,7 +515,7 @@ test('the component panel renders one row per managed component', () => {
     }),
     componentRow('python', 'installed', { path: 'C:/dsh/compression-tiers/python/python.exe', toolVersion: '3.11.18' }),
   ]
-  const nodes = renderPage({ components: componentsPayload(rows) })
+  const nodes = renderSection('components', { components: componentsPayload(rows) })
   const names = nodes
     .filter((node) => String(node.props.className || '') === 'ct-component-name')
     .map((node) => textOf(node))
@@ -519,7 +550,7 @@ test('a missing ffprobe stays listed under the ffmpeg row', () => {
       ],
     }),
   ]
-  const nodes = renderPage({ components: componentsPayload(rows) })
+  const nodes = renderSection('components', { components: componentsPayload(rows) })
   const toolRows = nodes.filter((node) => String(node.props.className || '') === 'ct-tool')
   assert.equal(toolRows.length, 2, 'the found binary and the missing one')
   assert.match(deepText(toolRows[0]), /toolsManaged v7\.1\.1/)
@@ -535,7 +566,7 @@ test('a row with no binary at all says it once instead of repeating the state', 
       ],
     }),
   ]
-  const nodes = renderPage({ components: componentsPayload(rows) })
+  const nodes = renderSection('components', { components: componentsPayload(rows) })
   const toolRows = nodes.filter((node) => String(node.props.className || '') === 'ct-tool')
   assert.equal(toolRows.length, 0, 'nothing to list when neither binary is there')
   // The title still names both binaries, and the state appears exactly once.
@@ -549,7 +580,7 @@ test('a row with no binary at all says it once instead of repeating the state', 
 
 test('every component row obeys one button standard', () => {
   const missing = componentsPayload(['gh', 'git', 'ffmpeg', 'python'].map((id) => componentRow(id, 'missing')))
-  const nodes = renderPage({ components: missing })
+  const nodes = renderSection('components', { components: missing })
   for (const id of ['gh', 'git', 'ffmpeg', 'python']) {
     const download = buttonOf(nodes, `download:${id}`)
     assert.deepEqual(String(download.props.className).split(' '), ['ct-btn', 'ct-btn--primary'])
@@ -567,7 +598,7 @@ test('every component row obeys one button standard', () => {
 })
 
 test('a component with no managed build explains itself instead of hiding the button', () => {
-  const nodes = renderPage({
+  const nodes = renderSection('components', {
     components: componentsPayload([componentRow('gh', 'missing', { supported: false })]),
   })
   const download = buttonOf(nodes, 'download:gh')
@@ -577,7 +608,7 @@ test('a component with no managed build explains itself instead of hiding the bu
 })
 
 test('a PATH-only component offers the same forced download', () => {
-  const nodes = renderPage({
+  const nodes = renderSection('components', {
     components: componentsPayload([componentRow('git', 'system', { path: 'C:/Program Files/Git/cmd/git.exe', toolVersion: '2.56.1.windows.1' })]),
   })
   const download = buttonOf(nodes, 'download:git')
@@ -591,7 +622,7 @@ test('a PATH-only component offers the same forced download', () => {
 })
 
 test('a running download shows its progress and blocks a second start', () => {
-  const nodes = renderPage({
+  const nodes = renderSection('components', {
     components: componentsPayload([
       componentRow('ffmpeg', 'downloading', { percent: 47.9 }),
     ]),
@@ -606,7 +637,7 @@ test('a running download shows its progress and blocks a second start', () => {
 })
 
 test('a failed download keeps its error and offers a retry', () => {
-  const nodes = renderPage({
+  const nodes = renderSection('components', {
     components: componentsPayload([
       componentRow('python', 'error', { error: 'download failed HTTP 404', percent: 12 }),
     ]),
@@ -617,7 +648,7 @@ test('a failed download keeps its error and offers a retry', () => {
 })
 
 test('the component buttons wait for the payload instead of vanishing', () => {
-  const nodes = renderPage()
+  const nodes = renderSection('components')
   const blocks = nodes.filter((node) => String(node.props.className || '') === 'ct-component')
   assert.equal(blocks.length, 4, 'all four rows render before the fetch resolves')
   for (const id of ['gh', 'git', 'ffmpeg', 'python']) {
@@ -637,7 +668,7 @@ test('the download-location block moves every component and resets to the defaul
     components: [],
     running: { gh: false, git: false, ffmpeg: false, python: false },
   }
-  const unchanged = renderPage({ components: componentsPayload([], moved) })
+  const unchanged = renderSection('components', { components: componentsPayload([], moved) })
   const input = unchanged.find((node) => node.type === 'input')
   assert.ok(input, 'the panel always renders the directory field')
   assert.equal(input.props.value, 'D:/tools')
@@ -645,11 +676,11 @@ test('the download-location block moves every component and resets to the defaul
   assert.equal(buttonByText(unchanged, 'toolsPathSave')[0].props.disabled, true)
   assert.equal(buttonByText(unchanged, 'toolsPathReset')[0].props.disabled, false)
 
-  const changed = renderPage({ components: componentsPayload([], moved), pathDraft: 'D:/other-tools' })
+  const changed = renderSection('components', { components: componentsPayload([], moved), pathDraft: 'D:/other-tools' })
   assert.equal(buttonByText(changed, 'toolsPathSave')[0].props.disabled, false)
   assert.equal(changed.find((node) => node.type === 'input').props.value, 'D:/other-tools')
 
-  const relative = renderPage({ components: componentsPayload([], moved), pathDraft: 'tools' })
+  const relative = renderSection('components', { components: componentsPayload([], moved), pathDraft: 'tools' })
   const save = buttonByText(relative, 'toolsPathSave')[0]
   assert.equal(save.props.disabled, true)
   assert.equal(save.props.title, 'toolsPathInvalid')
@@ -663,21 +694,21 @@ test('a running download blocks the location buttons and says why', () => {
     components: [],
     running: { gh: false, git: true, ffmpeg: false, python: false },
   }
-  const nodes = renderPage({ components: componentsPayload([], running) })
+  const nodes = renderSection('components', { components: componentsPayload([], running) })
   assert.equal(buttonByText(nodes, 'toolsPathSave')[0].props.disabled, true)
   assert.equal(buttonByText(nodes, 'toolsPathReset')[0].props.disabled, true)
   assert.ok(deepText({ props: { children: nodes } }).includes('toolsPathRunning'))
 })
 
 test('the location block waits for its status instead of showing a wrong path', () => {
-  const nodes = renderPage()
+  const nodes = renderSection('components')
   assert.equal(buttonByText(nodes, 'toolsPathSave')[0].props.disabled, true)
   assert.equal(buttonByText(nodes, 'toolsPathReset')[0].props.disabled, true)
   assert.equal(nodes.find((node) => node.type === 'input').props.value, '')
 })
 
 test('the sign-in buttons are always rendered and disabled while idle', () => {
-  const nodes = renderPage({ login: idleLogin, auth: authState })
+  const nodes = renderSection('github', { login: idleLogin, auth: authState })
   for (const [key, reason] of [['ghCopy', 'ghLoginInactive'], ['ghOpenDevice', 'ghLoginInactive'], ['ghCancel', 'ghLoginInactive']]) {
     const buttons = buttonByText(nodes, key)
     assert.equal(buttons.length, 1, `${key} must always be rendered`)
@@ -699,7 +730,7 @@ test('a running device flow enables copying the code and cancelling', () => {
     error: null,
     startedAt: 1,
   }
-  const nodes = renderPage({ login: active, auth: authState })
+  const nodes = renderSection('github', { login: active, auth: authState })
   assert.equal(textOf(nodes.find((node) => node.type === 'code')), 'ABCD-1234')
   for (const key of ['ghCopy', 'ghOpenDevice', 'ghCancel']) {
     const buttons = buttonByText(nodes, key)
@@ -708,24 +739,21 @@ test('a running device flow enables copying the code and cancelling', () => {
   }
 })
 
-test('the sign-in panel shows the account and never a download button', () => {
+test('the sign-in page shows the account and never a download button', () => {
   const auth = { available: true, authenticated: true, account: 'Homer4033', path: 'C:/dsh/compression-tiers/gh/bin/gh.exe', version: '2.76.2' }
-  const nodes = renderPage({
-    components: componentsPayload([componentRow('gh', 'installed', { path: 'C:/dsh/compression-tiers/gh/bin/gh.exe' })]),
-    login: idleLogin,
-    auth,
-  })
+  const nodes = renderSection('github', { login: idleLogin, auth })
   const texts = nodes
     .filter((node) => typeof node.type === 'string')
     .flatMap((node) => (Array.isArray(node.props.children) ? node.props.children : []))
     .filter((child) => typeof child === 'string')
   assert.ok(texts.some((text) => text.includes('Homer4033')))
-  assert.ok(texts.some((text) => text.includes('2.76.2')))
-  assert.ok(texts.some((text) => text.includes('C:/dsh/compression-tiers/gh/bin/gh.exe')))
-  // The binary install moved to the component panel: exactly one download
-  // button for gh, and it is the row's, not the sign-in panel's.
+  // Version and path belong to the binary's row on the components page: the
+  // sign-in page only reports the account and the flow.
+  assert.ok(deepText({ props: { children: nodes } }).includes('ghLoggedIn'))
+  // The binaries live on the components page: the sign-in page owns none of
+  // those buttons.
   const downloads = nodes.filter((node) => node.type === 'button' && String(node.props['data-action'] || '').startsWith('download:'))
-  assert.deepEqual(downloads.map((node) => node.props['data-action']), ['download:gh', 'download:git', 'download:ffmpeg', 'download:python'])
+  assert.deepEqual(downloads, [], 'the sign-in page renders no component buttons')
 })
 
 test('the composer dock renders a repository pill that opens a listbox', () => {
@@ -859,13 +887,13 @@ test('the workspace rules block edits one registered workspace', () => {
     text: '',
     chars: 0,
   }
-  const nodes = renderPage({
+  const nodes = renderSection('workspace', {
     workspaceRules: workspaceRulesPayload([workspaceOne, second]),
     workspaceId: 'w1',
     workspaceText: 'Keep it short.\n',
   })
   const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
-  assert.deepEqual(headings, ['rulesTitle', 'workspaceRulesTitle', 'componentsTitle', 'ghAuthTitle'])
+  assert.deepEqual(headings, ['workspaceRulesTitle'])
   const picker = pickerOf(nodes)
   assert.ok(picker, 'the block has a workspace picker')
   assert.equal(picker.props.value, 'w1')
@@ -874,11 +902,11 @@ test('the workspace rules block edits one registered workspace', () => {
   assert.deepEqual(picker.props.items.map((item) => item.label), ['压缩上下文', '红利量化'])
   // The native select is gone: its OS-painted popup cannot be themed.
   assert.equal(nodes.some((node) => node.type === 'select'), false, 'no native select')
-  // Two textareas: the global rules and the selected workspace's rules.
+  // One textarea: the selected workspace's rules (the global one is on its own page).
   const textareas = nodes.filter((node) => node.type === 'textarea')
-  assert.equal(textareas.length, 2)
-  assert.equal(textareas[1].props.value, 'Keep it short.\n')
-  assert.equal(textareas[1].props.disabled, false)
+  assert.equal(textareas.length, 1)
+  assert.equal(textareas[0].props.value, 'Keep it short.\n')
+  assert.equal(textareas[0].props.disabled, false)
   const save = buttonOf(nodes, 'workspaceRulesSave')
   assert.ok(save, 'the block has one save button')
   assert.equal(save.props.disabled, true, 'an unchanged draft cannot be saved')
@@ -897,7 +925,7 @@ test('a workspace with no rules file says so, and editing enables saving', () =>
     text: '',
     chars: 0,
   }
-  const nodes = renderPage({
+  const nodes = renderSection('workspace', {
     workspaceRules: workspaceRulesPayload([second]),
     workspaceId: 'w2',
     workspaceText: 'Only touch src/.\n',
@@ -906,32 +934,43 @@ test('a workspace with no rules file says so, and editing enables saving', () =>
   assert.ok(deepText({ props: { children: nodes } }).includes('workspaceRulesMissing'))
 })
 
-test('no registered workspace hides the workspace rules block entirely', () => {
+test('a workspace page leaves the rail when no workspace is registered', () => {
   for (const workspaceRules of [null, workspaceRulesPayload([])]) {
-    const nodes = renderPage({ workspaceRules })
-    const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
-    assert.deepEqual(headings, ['rulesTitle', 'componentsTitle', 'ghAuthTitle'])
+    const nodes = renderSection('workspace', { workspaceRules })
+    const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
+    // No dead tab: the page only exists while the registry names a workspace.
+    assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github', 'license'])
+    // The rail falls back to the first page instead of an empty content area.
+    const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
+    assert.match(deepText(content), /levelsTitle/)
     assert.equal(pickerOf(nodes), null, 'no picker without a registry')
-    assert.equal(nodes.filter((node) => node.type === 'textarea').length, 1)
     assert.equal(buttonOf(nodes, 'workspaceRulesSave'), null)
   }
 })
 
-test('the page splits its cards into two columns', () => {
-  const nodes = renderPage({ components: componentsPayload([]) })
-  const columns = nodes.find((node) => String(node.props.className || '') === 'ct-columns')
-  assert.ok(columns, 'the page lays its cards out in columns')
-  const cols = nodes.filter((node) => String(node.props.className || '') === 'ct-col')
-  assert.equal(cols.length, 2, 'two columns on a wide panel')
-  // Tiers and the global rules stay left, the workspace rules and the toolbox
-  // move right; the sign-in card travels with the toolbox.
-  assert.match(deepText(cols[0]), /rulesTitle/)
-  assert.doesNotMatch(deepText(cols[0]), /componentsTitle/)
-  assert.match(deepText(cols[1]), /componentsTitle/)
-  assert.match(deepText(cols[1]), /ghAuthTitle/)
-  // The five tier buttons ride the left column, not a full-width strip.
-  assert.equal(cols[0].props.children.some((child) => child && child.props
-    && String(child.props.className || '') === 'ct-panel'), true)
+test('the panel is a shell: one navigation rail and one page at a time', () => {
+  const nodes = renderSection('components', { components: componentsPayload([]) })
+  const nav = nodes.find((node) => String(node.props.className || '') === 'ct-nav')
+  assert.ok(nav, 'the panel renders a navigation rail')
+  assert.equal(nav.type, 'nav')
+  assert.equal(nav.props['aria-label'], 'navAria')
+  const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github', 'license'])
+  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navGithub', 'navLicense'])
+  const current = items.filter((node) => node.props['aria-current'] === 'page')
+  assert.equal(current.length, 1, 'exactly one page is current')
+  assert.equal(current[0].props['data-section'], 'components')
+  // Every rail row carries its icon.
+  for (const item of items) {
+    const children = Array.isArray(item.props.children) ? item.props.children : []
+    assert.ok(children.some((child) => child && child.type === 'svg'), 'rail rows have icons')
+  }
+  const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
+  assert.ok(content)
+  assert.match(deepText(content), /componentsTitle/)
+  assert.doesNotMatch(deepText(content), /rulesTitle|ghAuthTitle|levelsTitle/)
+  // Switching pages re-keys the content box so the entry animation replays.
+  assert.equal(content.props.key, 'components')
 })
 
 test('the workspace picker is a self-drawn listbox, not a native select', () => {
@@ -945,6 +984,7 @@ test('the workspace picker is a self-drawn listbox, not a native select', () => 
     chars: 0,
   }
   const overrides = {
+    section: 'workspace',
     workspaceRules: workspaceRulesPayload([workspaceOne, second]),
     workspaceId: 'w1',
     workspaceText: 'Keep it short.\n',
@@ -987,11 +1027,53 @@ test('the workspace picker is a self-drawn listbox, not a native select', () => 
   assert.equal(idle.props.disabled, true)
 })
 
-test('the page renders the tiers, the rules and one component panel', () => {
-  const nodes = renderPage({ components: componentsPayload([]) })
-  const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
-  assert.deepEqual(headings, ['rulesTitle', 'componentsTitle', 'ghAuthTitle'])
-  // One input (the download directory) and one textarea (the rules).
-  assert.equal(nodes.filter((node) => node.type === 'input').length, 1)
-  assert.equal(nodes.some((node) => node.type === 'select'), false, 'no native select anywhere on the page')
+test('each page renders only its own card', () => {
+  const cases = [
+    ['levels', {}, ['levelsTitle']],
+    ['rules', {}, ['rulesTitle']],
+    ['workspace', { workspaceRules: workspaceRulesPayload([workspaceOne]), workspaceId: 'w1' }, ['workspaceRulesTitle']],
+    ['components', { components: componentsPayload([]) }, ['componentsTitle']],
+    ['github', {}, ['ghAuthTitle']],
+    ['license', {}, ['licenseTitle', 'licenseComponentsTitle']],
+  ]
+  for (const [section, overrides, headings] of cases) {
+    const nodes = renderSection(section, overrides)
+    assert.deepEqual(nodes.filter((node) => node.type === 'h3').map((node) => textOf(node)), headings, section + ' page')
+    assert.equal(nodes.some((node) => node.type === 'select'), false, 'no native select on ' + section)
+    const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
+    assert.equal(items.filter((node) => node.props['aria-current'] === 'page').length, 1, section + ' keeps one current row')
+    assert.equal(items.find((node) => node.props['aria-current'] === 'page').props['data-section'], section)
+  }
+  // One input (the download directory), on the components page only.
+  assert.equal(renderSection('components', { components: componentsPayload([]) })
+    .filter((node) => node.type === 'input').length, 1)
+  assert.equal(renderSection('rules').filter((node) => node.type === 'input').length, 0)
+})
+
+test('the license page lists the plugin and every managed component', () => {
+  const nodes = renderSection('license')
+  const rows = nodes.filter((node) => String(node.props.className || '') === 'ct-license-row')
+  // The plugin's own MIT row plus the four programs the panel can install.
+  assert.equal(rows.length, 5)
+  const text = rows.map((row) => deepText(row))
+  assert.match(text[0], /^dsh-harness-toolboxMIT/)
+  assert.match(text[0], /github\.com\/Homer4033\/dsh-harness-toolbox.*LICENSE/)
+  const names = ['GitHub CLI', 'Git for Windows (MinGit)', 'FFmpeg', 'Python (python-build-standalone)']
+  names.forEach((name, index) => {
+    assert.ok(text[index + 1].startsWith(name), 'row ' + index + ' names ' + name)
+  })
+  assert.match(text[1], /MIT/)
+  assert.match(text[2], /GPL-2\.0/)
+  assert.match(text[3], /GPL-2\.0-or-later/)
+  assert.match(text[4], /PSF-2\.0/)
+  // Every row links to the license text it names.
+  const links = nodes.filter((node) => node.type === 'a' && String(node.props.className || '') === 'ct-license-link')
+  assert.equal(links.length, 5)
+  for (const link of links) {
+    assert.match(link.props.href, /^https:\/\//)
+    assert.equal(link.props.target, '_blank')
+    assert.match(link.props.rel, /noreferrer/)
+  }
+  // Legal notice is allowed on the panel; usage instructions are not.
+  assert.ok(deepText({ props: { children: nodes } }).includes('licenseNotice'))
 })
