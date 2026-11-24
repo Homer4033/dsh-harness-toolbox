@@ -1,6 +1,16 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.9.0`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.9.1`。
+
+## 1.9.1 — 2026-11-25
+
+- **新增 UI 规范 `docs/UI.md`**：表面层级（页面 base → 卡片 layer-2 → 弹层 layer-3）、间距刻度、圆角、控件高度、卡片三段结构、自绘下拉规则、动效与禁止项、类名映射与检查清单。以后改面板先改规范再改样式。
+- **面板改成 960px 两栏栅格**：`.ct-page-inner` 760→960px，新增 `.ct-columns` / `.ct-col`——宽窗两列，左列档位 + 全局规则，右列工作区规则 + 组件管理 + GitHub 登录；按面板自身宽度判断（容器查询 880px，不看窗口宽度），更窄时回落单列。卡片保留 16px 圆角与 16px 间距，档位按钮里的两个比例拆成两行，「自动 80% · 留 20%」在半宽卡里不再被挤成三行。
+- **工作区下拉换成自绘 `Select`**：原生 `<select>` 的弹层由系统绘制，深色主题下是浅底 + 从面板继承来的浅字，选项在白底上看不见（只有悬停行显形）。现在是一个触发器按钮 + portal 到 body 的 listbox：`aria-haspopup` / `aria-expanded` / `aria-activedescendant`，↑ / ↓ / Home / End / Enter / Esc 与外部点击、窗口 resize 关闭，和仓库胶囊共用 `placeMenu()` / `useMenuDismiss()` / `useMenuFocus()` / `menuMove()`。
+- **仓库上拉菜单重做**：弹层改用 layer-3 玻璃表面（layer-2 与卡片同色，旧菜单读起来就是一行浮着的文字）、accent 混合描边 + 光晕 + 顶部高光、16px 圆角、`0 24px 64px` 阴影；标题行前加 2px accent 竖条，分隔线改成两端淡出的渐变；选项 34px、10px 圆角，悬停/键盘高亮用 accent 淡染，选中项再加左侧 2px accent 竖条与勾选位，「私有」变成 pill 标签；上拉/下拉各一套 140ms 进场。右对齐的胶囊用 `align: 'end'` 定位，菜单右缘与输入卡对齐、朝页面中间展开。
+- 胶囊绑定态改用 accent 淡染底与 accent 混合描边；`.ct-select` 展开时描边转选中色、箭头 180° 旋转。
+- 测试 190 条（新增两栏结构、自绘下拉两条用例；原有的菜单用例改用 `.ct-menu` 系列类名，并断言旧 `.ct-repo-menu` / `.ct-repo-option` 不再出现在样式表里）。
+- 渲染未验证：静态预览（`temp/preview-build.mjs` + 无头 Chrome，深色 token 取真实主题值）确认了两栏落位、胶囊与菜单的层次和右对齐；真实 DSH 窗口里的最终观感要刷新页面后确认。
 
 ## 1.9.0 — 2026-11-25
 

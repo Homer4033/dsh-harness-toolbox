@@ -58,6 +58,7 @@
 19. git / Python 的托管安装：下载用 `COMPONENTS` 里钉住的 URL 与 HTTP Range 续传；解压与暂存必须在 `<toolsPath>/.staging/<id>`（**不能**放在组件目录内，否则整棵树 rename 到 `<root>/<id>` 会踩父目录），先对暂存二进制跑一次 `--version`，通过后整棵树原子替换、失败回滚旧版本；只把 `git/cmd`、`python`、`python/Scripts` 插到本进程 PATH 最前，不写系统环境变量。托管源只有 Windows，其它平台只做 PATH 检测并报「当前系统不可用」。
 20. 安装替换必须经 `src/swap.js` 的 `moveIntoPlace()`，不得直接 `renameSync` 到安装目录：Windows 在目录里有文件被占用（杀毒扫描刚写出的二进制、`-version` 子进程还没退干净）时把 rename 报成 `EPERM`，必须「重试退避 → 仍失败就复制过去」，否则用户看到的就是一次白下的安装失败。下载完成的归档文件（`<root>/<id>/download/<file>`）要复用，重试时先判断它是否已存在，存在就不再下载。
 21. 工作区规则：清单唯一来源是 `<DSH home>/storages/workspace.json`（`global.workspaceIds` + `tables.workspaces`，由 `src/workspace-rules.js` 读取）。只允许编辑清单内且 `path` 为绝对路径的工作区；客户端传任意路径一律不接受，id 不在清单返回 404；同一目录只出现一次，最多 50 个。写入走 `normalizeRulesText` 与原子写入；清单为空或读不出来时整个区块不渲染（不置灰、不留空面板）。插件不改注册表，也不缓存第二份规则文本。
+22. 面板与弹层遵守 [docs/UI.md](docs/UI.md)：`.ct-page-inner` 最大 960px、`.ct-columns` 按面板自身宽度两栏（`@container (min-width: 880px)`，窄面板单列），卡片 16px 圆角、三段结构（标题行 → 内容 → 动作行）；下拉与菜单一律自绘（`Select` 组件 + `.ct-menu`：portal 到 body、`placeMenu()` 定位、`data-side` 决定上拉/翻下、↑ / ↓ / Home / End / Enter / Esc 与 `aria-activedescendant`），不得再出现原生 `<select>`（系统弹层是浅底 + 继承来的浅字）。弹层表面用 `--dsw-alias-bg-layer-3` 加玻璃与阴影，**不得**用 layer-2（那是卡片色，菜单会读成浮着的一行文字）；accent 只做 12–20% 淡染与 2px 竖条。改控件先改规范，再改样式。
 
 ## 验证要求
 
@@ -75,6 +76,7 @@
 - 修改 `src/swap.js`（安装树替换）后，`test/swap.test.js` 必须覆盖首试成功、锁重试后成功、锁不释放退化为复制、不可重试错误（`ENOENT`）早退、跨卷 `EXDEV` 直接复制；`src/gh.js` / `src/ffmpeg.js` / `src/components.js` 里到安装目录的移动必须走 `moveIntoPlace`，不得留裸 `renameSync`。
 - 修改 src/components.js、/compression-tiers/api/components 或某一行组件后，`test/components.test.js` 必须覆盖钉住的 URL 与资源文件名（含 Python 的 `%2B`）、版本解析、PATH 检测、状态（missing / partial / installed / system）、PATH 前插去重与未知组件/无托管构建的早退；`test/component-rows.test.js` 覆盖四行顺序与 state → ready/managed/system/running 映射；`test/client.test.js` 覆盖四行的按钮一致性。
 - 修改面板文案或按钮后，`test/client.test.js` 必须覆盖：动作按钮常显（含设备码复制 / 打开授权页 / 取消在空闲时仍渲染且 `disabled`、组件行在状态未到时仍渲染）、说明段键已删除（`intro`、`ghToolNote` 等不得回到字典里）、空状态行收起（`.ct-status:empty` / `.ct-note:empty` 不占位、面板底部不留白），以及四套组件行的按钮一致性（同样的类名、同样的标签键、同样的禁用态、同样的一行顺序）；按面板分裂的标签键（`ghDownload`、`toolsInstall` 等）与已合并的旧面板键（`toolsTitle`、`toolsPathTitle`、`ghTitle`、`ghPathLabel`）都不得回归。
+- 修改面板布局、控件或弹层（`client.js` 的 `CSS` / `Page` / `Select` / `RepoBinding`）后，`test/client.test.js` 必须覆盖：两栏容器与窄面板单列（`@container` 880px，不按窗口宽）、卡片与弹层类名（`.ct-menu` / `.ct-menu-head` / `.ct-menu-option`，旧 `.ct-repo-menu` / `.ct-repo-option` 不得回归）、自绘下拉（触发器 `aria-haspopup` / `aria-expanded`、portal 菜单 `role=listbox`、选项 id 与选中态、活动项高亮、`aria-activedescendant`）、页面上没有原生 `select`，以及上拉定位与翻向仍按 `data-side` / `bottom` 决定；同时确认 [docs/UI.md](docs/UI.md) 与实现一致（表面层级、类名映射、焦点环、禁用态）。
 - 发布前运行 `npm run check:secrets`；新增运行时文件、改 `package.json` 的 `files` 或版本号后同步 `CHANGELOG.md` 并按版本打 tag（`vX.Y.Z`）。
 - 修改 manifest、locale、图标或 `client.js` 注册方式后，检查 `test/manifest.test.js` 全绿。
 - 安装验证以插件页的 `application` 结果与新会话中的工具/设置为准，不以下载或日志推断成功。
@@ -87,6 +89,7 @@
 - [scripts/check-secrets.mjs](scripts/check-secrets.mjs)：`npm run check:secrets`，CI 与本地共用的密钥扫描入口。
 - [docs/DETAIL.md](docs/DETAIL.md)：插件详情页（英文，单图）。
 - [docs/DETAIL.zh.md](docs/DETAIL.zh.md)：插件详情页（中文，单图）。
+- [docs/UI.md](docs/UI.md)：面板与自绘弹层的 UI 规范（表面层级、栅格、卡片、下拉、动效、检查清单）。
 - [locale/en.json](locale/en.json)、[locale/zh.json](locale/zh.json)：插件管理器元数据与描述。
 - [test/](test/)：单元测试与 manifest 规范检查。
 
@@ -121,3 +124,4 @@
 - 2026-11-22：修复 Windows 安装 `EPERM`：新增 `src/swap.js` 的 `moveIntoPlace()`（rename 重试 7 次指数退避，仍失败退化为复制；`EXDEV` 直接复制），gh / ffmpeg / git / Python 的落位全部改走它并保留回滚；已下载完成的归档在重试时复用，不再白下第二次。新增 `test/swap.test.js`（6 条）与第 20 条。版本 1.8.8。
 - 2026-11-24：插件说明按官方体例重写：显示名 `上下文压缩分档` → **`压缩分档与工具箱`**，`meta.description` 收成「一句话 + 准确 UI 文案 + 限制 + 数据流向 + 关掉后的变化」，中文 438 字 / 英文 971 字符（插件列表只显示一行）；`package.json` 的 description 与 keywords 同步。版本 1.8.9、1.8.10。
 - 2026-11-25：**1.9.0 UI 改造**：设置页搬进左侧栏——删除 `settings.section`，改为 `sidebar.panellist`（id `compression-tiers`，order 47，label 与图标）+ `main` 面板，页面自身成为滚动容器（`.ct-page` / `.ct-page-inner`），`package.json` 的 `dsh.client.inject` 换成 layout / sidebar / conversation 三个官方包。新增**工作区规则**：`src/workspace-rules.js` 读工作区注册表、校验后原子写各工作区根目录的 `AGENTS.md`，新增 `GET/POST /compression-tiers/api/workspace-rules`；注册表为空时整块不渲染。会话发布仓库胶囊从 `conversation.session.header.actions` 移到 `conversation.input.dock`（空会话也渲染、输入框正上方、右对齐），菜单改为默认上拉（`bottom` 定位 + 上方空间 `max-height`，上方不足时翻成 `data-side='down'`），并重做观感（14px 圆角、分组标题、32px 选项、活动项高亮、130ms 进场）与键盘操作（↑/↓/Home/End/Enter/Esc，`aria-activedescendant`）；新增 `test/workspace-rules.test.js`（8 条）与上拉/翻向/高亮用例，测试 188 条；版本 1.9.0。
+- 2026-11-25：**1.9.1 观感与 UI 规范**：新增 [docs/UI.md](docs/UI.md)（表面层级、间距刻度、960px 两栏栅格、卡片三段结构、自绘下拉规范、动效与禁止项）并把面板排成两栏——`.ct-page-inner` 760→960px、`.ct-columns` 按面板自身宽度两列（容器查询 `@container (min-width: 880px)`，更窄单列），左列档位 + 全局规则、右列工作区规则 + 组件管理 + GitHub 登录；档位按钮的两个比例拆成两行，半宽卡里不再被挤成三行。工作区下拉不再用原生 `<select>`（深色主题下系统弹层是浅底 + 继承来的浅字，选项不可见），改为自绘 `Select`：触发器按钮 + portal 到 body 的 listbox，↑/↓/Home/End/Enter/Esc、外部点击、resize、`aria-activedescendant` 全部与仓库菜单共用 `placeMenu` / `useMenuDismiss` / `useMenuFocus` / `menuMove`。仓库上拉菜单重做：layer-3 玻璃表面（layer-2 与卡片同色，菜单读起来像浮着的文字）、accent 混合描边与光晕、16px 圆角、顶部高光、分组标题前的 2px accent 竖条、34px 选项、accent 淡染 hover/选中 + 选中行左侧竖条、右对齐触发器的菜单也右对齐（`align: 'end'`）。测试 190 条（新增两栏结构与自绘下拉用例）；版本 1.9.1。

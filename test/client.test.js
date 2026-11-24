@@ -98,11 +98,11 @@ function sectionContext(registrations, dictionaries) {
   }
 }
 
-function render(states) {
+function render(states, refValues) {
   const { module } = loadClient()
   const registrations = []
   const dictionaries = {}
-  module.factory((specifier) => (specifier === 'react-dom' ? { createPortal: (node) => node } : fakeReact(states))).apply(sectionContext(registrations, dictionaries))
+  module.factory((specifier) => (specifier === 'react-dom' ? { createPortal: (node) => node } : fakeReact(states, refValues))).apply(sectionContext(registrations, dictionaries))
   const panel = registrations.find((item) => item.options.name === 'main')
   assert.ok(panel, 'the toolbox main panel is registered')
   const element = panel.component()
@@ -133,11 +133,6 @@ function deepText(node) {
   if (!node || typeof node !== 'object') return ''
   const children = node.props && Array.isArray(node.props.children) ? node.props.children : []
   return children.map(deepText).join('')
-}
-
-function optionsOf(select) {
-  const children = Array.isArray(select.props.children) ? select.props.children : []
-  return children.flat(Infinity).filter((node) => node && node.type === 'option')
 }
 
 const settingsState = {
@@ -211,6 +206,24 @@ function pageStates(overrides) {
 
 function renderPage(overrides) {
   return render(pageStates(overrides)).nodes
+}
+
+/** The self-drawn workspace picker element, wherever the page puts it. */
+function pickerOf(nodes) {
+  return nodes.find((node) => typeof node.type === 'function' && node.props && Array.isArray(node.props.items)) || null
+}
+
+/**
+ * Render the picker itself. The page render leaves the component element
+ * unexpanded, so the picker's own hook values are appended to the page queue
+ * (open, active) and its refs are seeded in call order (trigger, menu,
+ * placement).
+ */
+function renderPicker(overrides, pickerStates, refValues) {
+  const nodes = render(pageStates(overrides).concat(pickerStates || []), refValues).nodes
+  const picker = pickerOf(nodes)
+  assert.ok(picker, 'the workspace picker is a self-drawn component')
+  return collect(picker.type(picker.props))
 }
 
 const ROOT = {
@@ -346,10 +359,29 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.match(pageCss[0], /overflow-y: auto/)
   assert.match(pageCss[0], /flex: 1 1 auto/)
   assert.match(styles[0].textContent, /\.ct-page-inner \{/)
-  // The listbox opens upward and flips down only when the room above is gone.
-  assert.match(styles[0].textContent, /\.ct-repo-menu\[data-side='down'\]/)
-  assert.match(styles[0].textContent, /@keyframes ct-repo-rise/)
-  assert.match(styles[0].textContent, /\.ct-repo-option-active/)
+  // The panel is a two-column grid queried on its own width (the sidebar eats a
+  // fixed slice of the window, so a viewport media query would lie): one column
+  // by default, two once the page itself is at least 880px wide.
+  const pageInnerCss = String(styles[0].textContent).match(/\.ct-page-inner \{[^}]*\}/)
+  assert.ok(pageInnerCss, 'the page keeps its own content box')
+  assert.match(pageInnerCss[0], /max-width: 960px/)
+  assert.match(pageInnerCss[0], /container-type: inline-size/)
+  const columnsCss = String(styles[0].textContent).match(/\.ct-columns \{[^}]*\}/)
+  assert.ok(columnsCss, 'the page lays its cards out in columns')
+  assert.match(columnsCss[0], /grid-template-columns: minmax\(0, 1fr\)/)
+  const wideColumns = String(styles[0].textContent).match(/@container \(min-width: 880px\) \{\s*\.ct-columns \{[^}]*\}/)
+  assert.ok(wideColumns, 'a wide panel splits into two columns')
+  assert.match(wideColumns[0], /repeat\(2, minmax\(0, 1fr\)\)/)
+  assert.match(styles[0].textContent, /\.ct-col \{/)
+  assert.equal(/@media \(max-width: 899px\)/.test(styles[0].textContent), false, 'the layout queries the panel, not the window')
+  // Menus share one surface, one step above the card fill, and the workspace
+  // picker is self-drawn: a native select popup paints light-on-light.
+  assert.match(styles[0].textContent, /\.ct-menu \{/)
+  assert.match(styles[0].textContent, /\.ct-menu\[data-side='down'\]/)
+  assert.match(styles[0].textContent, /@keyframes ct-menu-rise/)
+  assert.match(styles[0].textContent, /\.ct-menu-option-active/)
+  assert.match(styles[0].textContent, /\.ct-select \{/)
+  assert.equal(/\.ct-repo-option|\.ct-repo-menu/.test(styles[0].textContent), false, 'the old menu classes are gone')
   assert.match(styles[0].textContent, /\.ct-component \{/)
   // Empty status/note lines must collapse instead of leaving a gap in the panel.
   assert.match(styles[0].textContent, /\.ct-status:empty,\s*\.ct-note:empty \{/)
@@ -718,7 +750,7 @@ test('the composer dock renders a repository pill that opens a listbox', () => {
     textOf(nodes.find((node) => String(node.props.className || '') === 'ct-repo-value')),
     'Homer4033/dsh-compression-tiers',
   )
-  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-repo-menu')
+  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-menu')
   assert.ok(menu, 'the open pill renders its listbox')
   assert.equal(menu.props.role, 'listbox')
   // Upward placement: bottom edge anchored above the pill, not a `top` drop.
@@ -731,11 +763,11 @@ test('the composer dock renders a repository pill that opens a listbox', () => {
   assert.equal(menu.props.tabIndex, -1)
   assert.equal(typeof menu.props.onKeyDown, 'function')
   assert.equal(menu.props['aria-activedescendant'], 'ct-repo-option-1')
-  const options = nodes.filter((node) => String(node.props.className || '').split(' ').includes('ct-repo-option'))
+  const options = nodes.filter((node) => String(node.props.className || '').split(' ').includes('ct-menu-option'))
   assert.deepEqual(options.map((option) => option.props['aria-selected']), ['false', 'true', 'false'])
   assert.deepEqual(options.map((option) => option.props.id), ['ct-repo-option-0', 'ct-repo-option-1', 'ct-repo-option-2'])
-  assert.match(String(options[1].props.className), /ct-repo-option-active/)
-  assert.doesNotMatch(String(options[0].props.className), /ct-repo-option-active/)
+  assert.match(String(options[1].props.className), /ct-menu-option-active/)
+  assert.doesNotMatch(String(options[0].props.className), /ct-menu-option-active/)
   assert.deepEqual(options.map((option) => deepText(option)), [
     'repoNone',
     '✓Homer4033/dsh-compression-tiers',
@@ -746,7 +778,7 @@ test('the composer dock renders a repository pill that opens a listbox', () => {
 test('the listbox drops downward only when the room above is gone', () => {
   const nodes = renderDock([[], '', '', false, true, 0], { sessionId: 'session-down', t: (key) => key },
     [null, null, { up: false, top: 300, left: 8, width: 288, maxHeight: 200 }, true])
-  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-repo-menu')
+  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-menu')
   assert.equal(menu.props['data-side'], 'down')
   assert.equal(menu.props.style.top, '300px')
   assert.equal(menu.props.style.bottom, undefined)
@@ -755,22 +787,22 @@ test('the listbox drops downward only when the room above is gone', () => {
 test('the repository listbox is titled and separates "no repository"', () => {
   const repos = [{ nameWithOwner: 'Homer4033/one', private: false }]
   const nodes = renderDock([repos, '', '', false, true, null], { sessionId: 'session-menu', t: (key) => key })
-  const head = nodes.find((node) => String(node.props.className || '') === 'ct-repo-menu-head')
+  const head = nodes.find((node) => String(node.props.className || '') === 'ct-menu-head')
   assert.ok(head, 'the listbox renders a title line')
   assert.equal(head.props.role, 'presentation')
   assert.equal(textOf(head), 'repoSelectLabel')
   const order = nodes
-    .filter((node) => ['ct-repo-menu-head', 'ct-repo-sep', 'ct-repo-option'].includes(String(node.props.className || '').split(' ')[0]))
+    .filter((node) => ['ct-menu-head', 'ct-menu-sep', 'ct-menu-option'].includes(String(node.props.className || '').split(' ')[0]))
     .map((node) => String(node.props.className || '').split(' ')[0])
-  assert.deepEqual(order, ['ct-repo-menu-head', 'ct-repo-option', 'ct-repo-sep', 'ct-repo-option'])
+  assert.deepEqual(order, ['ct-menu-head', 'ct-menu-option', 'ct-menu-sep', 'ct-menu-option'])
 })
 
 test('a retired binding stays selectable; a closed pill renders no listbox', () => {
   const retired = renderDock([[], 'Homer4033/retired', '', false, true, null], { sessionId: 'session-b', t: (key) => key })
-  const options = retired.filter((node) => String(node.props.className || '').split(' ').includes('ct-repo-option'))
+  const options = retired.filter((node) => String(node.props.className || '').split(' ').includes('ct-menu-option'))
   assert.deepEqual(options.map((option) => deepText(option)), ['repoNone', '✓Homer4033/retired'])
   const closed = renderDock([[], '', '', false, false, null], { sessionId: 'session-b', t: (key) => key })
-  assert.equal(closed.some((node) => String(node.props.className || '') === 'ct-repo-menu'), false)
+  assert.equal(closed.some((node) => String(node.props.className || '') === 'ct-menu'), false)
   const disabled = renderDock([[], '', '', false], { t: (key) => key })
   assert.equal(disabled.find((node) => String(node.props.className || '') === 'ct-repo-pill').props.disabled, true)
 })
@@ -834,11 +866,14 @@ test('the workspace rules block edits one registered workspace', () => {
   })
   const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
   assert.deepEqual(headings, ['rulesTitle', 'workspaceRulesTitle', 'componentsTitle', 'ghAuthTitle'])
-  const select = nodes.find((node) => node.type === 'select')
-  assert.ok(select, 'the block has a workspace picker')
-  assert.equal(select.props.value, 'w1')
-  assert.deepEqual(optionsOf(select).map((option) => option.props.value), ['w1', 'w2'])
-  assert.deepEqual(optionsOf(select).map((option) => textOf(option)), ['压缩上下文', '红利量化'])
+  const picker = pickerOf(nodes)
+  assert.ok(picker, 'the block has a workspace picker')
+  assert.equal(picker.props.value, 'w1')
+  assert.equal(typeof picker.props.onChange, 'function')
+  assert.deepEqual(picker.props.items.map((item) => item.value), ['w1', 'w2'])
+  assert.deepEqual(picker.props.items.map((item) => item.label), ['压缩上下文', '红利量化'])
+  // The native select is gone: its OS-painted popup cannot be themed.
+  assert.equal(nodes.some((node) => node.type === 'select'), false, 'no native select')
   // Two textareas: the global rules and the selected workspace's rules.
   const textareas = nodes.filter((node) => node.type === 'textarea')
   assert.equal(textareas.length, 2)
@@ -876,10 +911,80 @@ test('no registered workspace hides the workspace rules block entirely', () => {
     const nodes = renderPage({ workspaceRules })
     const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
     assert.deepEqual(headings, ['rulesTitle', 'componentsTitle', 'ghAuthTitle'])
-    assert.equal(nodes.some((node) => node.type === 'select'), false)
+    assert.equal(pickerOf(nodes), null, 'no picker without a registry')
     assert.equal(nodes.filter((node) => node.type === 'textarea').length, 1)
     assert.equal(buttonOf(nodes, 'workspaceRulesSave'), null)
   }
+})
+
+test('the page splits its cards into two columns', () => {
+  const nodes = renderPage({ components: componentsPayload([]) })
+  const columns = nodes.find((node) => String(node.props.className || '') === 'ct-columns')
+  assert.ok(columns, 'the page lays its cards out in columns')
+  const cols = nodes.filter((node) => String(node.props.className || '') === 'ct-col')
+  assert.equal(cols.length, 2, 'two columns on a wide panel')
+  // Tiers and the global rules stay left, the workspace rules and the toolbox
+  // move right; the sign-in card travels with the toolbox.
+  assert.match(deepText(cols[0]), /rulesTitle/)
+  assert.doesNotMatch(deepText(cols[0]), /componentsTitle/)
+  assert.match(deepText(cols[1]), /componentsTitle/)
+  assert.match(deepText(cols[1]), /ghAuthTitle/)
+  // The five tier buttons ride the left column, not a full-width strip.
+  assert.equal(cols[0].props.children.some((child) => child && child.props
+    && String(child.props.className || '') === 'ct-panel'), true)
+})
+
+test('the workspace picker is a self-drawn listbox, not a native select', () => {
+  const second = {
+    id: 'w2',
+    title: '红利量化',
+    path: 'D:/DSH插件/红利量化',
+    file: 'D:/DSH插件/红利量化/AGENTS.md',
+    exists: false,
+    text: '',
+    chars: 0,
+  }
+  const overrides = {
+    workspaceRules: workspaceRulesPayload([workspaceOne, second]),
+    workspaceId: 'w1',
+    workspaceText: 'Keep it short.\n',
+  }
+  const nodes = renderPicker(overrides, [true, 1], [null, null, null, null, { up: false, top: 640, left: 24, width: 300, maxHeight: 260 }])
+  const trigger = nodes.find((node) => String(node.props.className || '') === 'ct-select')
+  assert.ok(trigger, 'the picker renders a trigger button')
+  assert.equal(trigger.type, 'button')
+  assert.equal(trigger.props['aria-haspopup'], 'listbox')
+  assert.equal(trigger.props['aria-expanded'], 'true')
+  assert.equal(trigger.props.disabled, false)
+  assert.equal(trigger.props['aria-label'], 'workspaceSelectLabel')
+  assert.equal(
+    textOf(nodes.find((node) => String(node.props.className || '') === 'ct-select-value')),
+    '压缩上下文',
+  )
+  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-menu')
+  assert.ok(menu, 'the open picker portals its listbox')
+  assert.equal(menu.props.role, 'listbox')
+  assert.equal(menu.props['data-side'], 'down')
+  assert.equal(menu.props.style.top, '640px')
+  assert.equal(menu.props.style.left, '24px')
+  assert.equal(menu.props.style.width, '300px')
+  assert.equal(menu.props.style.maxHeight, '260px')
+  assert.equal(menu.props.style.bottom, undefined)
+  assert.equal(menu.props['aria-activedescendant'], 'ct-select-option-1')
+  const head = nodes.find((node) => String(node.props.className || '') === 'ct-menu-head')
+  assert.equal(textOf(head), 'workspaceSelectLabel')
+  const options = nodes.filter((node) => String(node.props.className || '').split(' ').includes('ct-menu-option'))
+  assert.deepEqual(options.map((option) => option.props.id), ['ct-select-option-0', 'ct-select-option-1'])
+  assert.deepEqual(options.map((option) => option.props['aria-selected']), ['true', 'false'])
+  assert.deepEqual(options.map((option) => deepText(option)), ['✓压缩上下文', '红利量化'])
+  assert.doesNotMatch(String(options[0].props.className), /ct-menu-option-active/)
+  assert.match(String(options[1].props.className), /ct-menu-option-active/)
+  // Closed and busy: no listbox, and the trigger explains why it cannot open.
+  const closed = renderPicker({ ...overrides, workspaceBusy: true }, [false, 0])
+  assert.equal(closed.some((node) => String(node.props.className || '') === 'ct-menu'), false)
+  const idle = closed.find((node) => String(node.props.className || '') === 'ct-select')
+  assert.equal(idle.props['aria-expanded'], 'false')
+  assert.equal(idle.props.disabled, true)
 })
 
 test('the page renders the tiers, the rules and one component panel', () => {
@@ -888,5 +993,5 @@ test('the page renders the tiers, the rules and one component panel', () => {
   assert.deepEqual(headings, ['rulesTitle', 'componentsTitle', 'ghAuthTitle'])
   // One input (the download directory) and one textarea (the rules).
   assert.equal(nodes.filter((node) => node.type === 'input').length, 1)
-  assert.equal(optionsOf(nodes.find((node) => node.type === 'select') || { props: { children: [] } }).length, 0)
+  assert.equal(nodes.some((node) => node.type === 'select'), false, 'no native select anywhere on the page')
 })

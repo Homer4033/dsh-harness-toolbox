@@ -23,7 +23,7 @@
 
 包名 `dsh-harness-toolbox`（已发布在 npmjs.com，版本见 `npm view dsh-harness-toolbox version`）：
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.9.0`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.9.1`）；
 2. 安装完成后打开新会话 → 左侧栏的 **压缩分档** 面板。
 
 也可以在会话里让智能体用 `plugin_manager` 安装这个包名。
@@ -47,6 +47,8 @@
 - **工作区规则**：从已注册工作区里选一个，编辑它根目录的 `AGENTS.md`；工作区注册表为空时整块不显示。
 - **组件管理**：GitHub CLI、git、ffmpeg/ffprobe、Python 四行，每行「下载 / 重新检测」，底部是四套组件共用的下载目录。
 - **GitHub 登录**：账号状态、`gh auth login --web` 设备码、网络体检。
+
+面板在宽窗下排成两栏（左列档位与全局规则，右列工作区规则、组件管理与登录），窄窗回落单列；表面层级、间距、卡片与下拉的规范见 [docs/UI.md](docs/UI.md)。
 
 输入框上方还有一个「仓库」胶囊：给当前会话绑定一个在线仓库，`github_push` 默认推到它；胶囊在空会话里也显示，菜单向上弹出。
 
@@ -96,6 +98,7 @@
 每个已注册工作区根目录的 `AGENTS.md` 是它自己的事实来源，官方指令加载器会在该工作区的会话里读取。面板从 `<DSH home>/storages/workspace.json` 读工作区清单，只允许编辑清单里的工作区（id 不在表里返回 404），写入与全局规则同样归一化、同样 100,000 字符上限。清单为空或读不出来时，这一块整块不渲染。
 
 - **接口**：`GET /compression-tiers/api/workspace-rules`（列出工作区与各自规则）、`POST`（`{workspaceId, rules}`）。
+- **选择器**：工作区是自绘下拉（触发器 + 挂在 body 的 listbox），和仓库菜单同一套弹层规范；原生 `<select>` 的系统弹层在深色主题下是浅底配浅字，选项不可见。
 - **边界**：插件不改工作区注册表，也不写未注册目录；清空 draft 再保存得到空文件。
 
 ## 兼容性与限制
@@ -118,6 +121,7 @@ npm run check:secrets
 ```text
 index.js              Host 入口：工具、系统提示、面板路由、reconciler
 client.js             侧边栏面板、输入框上方的仓库胶囊与菜单
+docs/UI.md            面板与弹层的 UI 规范（表面层级、栅格、卡片、下拉）
 src/levels.js         五档参数与阈值公式
 src/presets.js        预设隔离域引擎同步
 src/context-meter.js  实时占用与 [context] 尾行

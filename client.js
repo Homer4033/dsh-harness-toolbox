@@ -259,15 +259,39 @@ window.__ModuleLoader__.load({
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 24px 48px;
+  padding: 24px 28px 56px;
   color: var(--dsw-alias-label-primary);
 }
 .ct-page-inner {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   width: 100%;
-  max-width: 760px;
+  max-width: 960px;
   margin: 0 auto;
+  container-type: inline-size;
+}
+/* Two columns once the panel itself is wide enough for two readable cards:
+   tiers and the global rules on the left, workspace rules and the toolbox on
+   the right. The query is on this page's own width (a container query, not a
+   viewport media query) because the sidebar takes a fixed slice of the window:
+   a 1200px window leaves far less than 1200px for this page. A narrow panel
+   keeps one column, so the five tier buttons and the textareas stay readable. */
+.ct-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@container (min-width: 880px) {
+  .ct-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.ct-col {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
 }
 .ct-head {
   display: grid;
@@ -292,6 +316,7 @@ window.__ModuleLoader__.load({
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 16px;
   background: var(--dsw-alias-bg-layer-2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 .ct-levels {
   display: grid;
@@ -433,6 +458,72 @@ window.__ModuleLoader__.load({
 .ct-input:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
+}
+/* The workspace picker is a self-drawn control: a native select popup is
+   painted by the OS with a light background and inherits the dark panel's
+   light text, so its options are invisible. The trigger keeps the input
+   geometry and the portalled listbox reuses the menu surface. */
+/* The picker returns its trigger and the portalled menu in one element; the
+   wrapper must not add a grid row of its own. */
+.ct-select-field {
+  display: contents;
+}
+.ct-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  justify-self: start;
+  gap: 10px;
+  box-sizing: border-box;
+  width: min(100%, 360px);
+  min-width: 220px;
+  height: 34px;
+  margin: 0;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+@media (hover: hover) {
+  .ct-select:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-border-l3);
+  }
+}
+.ct-select[aria-expanded='true'] {
+  border-color: var(--dsw-alias-border-selected);
+  background: var(--dsw-alias-bg-module-platform);
+}
+.ct-select:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+.ct-select:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+.ct-select-value {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ct-select-chevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 140ms ease;
+}
+.ct-select[aria-expanded='true'] .ct-select-chevron {
+  transform: rotate(180deg);
 }
 .ct-row {
   display: flex;
@@ -601,7 +692,9 @@ window.__ModuleLoader__.load({
 }
 .ct-repo-pill[data-bound='true'] {
   border-color: var(--dsw-alias-border-selected);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 46%, transparent);
   background: var(--dsw-alias-bg-module-platform);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, var(--dsw-alias-bg-layer-2));
   color: var(--dsw-alias-label-primary);
 }
 .ct-repo-icon {
@@ -637,7 +730,7 @@ window.__ModuleLoader__.load({
   transform: rotate(180deg);
 }
 .ct-repo-pill[aria-expanded='true'] {
-  border-color: var(--dsw-alias-border-l2);
+  border-color: var(--dsw-alias-border-l3);
   background: var(--dsw-alias-interactive-bg-hover);
 }
 .ct-repo-pill {
@@ -648,110 +741,153 @@ window.__ModuleLoader__.load({
   opacity: 0.55;
   cursor: default;
 }
-/* The listbox opens upward from the composer dock: the data-side attribute
-   picks the entry direction, and the route keeps at most the room above the
-   pill. */
-.ct-repo-menu {
+/* One surface for every portalled picker (the repository pill above the
+   composer and the workspace picker in the panel). Popovers are portalled to
+   body and fixed-positioned, so neither the composer nor the panel scrollport
+   can clip them. The fill is layer-3, one step above the cards, plus a faint
+   top sheen: layer-2 is exactly the card colour, which made the old menu read
+   as floating text instead of a panel. */
+.ct-menu {
   position: fixed;
   z-index: 2147483000;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   box-sizing: border-box;
   overflow: auto;
   padding: 6px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 14px;
-  background: var(--dsw-alias-bg-layer-2);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34), 0 2px 8px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 32%, var(--dsw-alias-border-l3));
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 88%, transparent);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 46%);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--dsw-alias-state-business-primary) 9%, transparent), 0 24px 64px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.09);
   color: var(--dsw-alias-label-primary);
   font-size: 12px;
   line-height: 16px;
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
   transform-origin: bottom center;
-  animation: ct-repo-rise 130ms ease-out;
+  animation: ct-menu-rise 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.ct-repo-menu[data-side='down'] {
+/* The data-side attribute picks the entry direction; the route keeps at most
+   the room on that side of the trigger. */
+.ct-menu[data-side='down'] {
   transform-origin: top center;
-  animation-name: ct-repo-drop;
+  animation-name: ct-menu-drop;
 }
-.ct-repo-menu:focus {
+.ct-menu:focus {
   outline: none;
 }
-@keyframes ct-repo-rise {
-  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+@keyframes ct-menu-rise {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-@keyframes ct-repo-drop {
-  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+@keyframes ct-menu-drop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-.ct-repo-menu-head {
-  padding: 6px 9px 5px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 15px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.ct-repo-sep {
-  height: 1px;
-  margin: 4px 6px;
-  background: var(--dsw-alias-border-l2);
-}
-.ct-repo-option {
+.ct-menu-head {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 10px 7px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+/* The accent tick turns the head into a title bar instead of one more row. */
+.ct-menu-head::before {
+  content: '';
+  flex: none;
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--dsw-alias-state-business-primary);
+  box-shadow: 0 0 8px var(--dsw-alias-state-business-primary);
+}
+.ct-menu-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: linear-gradient(90deg, transparent, var(--dsw-alias-border-l3) 18%, var(--dsw-alias-border-l3) 82%, transparent);
+}
+.ct-menu-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-sizing: border-box;
   width: 100%;
-  min-height: 32px;
+  min-height: 34px;
   margin: 0;
-  padding: 0 9px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 10px;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background-color 100ms ease;
+  transition: background-color 110ms ease, color 110ms ease;
 }
 @media (hover: hover) {
-  .ct-repo-option:hover {
-    background: var(--dsw-alias-interactive-bg-hover);
+  .ct-menu-option:hover {
+    background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 13%, transparent);
   }
 }
-.ct-repo-option:focus-visible {
+.ct-menu-option:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: -2px;
 }
-.ct-repo-option-active {
-  background: var(--dsw-alias-interactive-bg-hover);
+.ct-menu-option-active {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 15%, transparent);
 }
-.ct-repo-option-on {
-  background: var(--dsw-alias-bg-module-platform);
-}
-.ct-repo-option-on .ct-repo-option-name {
+.ct-menu-option[aria-selected='true'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 20%, transparent);
+  color: var(--dsw-alias-label-primary);
   font-weight: 500;
 }
-.ct-repo-check {
+/* A 2px accent bar on the selected row survives the hover fill, so the current
+   choice stays visible while the pointer moves over the list. */
+.ct-menu-option[aria-selected='true']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--dsw-alias-state-business-primary);
+}
+.ct-menu-check {
   flex: none;
   width: 14px;
   color: var(--dsw-alias-state-business-primary);
+  font-size: 12px;
+  text-align: center;
 }
-.ct-repo-option-name {
+.ct-menu-option-name {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.ct-repo-tag {
+.ct-menu-tag {
   flex: none;
   margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: 999px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.04em;
 }
-.ct-repo-menu-note {
+.ct-menu-note {
   margin: 4px 8px 2px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
@@ -874,6 +1010,117 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * Anchor a portalled menu to its trigger. Menus open upward by default:
+     * the composer dock sits right above the input card, and the panel picker
+     * usually sits in the lower half of the frame. A trigger with too little
+     * room above and more room below flips down instead of clipping. A
+     * right-aligned trigger (the repository pill) also right-aligns its menu, so
+     * the list grows toward the middle instead of past the card edge.
+     */
+    function placeMenu(node, options) {
+      const opts = options || {}
+      const rect = node && typeof node.getBoundingClientRect === 'function'
+        ? node.getBoundingClientRect()
+        : { top: 0, bottom: 0, left: 0, width: 260 }
+      const win = typeof window === 'undefined' ? null : window
+      const viewportWidth = win && win.innerWidth ? win.innerWidth : 1024
+      const viewportHeight = win && win.innerHeight ? win.innerHeight : 768
+      const minWidth = typeof opts.minWidth === 'number' ? opts.minWidth : 240
+      const extraWidth = typeof opts.extraWidth === 'number' ? opts.extraWidth : 0
+      const cap = typeof opts.maxHeight === 'number' ? opts.maxHeight : 320
+      const width = Math.min(
+        Math.max(minWidth, Math.round(rect.width) + extraWidth),
+        Math.max(220, viewportWidth - 24),
+      )
+      const rawLeft = opts.align === 'end' ? rect.left + rect.width - width : rect.left
+      const left = Math.max(8, Math.min(Math.round(rawLeft), Math.round(viewportWidth - width - 8)))
+      const gap = 8
+      const roomAbove = Math.round(rect.top - gap - 8)
+      const roomBelow = Math.round(viewportHeight - rect.bottom - gap - 8)
+      const up = roomAbove >= 200 || roomAbove >= roomBelow
+      if (up) {
+        return {
+          up: true,
+          left,
+          width,
+          bottom: Math.round(viewportHeight - rect.top + gap),
+          maxHeight: Math.max(140, Math.min(cap, roomAbove)),
+        }
+      }
+      return {
+        up: false,
+        top: Math.round(rect.bottom + gap),
+        left,
+        width,
+        maxHeight: Math.max(140, Math.min(cap, roomBelow)),
+      }
+    }
+
+    /** The fixed-position style of a placed menu (see `placeMenu`). */
+    function menuStyle(placement) {
+      const at = placement || { up: false, left: 0, width: 288, maxHeight: 320 }
+      const style = { left: at.left + 'px', width: at.width + 'px', maxHeight: at.maxHeight + 'px' }
+      if (at.up) style.bottom = at.bottom + 'px'
+      else style.top = at.top + 'px'
+      return style
+    }
+
+    /**
+     * Close a menu from outside: a mousedown on anything but the trigger or the
+     * menu, Escape, or a window resize (a fixed-position menu would otherwise
+     * keep pointing at where its trigger used to be).
+     */
+    function useMenuDismiss(open, close, triggerRef, menuRef) {
+      React.useEffect(function () {
+        if (!open) return undefined
+        const doc = typeof document === 'undefined' ? null : document
+        const win = typeof window === 'undefined' ? null : window
+        const onDown = function (event) {
+          const target = event && event.target
+          if (triggerRef.current && target && triggerRef.current.contains(target)) return
+          if (menuRef.current && target && menuRef.current.contains(target)) return
+          close()
+        }
+        const onKey = function (event) {
+          if (event.key === 'Escape') close()
+        }
+        const onResize = function () { close() }
+        if (doc) doc.addEventListener('mousedown', onDown)
+        if (doc) doc.addEventListener('keydown', onKey)
+        if (win) win.addEventListener('resize', onResize)
+        return function () {
+          if (doc) doc.removeEventListener('mousedown', onDown)
+          if (doc) doc.removeEventListener('keydown', onKey)
+          if (win) win.removeEventListener('resize', onResize)
+        }
+      }, [open])
+    }
+
+    /** Move focus into the open menu so the arrow keys work without a click. */
+    function useMenuFocus(open, menuRef) {
+      React.useLayoutEffect(function () {
+        if (!open) return
+        const node = menuRef.current
+        if (node && typeof node.focus === 'function') node.focus()
+      }, [open])
+    }
+
+    /**
+     * The index a listbox key moves the highlight to, or null when the key is
+     * not a move: Enter selects and Escape closes, and both belong to the
+     * caller.
+     */
+    function menuMove(key, current, count) {
+      if (count <= 0) return null
+      if (key === 'Home') return 0
+      if (key === 'End') return count - 1
+      const index = typeof current === 'number' && current >= 0 ? current % count : 0
+      if (key === 'ArrowDown') return (index + 1) % count
+      if (key === 'ArrowUp') return (index - 1 + count) % count
+      return null
+    }
+
+    /**
      * Composer dock row: which online repository this session publishes to.
      * The row sits above the input card, so a blank Session shows it too (the
      * title cluster is hidden there) and the listbox can open upward.
@@ -956,66 +1203,13 @@ window.__ModuleLoader__.load({
         }
         const node = pillRef.current
         if (!node || typeof node.getBoundingClientRect !== 'function') return
-        const rect = node.getBoundingClientRect()
-        const win = typeof window === 'undefined' ? null : window
-        const viewportWidth = win && win.innerWidth ? win.innerWidth : 1024
-        const viewportHeight = win && win.innerHeight ? win.innerHeight : 768
-        const width = Math.min(Math.max(288, Math.round(rect.width) + 24), Math.max(220, viewportWidth - 24))
-        const left = Math.max(8, Math.min(Math.round(rect.left), Math.round(viewportWidth - width - 8)))
-        const gap = 8
-        const roomAbove = Math.round(rect.top - gap - 8)
-        const roomBelow = Math.round(viewportHeight - rect.bottom - gap - 8)
-        const up = roomAbove >= 200 || roomAbove >= roomBelow
-        placement.current = up
-          ? {
-            up: true,
-            left,
-            width,
-            bottom: Math.round(viewportHeight - rect.top + gap),
-            maxHeight: Math.max(140, Math.min(320, roomAbove)),
-          }
-          : {
-            up: false,
-            top: Math.round(rect.bottom + gap),
-            left,
-            width,
-            maxHeight: Math.max(140, Math.min(320, roomBelow)),
-          }
+        placement.current = placeMenu(node, { minWidth: 288, extraWidth: 24, maxHeight: 320, align: 'end' })
         setActive(0)
         setOpen(true)
       }
 
-      React.useEffect(function () {
-        if (!open) return undefined
-        const doc = typeof document === 'undefined' ? null : document
-        const win = typeof window === 'undefined' ? null : window
-        const onDown = function (event) {
-          const target = event && event.target
-          if (pillRef.current && target && pillRef.current.contains(target)) return
-          if (menuRef.current && target && menuRef.current.contains(target)) return
-          setOpen(false)
-        }
-        const onKey = function (event) {
-          if (event.key === 'Escape') setOpen(false)
-        }
-        const onResize = function () { setOpen(false) }
-        if (doc) doc.addEventListener('mousedown', onDown)
-        if (doc) doc.addEventListener('keydown', onKey)
-        if (win) win.addEventListener('resize', onResize)
-        return function () {
-          if (doc) doc.removeEventListener('mousedown', onDown)
-          if (doc) doc.removeEventListener('keydown', onKey)
-          if (win) win.removeEventListener('resize', onResize)
-        }
-      }, [open])
-
-      // Focus moves into the listbox on open so the arrow keys work without a
-      // click, and Esc returns focus to the pill.
-      React.useLayoutEffect(function () {
-        if (!open) return
-        const node = menuRef.current
-        if (node && typeof node.focus === 'function') node.focus()
-      }, [open])
+      useMenuDismiss(open, function () { setOpen(false) }, pillRef, menuRef)
+      useMenuFocus(open, menuRef)
 
       const rows = Array.isArray(repos) ? repos : []
       const known = new Set(rows.map(function (row) { return row.nameWithOwner }))
@@ -1065,14 +1259,12 @@ window.__ModuleLoader__.load({
         ? 0
         : (((typeof active === 'number' ? active : 0) % items.length) + items.length) % items.length
       const at = placement.current || { up: false, left: 0, width: 288, maxHeight: 320 }
-      const menuStyle = { left: at.left + 'px', width: at.width + 'px', maxHeight: at.maxHeight + 'px' }
-      if (at.up) menuStyle.bottom = at.bottom + 'px'
-      else menuStyle.top = at.top + 'px'
+      const menuPos = menuStyle(at)
       // Head line + separator keep "no repository" apart from the real list, so
       // the menu reads as a titled picker rather than a flat run of names.
-      const menuChildren = [h('div', { key: '__head', className: 'ct-repo-menu-head', role: 'presentation' }, t('repoSelectLabel'))]
+      const menuChildren = [h('div', { key: '__head', className: 'ct-menu-head', role: 'presentation' }, t('repoSelectLabel'))]
       items.forEach(function (item, index) {
-        if (index === 1) menuChildren.push(h('div', { key: '__sep', className: 'ct-repo-sep', role: 'presentation' }))
+        if (index === 1) menuChildren.push(h('div', { key: '__sep', className: 'ct-menu-sep', role: 'presentation' }))
         const selected = item.value === bound
         menuChildren.push(h('button', {
           key: item.value || '__none',
@@ -1081,15 +1273,14 @@ window.__ModuleLoader__.load({
           role: 'option',
           tabIndex: -1,
           'aria-selected': selected ? 'true' : 'false',
-          className: 'ct-repo-option'
-            + (selected ? ' ct-repo-option-on' : '')
-            + (index === activeIndex ? ' ct-repo-option-active' : ''),
+          className: 'ct-menu-option'
+            + (index === activeIndex ? ' ct-menu-option-active' : ''),
           onMouseEnter: function () { setActive(index) },
           onClick: function () { chooseRepo(item.value) },
         },
-        h('span', { className: 'ct-repo-check' }, selected ? '✓' : ''),
-        h('span', { className: 'ct-repo-option-name' }, item.label),
-        item.private ? h('span', { className: 'ct-repo-tag' }, t('repoPrivate')) : null))
+        h('span', { className: 'ct-menu-check' }, selected ? '✓' : ''),
+        h('span', { className: 'ct-menu-option-name' }, item.label),
+        item.private ? h('span', { className: 'ct-menu-tag' }, t('repoPrivate')) : null))
       })
       // The listbox itself owns focus, so the arrow keys move the highlight and
       // Enter picks it without turning the pill into a second control.
@@ -1101,14 +1292,10 @@ window.__ModuleLoader__.load({
           setOpen(false)
           return
         }
-        if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') {
+        const next = menuMove(key, activeIndex, items.length)
+        if (next !== null) {
           if (event.preventDefault) event.preventDefault()
-          setActive(function (current) {
-            const index = typeof current === 'number' ? current : 0
-            if (key === 'Home') return 0
-            if (key === 'End') return items.length - 1
-            return key === 'ArrowDown' ? (index + 1) % items.length : (index - 1 + items.length) % items.length
-          })
+          setActive(next)
           return
         }
         if (key === 'Enter' || key === ' ') {
@@ -1119,13 +1306,13 @@ window.__ModuleLoader__.load({
       const menu = open && ReactDOM && typeof ReactDOM.createPortal === 'function'
         ? ReactDOM.createPortal(h('div', {
           ref: menuRef,
-          className: 'ct-repo-menu',
+          className: 'ct-menu',
           role: 'listbox',
           tabIndex: -1,
           'data-side': at.up ? 'up' : 'down',
           'aria-label': t('repoSelectAria'),
           'aria-activedescendant': items.length === 0 ? undefined : 'ct-repo-option-' + activeIndex,
-          style: menuStyle,
+          style: menuPos,
           onKeyDown: onMenuKey,
         }, menuChildren), document.body)
         : null
@@ -1135,6 +1322,127 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'ct-repo-dock' },
         note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
         h('span', { className: 'ct-repo-group' }, pill, menu))
+    }
+
+    /**
+     * A self-drawn picker for the workspace block. A native `<select>` popup is
+     * painted by the OS: it keeps the dark panel's light text on its own light
+     * background, so every option is invisible until it is hovered. This keeps
+     * the input look, portals the listbox to body and shares the menu surface,
+     * placement and keyboard rules with the repository pill.
+     */
+    function Select(props) {
+      const t = props.t
+      const items = Array.isArray(props.items) ? props.items : []
+      const value = typeof props.value === 'string' ? props.value : ''
+      const disabled = props.disabled === true
+      const [open, setOpen] = React.useState(false)
+      const [active, setActive] = React.useState(0)
+      const triggerRef = React.useRef(null)
+      const menuRef = React.useRef(null)
+      const placement = React.useRef(null)
+      const selectedIndex = items.findIndex(function (item) { return item.value === value })
+      const current = selectedIndex >= 0 ? items[selectedIndex] : null
+
+      function choose(next) {
+        setOpen(false)
+        if (next !== value && typeof props.onChange === 'function') props.onChange(next)
+      }
+
+      function toggle() {
+        if (disabled) return
+        if (open) {
+          setOpen(false)
+          return
+        }
+        const node = triggerRef.current
+        if (!node || typeof node.getBoundingClientRect !== 'function') return
+        placement.current = placeMenu(node, { minWidth: 260, maxHeight: 320 })
+        setActive(selectedIndex >= 0 ? selectedIndex : 0)
+        setOpen(true)
+      }
+
+      useMenuDismiss(open, function () { setOpen(false) }, triggerRef, menuRef)
+      useMenuFocus(open, menuRef)
+
+      const activeIndex = items.length === 0
+        ? 0
+        : (((typeof active === 'number' ? active : 0) % items.length) + items.length) % items.length
+      const at = placement.current || { up: false, left: 0, width: 260, maxHeight: 320 }
+      const menuChildren = [h('div', { key: '__head', className: 'ct-menu-head', role: 'presentation' }, t('workspaceSelectLabel'))]
+      items.forEach(function (item, index) {
+        const selected = item.value === value
+        menuChildren.push(h('button', {
+          key: item.value,
+          id: 'ct-select-option-' + index,
+          type: 'button',
+          role: 'option',
+          tabIndex: -1,
+          'aria-selected': selected ? 'true' : 'false',
+          className: 'ct-menu-option' + (index === activeIndex ? ' ct-menu-option-active' : ''),
+          onMouseEnter: function () { setActive(index) },
+          onClick: function () { choose(item.value) },
+        },
+        h('span', { className: 'ct-menu-check' }, selected ? '✓' : ''),
+        h('span', { className: 'ct-menu-option-name' }, item.label)))
+      })
+      function onMenuKey(event) {
+        const key = event && event.key
+        if (!key) return
+        if (key === 'Escape') {
+          if (event.preventDefault) event.preventDefault()
+          setOpen(false)
+          return
+        }
+        const next = menuMove(key, activeIndex, items.length)
+        if (next !== null) {
+          if (event.preventDefault) event.preventDefault()
+          setActive(next)
+          return
+        }
+        if ((key === 'Enter' || key === ' ') && items[activeIndex]) {
+          if (event.preventDefault) event.preventDefault()
+          choose(items[activeIndex].value)
+        }
+      }
+      const menu = open && ReactDOM && typeof ReactDOM.createPortal === 'function'
+        ? ReactDOM.createPortal(h('div', {
+          ref: menuRef,
+          className: 'ct-menu',
+          role: 'listbox',
+          tabIndex: -1,
+          'data-side': at.up ? 'up' : 'down',
+          'aria-label': t('workspaceSelectLabel'),
+          'aria-activedescendant': items.length === 0 ? undefined : 'ct-select-option-' + activeIndex,
+          style: menuStyle(at),
+          onKeyDown: onMenuKey,
+        }, menuChildren), document.body)
+        : null
+
+      return h('span', { className: 'ct-select-field' },
+        h('button', {
+          key: '__trigger',
+          type: 'button',
+          ref: triggerRef,
+          className: 'ct-select',
+          'aria-haspopup': 'listbox',
+          'aria-expanded': open ? 'true' : 'false',
+          'aria-label': t('workspaceSelectLabel'),
+          disabled: disabled,
+          onClick: toggle,
+        },
+        h('span', { className: 'ct-select-value' }, current ? current.label : ''),
+        h('svg', {
+          className: 'ct-select-chevron',
+          viewBox: '0 0 16 16',
+          fill: 'none',
+          stroke: 'currentColor',
+          strokeWidth: '1.6',
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          'aria-hidden': 'true',
+        }, h('path', { d: 'M4.5 6.25 8 9.75l3.5-3.5' }))),
+        menu)
     }
 
     function Page(props) {
@@ -1622,7 +1930,8 @@ window.__ModuleLoader__.load({
                 onKeyDown: onKeyDown,
               },
               h('strong', null, labelOf(t, id)),
-              h('span', null, t('auto') + percent(level.thresholdRatio) + ' · ' + t('retain') + percent(level.retainRatio)))
+              h('span', null, t('auto') + percent(level.thresholdRatio)),
+              h('span', null, t('retain') + percent(level.retainRatio)))
             })),
           h('p', { className: 'ct-summary' }, t('currentLabel') + t('sep') + labelOf(t, current)),
           h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, message))
@@ -1879,17 +2188,17 @@ window.__ModuleLoader__.load({
         : h('section', { className: 'ct-panel' },
           h('div', { className: 'ct-rules-head' },
             h('h3', null, t('workspaceRulesTitle'))),
-          h('label', { className: 'ct-field' },
+          h('div', { className: 'ct-field' },
             h('span', null, t('workspaceSelectLabel')),
-            h('select', {
-              className: 'ct-input',
+            h(Select, {
+              t: t,
+              items: workspaceList.map(function (item) {
+                return { value: item.id, label: item.title }
+              }),
               value: workspaceId,
               disabled: workspaceBusy,
-              onChange: function (event) { pickWorkspace(event.target.value) },
-            },
-            workspaceList.map(function (item) {
-              return h('option', { key: item.id, value: item.id }, item.title)
-            }))),
+              onChange: pickWorkspace,
+            })),
           h('label', { className: 'ct-field' },
             h('span', null, t('rulesLabel') + ' · ' + workspaceText.length + ' ' + t('rulesChars')),
             h('textarea', {
@@ -1918,11 +2227,12 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ct-page-inner' },
           h('header', { className: 'ct-head' },
             h('h2', null, t('title'))),
-          panel,
-          rulesPanel,
-          workspacePanel,
-          componentsPanel,
-          ghAuthPanel,
+          // Two columns on a wide panel, one below 900px: the tier picker and
+          // the global rules on the left, the workspace rules and the toolbox on
+          // the right. The meta footer stays full width.
+          h('div', { className: 'ct-columns' },
+            h('div', { className: 'ct-col' }, panel, rulesPanel),
+            h('div', { className: 'ct-col' }, workspacePanel, componentsPanel, ghAuthPanel)),
           state
             ? h('div', { className: 'ct-meta' },
               h('span', null, t('engines') + t('sep') + engineCount),
