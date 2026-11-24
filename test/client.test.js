@@ -43,15 +43,18 @@ function loadClient() {
  * Feed the page a fixed sequence of `useState` values. A single value becomes
  * the first state, which is the settings payload; everything else keeps its
  * initial value, so a render may start before the fetches resolve.
+ * `refValues` seeds the `useRef` calls in order (the repository pill uses the
+ * third ref for its menu placement).
  */
-function fakeReact(states) {
+function fakeReact(states, refValues) {
   const queue = Array.isArray(states) ? states.slice() : [states]
+  const refs = Array.isArray(refValues) ? refValues.slice() : []
   return {
     createElement: (type, props, ...children) => ({ type, props: { ...(props || {}), children } }),
     useState: (initial) => (queue.length ? [queue.shift(), () => {}] : [initial, () => {}]),
     useEffect: () => {},
     useLayoutEffect: () => {},
-    useRef: (value) => ({ current: value }),
+    useRef: (value) => ({ current: refs.length ? refs.shift() : value }),
   }
 }
 
@@ -100,21 +103,21 @@ function render(states) {
   const registrations = []
   const dictionaries = {}
   module.factory((specifier) => (specifier === 'react-dom' ? { createPortal: (node) => node } : fakeReact(states))).apply(sectionContext(registrations, dictionaries))
-  const section = registrations.find((item) => item.options.name === 'settings.section')
-  assert.ok(section, 'the settings section is registered')
-  const element = section.component()
+  const panel = registrations.find((item) => item.options.name === 'main')
+  assert.ok(panel, 'the toolbox main panel is registered')
+  const element = panel.component()
   const tree = element.type(element.props)
-  return { nodes: collect(tree), dictionaries, options: section.options }
+  return { nodes: collect(tree), dictionaries, options: panel.options }
 }
 
-/** Render the registered session-header action with the given hook values. */
-function renderHeader(states, props) {
+/** Render the registered composer-dock action with the given hook values. */
+function renderDock(states, props, refValues) {
   const { module } = loadClient()
   const registrations = []
-  module.factory((specifier) => (specifier === 'react-dom' ? { createPortal: (node) => node } : fakeReact(states))).apply(sectionContext(registrations))
-  const header = registrations.find((item) => item.options.name === 'conversation.session.header.actions')
-  assert.ok(header, 'the session header action is registered')
-  return collect(header.component(props))
+  module.factory((specifier) => (specifier === 'react-dom' ? { createPortal: (node) => node } : fakeReact(states, refValues))).apply(sectionContext(registrations))
+  const dock = registrations.find((item) => item.options.name === 'conversation.input.dock')
+  assert.ok(dock, 'the composer dock action is registered')
+  return collect(dock.component(props))
 }
 
 /** The concatenated string children of one element. */
@@ -172,6 +175,7 @@ const HOOK_ORDER = [
   'components', 'componentsMessage', 'componentsBusy',
   'pathDraft', 'pathBusy',
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
+  'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
 ]
 
 const BASE_PAGE = {
@@ -192,6 +196,11 @@ const BASE_PAGE = {
   ghMessage: '',
   ghBusy: false,
   network: null,
+  workspaceRules: null,
+  workspaceId: '',
+  workspaceText: '',
+  workspaceMessage: '',
+  workspaceBusy: false,
 }
 
 /** One `useState` value per hook, in call order. */
@@ -262,7 +271,7 @@ function actionRowOf(nodes, action) {
     .find((buttons) => buttons.some((button) => button.props['data-action'] === action)) || null
 }
 
-test('the client factory registers a localized settings section', () => {
+test('the client factory registers a sidebar panel and a composer dock entry', () => {
   const { module, styles } = loadClient()
   const registrations = []
   let dictionaries
@@ -296,26 +305,51 @@ test('the client factory registers a localized settings section', () => {
 
   assert.deepEqual(
     registrations.map((item) => item.options.name).sort(),
-    ['conversation.session.header.actions', 'settings.section'],
+    ['conversation.input.dock', 'main', 'sidebar.panellist'],
   )
-  const section = registrations.find((item) => item.options.name === 'settings.section')
-  assert.equal(section.options.id, 'compression-tiers')
-  assert.equal(section.options.label(), 'compressionTiers:sectionLabel')
-  const header = registrations.find((item) => item.options.name === 'conversation.session.header.actions')
-  assert.equal(header.options.id, 'compression-repo')
-  assert.equal(header.options.order, 60)
-  assert.equal(header.options.locale, 'compressionTiers')
-  // The sheet is injected once, globally: the header pill renders outside the
-  // settings page and must not depend on that page having been opened.
+  // The toolbox is a sidebar row plus its main panel; the Settings section it
+  // used to register is gone on purpose.
+  const row = registrations.find((item) => item.options.name === 'sidebar.panellist')
+  assert.equal(row.options.id, 'compression-tiers')
+  assert.equal(row.options.order, 47)
+  assert.equal(row.options.label(), 'compressionTiers:sectionLabel')
+  assert.equal(registrations.some((item) => item.options.name === 'settings.section'), false)
+  const main = registrations.find((item) => item.options.name === 'main')
+  assert.equal(main.options.key, 'compression-tiers')
+  // The panel icon is a sized SVG, not text: the sidebar row renders it at 16
+  // or 18px through `sidebar.panel.icon`.
+  const icon = collect(row.component({ size: 18, active: true }))
+    .find((node) => node.type === 'svg')
+  assert.ok(icon, 'the sidebar row registers an icon')
+  assert.equal(icon.props.width, 18)
+  assert.equal(icon.props.height, 18)
+  assert.equal(icon.props['aria-hidden'], 'true')
+  // The repository pill rides the composer dock: present in a blank Session,
+  // and it renders in place instead of being portaled into the tab strip.
+  const dock = registrations.find((item) => item.options.name === 'conversation.input.dock')
+  assert.equal(dock.options.id, 'compression-repo')
+  assert.equal(dock.options.order, 90)
+  assert.equal(dock.options.locale, 'compressionTiers')
+  // The sheet is injected once, globally: the dock pill renders outside the
+  // toolbox panel and must not depend on that panel having been opened.
   assert.equal(styles.length, 1)
   assert.match(styles[0].textContent, /\.ct-repo-pill \{/)
-  // The pill sits in the tab strip right after the tabs (under the title); it is
-  // not pushed to the far right edge and does not grow the official header.
-  const slotCss = String(styles[0].textContent).match(/\.ct-repo-slot \{[^}]*\}/)
-  assert.ok(slotCss, 'the pill slot keeps its own rule')
-  assert.match(slotCss[0], /margin-top: -4px/)
-  assert.doesNotMatch(slotCss[0], /margin-left/)
-  assert.match(styles[0].textContent, /\.ct-page \{/)
+  const dockCss = String(styles[0].textContent).match(/\.ct-repo-dock \{[^}]*\}/)
+  assert.ok(dockCss, 'the dock row keeps its own rule')
+  assert.match(dockCss[0], /justify-content: flex-end/)
+  assert.match(dockCss[0], /--dsh-composer-side-clearance/)
+  // No tab-strip slot survives: the pill is no longer appended to the header.
+  assert.doesNotMatch(styles[0].textContent, /\.ct-repo-slot/)
+  // The main panel is its own scrollport, so the page cannot grow the frame.
+  const pageCss = String(styles[0].textContent).match(/\.ct-page \{[^}]*\}/)
+  assert.ok(pageCss, 'the panel page keeps its own rule')
+  assert.match(pageCss[0], /overflow-y: auto/)
+  assert.match(pageCss[0], /flex: 1 1 auto/)
+  assert.match(styles[0].textContent, /\.ct-page-inner \{/)
+  // The listbox opens upward and flips down only when the room above is gone.
+  assert.match(styles[0].textContent, /\.ct-repo-menu\[data-side='down'\]/)
+  assert.match(styles[0].textContent, /@keyframes ct-repo-rise/)
+  assert.match(styles[0].textContent, /\.ct-repo-option-active/)
   assert.match(styles[0].textContent, /\.ct-component \{/)
   // Empty status/note lines must collapse instead of leaving a gap in the panel.
   assert.match(styles[0].textContent, /\.ct-status:empty,\s*\.ct-note:empty \{/)
@@ -325,7 +359,10 @@ test('the client factory registers a localized settings section', () => {
   for (const locale of ['zh', 'en']) {
     const keys = Object.keys(dictionaries.dicts[locale])
     for (const key of [
-      'title', 'levelGentle', 'currentLabel', 'rulesTitle', 'rulesSave', 'rulesMissing',
+      'title', 'sectionLabel', 'levelGentle', 'currentLabel', 'rulesTitle', 'rulesSave', 'rulesMissing',
+      'workspaceRulesTitle', 'workspaceSelectLabel', 'workspaceRulesPlaceholder',
+      'workspaceRulesMissing', 'workspaceRulesLoadFailed', 'workspaceRulesSaveFailed',
+      'workspaceRulesSaved',
       'componentsTitle', 'componentsLoadFailed', 'componentsActionFailed',
       'toolsPathLabel', 'toolsPathSave', 'toolsPathReset', 'toolsPathRunning',
       'ghAuthTitle', 'ghLogin', 'ghCopy', 'ghOpenDevice', 'ghCancel',
@@ -659,17 +696,19 @@ test('the sign-in panel shows the account and never a download button', () => {
   assert.deepEqual(downloads.map((node) => node.props['data-action']), ['download:gh', 'download:git', 'download:ffmpeg', 'download:python'])
 })
 
-test('the session header renders a repository pill that opens a listbox', () => {
+test('the composer dock renders a repository pill that opens a listbox', () => {
   const repos = [
     { nameWithOwner: 'Homer4033/dsh-compression-tiers', private: false },
     { nameWithOwner: 'Homer4033/private-notes', private: true },
   ]
-  const nodes = renderHeader([repos, 'Homer4033/dsh-compression-tiers', '', false, true, null], {
+  const nodes = renderDock([repos, 'Homer4033/dsh-compression-tiers', '', false, true, 1], {
     sessionId: 'session-a',
     t: (key) => key,
-  })
+  }, [null, null, { up: true, left: 120, width: 320, bottom: 500, maxHeight: 280 }, true])
+  const dock = nodes.find((node) => String(node.props.className || '') === 'ct-repo-dock')
+  assert.ok(dock, 'the dock row renders in place')
   const pill = nodes.find((node) => String(node.props.className || '') === 'ct-repo-pill')
-  assert.ok(pill, 'the header renders a pill button')
+  assert.ok(pill, 'the dock renders a pill button')
   assert.equal(pill.type, 'button')
   assert.equal(pill.props['aria-haspopup'], 'listbox')
   assert.equal(pill.props['aria-expanded'], 'true')
@@ -682,9 +721,21 @@ test('the session header renders a repository pill that opens a listbox', () => 
   const menu = nodes.find((node) => String(node.props.className || '') === 'ct-repo-menu')
   assert.ok(menu, 'the open pill renders its listbox')
   assert.equal(menu.props.role, 'listbox')
-  assert.equal(menu.props.style.width, '240px')
+  // Upward placement: bottom edge anchored above the pill, not a `top` drop.
+  assert.equal(menu.props.style.bottom, '500px')
+  assert.equal(menu.props.style.top, undefined)
+  assert.equal(menu.props.style.left, '120px')
+  assert.equal(menu.props.style.width, '320px')
+  assert.equal(menu.props.style.maxHeight, '280px')
+  assert.equal(menu.props['data-side'], 'up')
+  assert.equal(menu.props.tabIndex, -1)
+  assert.equal(typeof menu.props.onKeyDown, 'function')
+  assert.equal(menu.props['aria-activedescendant'], 'ct-repo-option-1')
   const options = nodes.filter((node) => String(node.props.className || '').split(' ').includes('ct-repo-option'))
   assert.deepEqual(options.map((option) => option.props['aria-selected']), ['false', 'true', 'false'])
+  assert.deepEqual(options.map((option) => option.props.id), ['ct-repo-option-0', 'ct-repo-option-1', 'ct-repo-option-2'])
+  assert.match(String(options[1].props.className), /ct-repo-option-active/)
+  assert.doesNotMatch(String(options[0].props.className), /ct-repo-option-active/)
   assert.deepEqual(options.map((option) => deepText(option)), [
     'repoNone',
     '✓Homer4033/dsh-compression-tiers',
@@ -692,9 +743,18 @@ test('the session header renders a repository pill that opens a listbox', () => 
   ])
 })
 
+test('the listbox drops downward only when the room above is gone', () => {
+  const nodes = renderDock([[], '', '', false, true, 0], { sessionId: 'session-down', t: (key) => key },
+    [null, null, { up: false, top: 300, left: 8, width: 288, maxHeight: 200 }, true])
+  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-repo-menu')
+  assert.equal(menu.props['data-side'], 'down')
+  assert.equal(menu.props.style.top, '300px')
+  assert.equal(menu.props.style.bottom, undefined)
+})
+
 test('the repository listbox is titled and separates "no repository"', () => {
   const repos = [{ nameWithOwner: 'Homer4033/one', private: false }]
-  const nodes = renderHeader([repos, '', '', false, true, null], { sessionId: 'session-menu', t: (key) => key })
+  const nodes = renderDock([repos, '', '', false, true, null], { sessionId: 'session-menu', t: (key) => key })
   const head = nodes.find((node) => String(node.props.className || '') === 'ct-repo-menu-head')
   assert.ok(head, 'the listbox renders a title line')
   assert.equal(head.props.role, 'presentation')
@@ -706,27 +766,27 @@ test('the repository listbox is titled and separates "no repository"', () => {
 })
 
 test('a retired binding stays selectable; a closed pill renders no listbox', () => {
-  const retired = renderHeader([[], 'Homer4033/retired', '', false, true, null], { sessionId: 'session-b', t: (key) => key })
+  const retired = renderDock([[], 'Homer4033/retired', '', false, true, null], { sessionId: 'session-b', t: (key) => key })
   const options = retired.filter((node) => String(node.props.className || '').split(' ').includes('ct-repo-option'))
   assert.deepEqual(options.map((option) => deepText(option)), ['repoNone', '✓Homer4033/retired'])
-  const closed = renderHeader([[], '', '', false, false, null], { sessionId: 'session-b', t: (key) => key })
+  const closed = renderDock([[], '', '', false, false, null], { sessionId: 'session-b', t: (key) => key })
   assert.equal(closed.some((node) => String(node.props.className || '') === 'ct-repo-menu'), false)
-  const disabled = renderHeader([[], '', '', false], { t: (key) => key })
+  const disabled = renderDock([[], '', '', false], { t: (key) => key })
   assert.equal(disabled.find((node) => String(node.props.className || '') === 'ct-repo-pill').props.disabled, true)
 })
 
-test('the header explains an unreadable repository list', () => {
-  const nodes = renderHeader([[], '', 'repoUnavailable', false], { sessionId: 'session-c', t: (key) => key })
+test('the dock explains an unreadable repository list', () => {
+  const nodes = renderDock([[], '', 'repoUnavailable', false], { sessionId: 'session-c', t: (key) => key })
   const note = nodes.find((node) => String(node.props.className || '') === 'ct-repo-note')
-  assert.ok(note, 'the header renders a status note')
+  assert.ok(note, 'the dock renders a status note')
   assert.equal(note.props.role, 'status')
   assert.equal(textOf(note), 'repoUnavailable')
 })
 
 test('the repository pill shows the bound name and opens a listbox', () => {
-  const nodes = renderHeader([[], 'Homer4033/x', '', false], { sessionId: 'session-pill', t: (key) => key })
+  const nodes = renderDock([[], 'Homer4033/x', '', false], { sessionId: 'session-pill', t: (key) => key })
   const pill = nodes.find((node) => String(node.props.className || '') === 'ct-repo-pill')
-  assert.ok(pill, 'the header renders a pill')
+  assert.ok(pill, 'the dock renders a pill')
   assert.equal(pill.props['data-bound'], 'true')
   const value = nodes.find((node) => String(node.props.className || '') === 'ct-repo-value')
   assert.equal(textOf(value), 'Homer4033/x')
@@ -736,11 +796,90 @@ test('the repository pill shows the bound name and opens a listbox', () => {
 })
 
 test('an unbound session shows the unbound label inside the pill', () => {
-  const nodes = renderHeader([[], '', '', false], { sessionId: 'session-pill', t: (key) => key })
+  const nodes = renderDock([[], '', '', false], { sessionId: 'session-pill', t: (key) => key })
   const pill = nodes.find((node) => String(node.props.className || '') === 'ct-repo-pill')
   assert.equal(pill.props['data-bound'], 'false')
   const value = nodes.find((node) => String(node.props.className || '') === 'ct-repo-value')
   assert.equal(textOf(value), 'repoUnbound')
+})
+
+function workspaceRulesPayload(list) {
+  return { ok: true, maxChars: 100000, workspaces: list }
+}
+
+const workspaceOne = {
+  id: 'w1',
+  title: '压缩上下文',
+  path: 'D:/DSH插件/压缩上下文',
+  file: 'D:/DSH插件/压缩上下文/AGENTS.md',
+  exists: true,
+  text: 'Keep it short.\n',
+  chars: 15,
+}
+
+test('the workspace rules block edits one registered workspace', () => {
+  const second = {
+    id: 'w2',
+    title: '红利量化',
+    path: 'D:/DSH插件/红利量化',
+    file: 'D:/DSH插件/红利量化/AGENTS.md',
+    exists: false,
+    text: '',
+    chars: 0,
+  }
+  const nodes = renderPage({
+    workspaceRules: workspaceRulesPayload([workspaceOne, second]),
+    workspaceId: 'w1',
+    workspaceText: 'Keep it short.\n',
+  })
+  const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
+  assert.deepEqual(headings, ['rulesTitle', 'workspaceRulesTitle', 'componentsTitle', 'ghAuthTitle'])
+  const select = nodes.find((node) => node.type === 'select')
+  assert.ok(select, 'the block has a workspace picker')
+  assert.equal(select.props.value, 'w1')
+  assert.deepEqual(optionsOf(select).map((option) => option.props.value), ['w1', 'w2'])
+  assert.deepEqual(optionsOf(select).map((option) => textOf(option)), ['压缩上下文', '红利量化'])
+  // Two textareas: the global rules and the selected workspace's rules.
+  const textareas = nodes.filter((node) => node.type === 'textarea')
+  assert.equal(textareas.length, 2)
+  assert.equal(textareas[1].props.value, 'Keep it short.\n')
+  assert.equal(textareas[1].props.disabled, false)
+  const save = buttonOf(nodes, 'workspaceRulesSave')
+  assert.ok(save, 'the block has one save button')
+  assert.equal(save.props.disabled, true, 'an unchanged draft cannot be saved')
+  const mentionsFile = nodes.some((node) => Array.isArray(node.props.children)
+    && node.props.children.some((child) => typeof child === 'string' && child.includes(workspaceOne.file)))
+  assert.ok(mentionsFile, 'the block shows the rules file it edits')
+})
+
+test('a workspace with no rules file says so, and editing enables saving', () => {
+  const second = {
+    id: 'w2',
+    title: '红利量化',
+    path: 'D:/DSH插件/红利量化',
+    file: 'D:/DSH插件/红利量化/AGENTS.md',
+    exists: false,
+    text: '',
+    chars: 0,
+  }
+  const nodes = renderPage({
+    workspaceRules: workspaceRulesPayload([second]),
+    workspaceId: 'w2',
+    workspaceText: 'Only touch src/.\n',
+  })
+  assert.equal(buttonOf(nodes, 'workspaceRulesSave').props.disabled, false)
+  assert.ok(deepText({ props: { children: nodes } }).includes('workspaceRulesMissing'))
+})
+
+test('no registered workspace hides the workspace rules block entirely', () => {
+  for (const workspaceRules of [null, workspaceRulesPayload([])]) {
+    const nodes = renderPage({ workspaceRules })
+    const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
+    assert.deepEqual(headings, ['rulesTitle', 'componentsTitle', 'ghAuthTitle'])
+    assert.equal(nodes.some((node) => node.type === 'select'), false)
+    assert.equal(nodes.filter((node) => node.type === 'textarea').length, 1)
+    assert.equal(buttonOf(nodes, 'workspaceRulesSave'), null)
+  }
 })
 
 test('the page renders the tiers, the rules and one component panel', () => {

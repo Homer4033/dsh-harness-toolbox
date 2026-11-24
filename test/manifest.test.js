@@ -14,7 +14,14 @@ test('the bundle manifest declares the patch, client and locale exports', () => 
   assert.equal(manifest.type, 'module')
   assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml')
   assert.equal(manifest.dsh.client.platform, 'web')
-  assert.ok(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-settings'))
+  // The client renders into the sidebar, its main panel and the composer dock.
+  for (const client of [
+    '@deepseek-ai/dsh-client-ui-layout',
+    '@deepseek-ai/dsh-client-ui-sidebar',
+    '@deepseek-ai/dsh-client-ui-conversation',
+  ]) {
+    assert.ok(manifest.dsh.client.inject.includes(client), `client inject is missing ${client}`)
+  }
   assert.equal(manifest.exports['.'], './index.js')
   assert.equal(manifest.exports['./client'], './client.js')
   for (const entry of ['index.js', 'client.js', 'src', 'cordis.patch.yml', 'locale/*.json', 'docs', 'icon.svg']) {
@@ -55,7 +62,11 @@ test('the client module registers under the package name', () => {
   const client = read('client.js')
   assert.match(client, /window\.__ModuleLoader__\.load\(/)
   assert.match(client, new RegExp(`id: '${manifest.name}'`))
-  assert.match(client, /settings\.section/)
+  // The toolbox is a sidebar panel plus its main panel; the old Settings
+  // section must not come back.
+  assert.match(client, /sidebar\.panellist/)
+  assert.match(client, /name: 'main'/)
+  assert.doesNotMatch(client, /settings\.section/)
   assert.match(client, /ctx\.locale\.register/)
 })
 

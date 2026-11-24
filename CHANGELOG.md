@@ -1,6 +1,16 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.8.10`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.9.0`。
+
+## 1.9.0 — 2026-11-25
+
+- **设置页搬进左侧栏**：删除 `settings.section` 注册，改为 `sidebar.panellist`（id `compression-tiers`，order 47，五条横线图标）+ `main` 面板，原来那四栏（档位 / 全局规则 / 组件管理 / GitHub 登录）整页搬过去，系统设置里不再出现本插件。面板自己是滚动容器（`.ct-page` + `.ct-page-inner`），不撑高主面板；`dsh.client.inject` 从 settings 换成 layout / sidebar / conversation。
+- **新增工作区规则**：左侧栏面板里多一块「工作区规则」——从 `<DSH home>/storages/workspace.json` 读出已注册工作区，选一个就编辑它根目录的 `AGENTS.md`。新增 `src/workspace-rules.js` 与 `GET/POST /compression-tiers/api/workspace-rules`：只认清单里的 id（其它一律 404），写入与全局规则同样归一化、同样 100,000 字符上限，原子替换；**清单为空时整块不渲染**（不是置灰）。
+- **仓库胶囊搬到输入框上方**：从 `conversation.session.header.actions` 换到 `conversation.input.dock`。旧位置在新会话里根本不渲染——空会话的标题栏被 `hideChrome` 隐藏，整个 `titleCluster`（含标签行）都不在，所以 1.6.2 起那个 portal 在新会话里无处可挂；dock 在空会话也渲染，正好在输入卡正上方、右对齐。
+- **菜单改成上拉**：按 `bottom` 定位（`bottom = viewportHeight - rect.top + 8`），`max-height` 取胶囊上方空间，空间不足 200px 且小于下方时才翻成向下（`data-side='down'`）；不再测量菜单高度，长列表也不会溢出屏幕。
+- **菜单观感重做**（社区里常见的 Radix/shadcn 风格）：14px 圆角、6px 内边距、分组标题 11px 加字距、分隔线用 `border-l2`、选项 32px 高 / 9px 圆角、悬停与活动项同一个 token、选中项加粗 + 勾、上拉/下拉各一套 130ms 进场动画（淡入 + 4px 位移 + 0.985 缩放）、`0 18px 44px` 双层阴影。键盘：菜单自己接管焦点，↑ / ↓ / Home / End 移动活动项，Enter / 空格选中，Esc 关闭，`aria-activedescendant` 跟着走。
+- 测试 188 条（新增 `test/workspace-rules.test.js` 8 条与上拉/翻向/活动项/侧边栏注册/工作区区块 5 条）。
+- 渲染未验证：本机浏览器工具在当前环境不可用，侧边栏面板与上拉菜单只做了结构断言与静态样式核对；真实 DSH 窗口里的最终观感要装上新版、重启 DSH 后刷新页面确认。
 
 ## 1.8.10 — 2026-11-24
 

@@ -1,9 +1,9 @@
 {
   "name": "dsh-harness-toolbox",
-  "version": "1.8.10",
+  "version": "1.9.0",
   "private": false,
   "type": "module",
-  "description": "Five-tier context compaction, global rules editing, managed installs for gh / git / ffmpeg / Python below one migratable root, and per-session repository publishing for DeepSeek Harness.",
+  "description": "Five-tier context compaction, global and workspace rules editing, managed installs for gh / git / ffmpeg / Python below one migratable root, and per-session repository publishing in a sidebar panel.",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -77,7 +77,9 @@
       "platform": "web",
       "immediately": true,
       "inject": [
-        "@deepseek-ai/dsh-client-ui-settings"
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-conversation"
       ]
     }
   }

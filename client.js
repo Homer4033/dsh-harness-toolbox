@@ -13,6 +13,7 @@ window.__ModuleLoader__.load({
     const LEVELS = ['gentle', 'light', 'standard', 'aggressive', 'max']
     const API = '/compression-tiers/api/settings'
     const RULES_API = '/compression-tiers/api/rules'
+    const WORKSPACE_RULES_API = '/compression-tiers/api/workspace-rules'
     const GH_API = '/compression-tiers/api/github'
     const GH_AUTH_API = '/compression-tiers/api/github/auth'
     const GH_NETWORK_API = '/compression-tiers/api/github/network'
@@ -35,8 +36,8 @@ window.__ModuleLoader__.load({
 
     const DICTIONARIES = {
       zh: {
-        sectionLabel: '上下文压缩',
-        title: '上下文压缩',
+        sectionLabel: '压缩分档',
+        title: '压缩分档与工具箱',
         levelsAria: '压缩档位',
         levelGentle: '极轻',
         levelLight: '轻量',
@@ -68,6 +69,13 @@ window.__ModuleLoader__.load({
         rulesPathLabel: '文件',
         rulesLoading: '读取中…',
         rulesMissing: '不存在，保存后创建。',
+        workspaceRulesTitle: '工作区规则',
+        workspaceSelectLabel: '工作区',
+        workspaceRulesPlaceholder: '例如：本工作区只改 src/；提交前跑测试。',
+        workspaceRulesMissing: '不存在，保存后创建。',
+        workspaceRulesLoadFailed: '读取失败：',
+        workspaceRulesSaveFailed: '保存失败：',
+        workspaceRulesSaved: '已保存。',
         componentsTitle: '组件管理',
         componentsLoadFailed: '读取组件状态失败：',
         componentsActionFailed: '操作失败：',
@@ -136,8 +144,8 @@ window.__ModuleLoader__.load({
         repoSaveFailed: '保存失败：',
       },
       en: {
-        sectionLabel: 'Context compression',
-        title: 'Context compression',
+        sectionLabel: 'Compression tiers',
+        title: 'Compression tiers & toolbox',
         levelsAria: 'Compression tier',
         levelGentle: 'Gentle',
         levelLight: 'Light',
@@ -169,6 +177,13 @@ window.__ModuleLoader__.load({
         rulesPathLabel: 'File',
         rulesLoading: 'Loading…',
         rulesMissing: 'missing; saving creates it.',
+        workspaceRulesTitle: 'Workspace rules',
+        workspaceSelectLabel: 'Workspace',
+        workspaceRulesPlaceholder: 'For example: this workspace only touches src/; run the tests before committing.',
+        workspaceRulesMissing: 'missing; saving creates it.',
+        workspaceRulesLoadFailed: 'Could not read: ',
+        workspaceRulesSaveFailed: 'Could not save: ',
+        workspaceRulesSaved: 'Saved.',
         componentsTitle: 'Components',
         componentsLoadFailed: 'Could not read the component state: ',
         componentsActionFailed: 'Action failed: ',
@@ -240,11 +255,19 @@ window.__ModuleLoader__.load({
 
     const CSS = `
 .ct-page {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px 48px;
+  color: var(--dsw-alias-label-primary);
+}
+.ct-page-inner {
   display: grid;
   gap: 14px;
+  width: 100%;
   max-width: 760px;
-  padding: 8px 4px 48px;
-  color: var(--dsw-alias-label-primary);
+  margin: 0 auto;
 }
 .ct-head {
   display: grid;
@@ -530,24 +553,16 @@ window.__ModuleLoader__.load({
 .ct-component-path {
   word-break: break-all;
 }
-/* The pill lives in the tab strip, right after the tabs: that row is the only
-   chrome below the title that is not clipped (the title cluster itself is
-   overflow:clip with a mask fade), so the capsule reads as session meta instead
-   of being stranded at the far right edge. margin-top lines the 24px pill up
-   with the tab labels: a .tab starts -10px and pads 10px, so its label centre
-   sits 8px below the strip's content top, and 8 - 24/2 = -4. */
-.ct-repo-slot {
+/* The repository pill rides the composer dock: a full-width row directly above
+   the input card, so it is present in a blank Session too (the title cluster is
+   hidden there) and its menu can open upward without covering the input. */
+.ct-repo-dock {
   display: flex;
   align-items: center;
-  align-self: flex-start;
-  flex: none;
-  margin-top: -4px;
-}
-.ct-repo-anchor-wrap {
-  display: contents;
-}
-.ct-repo-anchor {
-  display: none;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 var(--dsh-composer-side-clearance, 16px);
 }
 .ct-repo-group {
   display: inline-flex;
@@ -561,16 +576,16 @@ window.__ModuleLoader__.load({
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
-  height: 24px;
-  max-width: 300px;
+  height: 26px;
+  max-width: 320px;
   min-width: 0;
-  padding: 0 9px 0 8px;
+  padding: 0 10px 0 9px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
-  background: transparent;
+  background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
-  line-height: 15px;
+  line-height: 16px;
   white-space: nowrap;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
@@ -633,34 +648,56 @@ window.__ModuleLoader__.load({
   opacity: 0.55;
   cursor: default;
 }
+/* The listbox opens upward from the composer dock: the data-side attribute
+   picks the entry direction, and the route keeps at most the room above the
+   pill. */
 .ct-repo-menu {
   position: fixed;
   z-index: 2147483000;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   box-sizing: border-box;
-  max-height: 300px;
   overflow: auto;
   padding: 6px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--dsw-alias-bg-layer-2);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34), 0 2px 8px rgba(0, 0, 0, 0.18);
   color: var(--dsw-alias-label-primary);
   font-size: 12px;
   line-height: 16px;
+  transform-origin: bottom center;
+  animation: ct-repo-rise 130ms ease-out;
+}
+.ct-repo-menu[data-side='down'] {
+  transform-origin: top center;
+  animation-name: ct-repo-drop;
+}
+.ct-repo-menu:focus {
+  outline: none;
+}
+@keyframes ct-repo-rise {
+  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ct-repo-drop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to { opacity: 1; transform: none; }
 }
 .ct-repo-menu-head {
-  padding: 2px 8px 4px;
+  padding: 6px 9px 5px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
+  font-weight: 500;
   line-height: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .ct-repo-sep {
   height: 1px;
-  margin: 4px 8px;
-  background: var(--dsw-alias-border-l3);
+  margin: 4px 6px;
+  background: var(--dsw-alias-border-l2);
 }
 .ct-repo-option {
   display: flex;
@@ -669,14 +706,15 @@ window.__ModuleLoader__.load({
   width: 100%;
   min-height: 32px;
   margin: 0;
-  padding: 0 8px;
+  padding: 0 9px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 100ms ease;
 }
 @media (hover: hover) {
   .ct-repo-option:hover {
@@ -687,6 +725,9 @@ window.__ModuleLoader__.load({
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: -2px;
 }
+.ct-repo-option-active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
 .ct-repo-option-on {
   background: var(--dsw-alias-bg-module-platform);
 }
@@ -695,7 +736,7 @@ window.__ModuleLoader__.load({
 }
 .ct-repo-check {
   flex: none;
-  width: 12px;
+  width: 14px;
   color: var(--dsw-alias-state-business-primary);
 }
 .ct-repo-option-name {
@@ -832,20 +873,21 @@ window.__ModuleLoader__.load({
       return t('repoFailed')
     }
 
-    /** Session-header selector: which online repository this session publishes to. */
+    /**
+     * Composer dock row: which online repository this session publishes to.
+     * The row sits above the input card, so a blank Session shows it too (the
+     * title cluster is hidden there) and the listbox can open upward.
+     */
     function RepoBinding(props) {
       const t = props.t
-      const sessionId = props.sessionId
+      const sessionId = props.sessionId || (props.session && props.session.id) || ''
       const [repos, setRepos] = React.useState(repoCache.repos)
       // The first load has to say something while the list is on its way.
       const [bound, setBound] = React.useState('')
       const [note, setNote] = React.useState(repoCache.repos ? '' : t('repoLoading'))
       const [busy, setBusy] = React.useState(false)
       const [open, setOpen] = React.useState(false)
-      // The pill is portaled into the View tab strip: the official header clips
-      // title-adjacent actions, so it cannot render below the title in place.
-      const [host, setHost] = React.useState(null)
-      const anchor = React.useRef(null)
+      const [active, setActive] = React.useState(0)
       const pillRef = React.useRef(null)
       const menuRef = React.useRef(null)
       const placement = React.useRef(null)
@@ -870,26 +912,6 @@ window.__ModuleLoader__.load({
         })
         return function () {
           mounted.current = false
-        }
-      }, [sessionId])
-
-      React.useLayoutEffect(function () {
-        const node = anchor.current
-        const doc = node && node.ownerDocument
-        if (!doc) return undefined
-        const tabs = doc.querySelector('[data-conversation-tabs]')
-        const row = tabs ? tabs.parentElement : null
-        if (!row) {
-          setHost(null)
-          return undefined
-        }
-        const box = doc.createElement('div')
-        box.className = 'ct-repo-slot'
-        row.appendChild(box)
-        setHost(box)
-        return function () {
-          if (box.parentNode) box.parentNode.removeChild(box)
-          setHost(null)
         }
       }, [sessionId])
 
@@ -922,6 +944,11 @@ window.__ModuleLoader__.load({
         selectRepo(value)
       }
 
+      /**
+       * Place the listbox by its bottom edge and cap it at the room above the
+       * pill: the dock is above the composer, so the list opens upward. A short
+       * window (or a pill near the top) flips it downward instead of clipping.
+       */
       function toggleMenu() {
         if (open) {
           setOpen(false)
@@ -930,11 +957,31 @@ window.__ModuleLoader__.load({
         const node = pillRef.current
         if (!node || typeof node.getBoundingClientRect !== 'function') return
         const rect = node.getBoundingClientRect()
-        placement.current = {
-          top: Math.round(rect.bottom + 6),
-          left: Math.round(rect.left),
-          width: Math.max(240, Math.round(rect.width)),
-        }
+        const win = typeof window === 'undefined' ? null : window
+        const viewportWidth = win && win.innerWidth ? win.innerWidth : 1024
+        const viewportHeight = win && win.innerHeight ? win.innerHeight : 768
+        const width = Math.min(Math.max(288, Math.round(rect.width) + 24), Math.max(220, viewportWidth - 24))
+        const left = Math.max(8, Math.min(Math.round(rect.left), Math.round(viewportWidth - width - 8)))
+        const gap = 8
+        const roomAbove = Math.round(rect.top - gap - 8)
+        const roomBelow = Math.round(viewportHeight - rect.bottom - gap - 8)
+        const up = roomAbove >= 200 || roomAbove >= roomBelow
+        placement.current = up
+          ? {
+            up: true,
+            left,
+            width,
+            bottom: Math.round(viewportHeight - rect.top + gap),
+            maxHeight: Math.max(140, Math.min(320, roomAbove)),
+          }
+          : {
+            up: false,
+            top: Math.round(rect.bottom + gap),
+            left,
+            width,
+            maxHeight: Math.max(140, Math.min(320, roomBelow)),
+          }
+        setActive(0)
         setOpen(true)
       }
 
@@ -960,6 +1007,14 @@ window.__ModuleLoader__.load({
           if (doc) doc.removeEventListener('keydown', onKey)
           if (win) win.removeEventListener('resize', onResize)
         }
+      }, [open])
+
+      // Focus moves into the listbox on open so the arrow keys work without a
+      // click, and Esc returns focus to the pill.
+      React.useLayoutEffect(function () {
+        if (!open) return
+        const node = menuRef.current
+        if (node && typeof node.focus === 'function') node.focus()
       }, [open])
 
       const rows = Array.isArray(repos) ? repos : []
@@ -1006,7 +1061,13 @@ window.__ModuleLoader__.load({
         'aria-hidden': 'true',
       }, h('path', { d: 'M4.5 6.25 8 9.75l3.5-3.5' })))
 
-      const at = placement.current || { top: 0, left: 0, width: 240 }
+      const activeIndex = items.length === 0
+        ? 0
+        : (((typeof active === 'number' ? active : 0) % items.length) + items.length) % items.length
+      const at = placement.current || { up: false, left: 0, width: 288, maxHeight: 320 }
+      const menuStyle = { left: at.left + 'px', width: at.width + 'px', maxHeight: at.maxHeight + 'px' }
+      if (at.up) menuStyle.bottom = at.bottom + 'px'
+      else menuStyle.top = at.top + 'px'
       // Head line + separator keep "no repository" apart from the real list, so
       // the menu reads as a titled picker rather than a flat run of names.
       const menuChildren = [h('div', { key: '__head', className: 'ct-repo-menu-head', role: 'presentation' }, t('repoSelectLabel'))]
@@ -1015,35 +1076,65 @@ window.__ModuleLoader__.load({
         const selected = item.value === bound
         menuChildren.push(h('button', {
           key: item.value || '__none',
+          id: 'ct-repo-option-' + index,
           type: 'button',
           role: 'option',
+          tabIndex: -1,
           'aria-selected': selected ? 'true' : 'false',
-          className: 'ct-repo-option' + (selected ? ' ct-repo-option-on' : ''),
+          className: 'ct-repo-option'
+            + (selected ? ' ct-repo-option-on' : '')
+            + (index === activeIndex ? ' ct-repo-option-active' : ''),
+          onMouseEnter: function () { setActive(index) },
           onClick: function () { chooseRepo(item.value) },
         },
         h('span', { className: 'ct-repo-check' }, selected ? '✓' : ''),
         h('span', { className: 'ct-repo-option-name' }, item.label),
         item.private ? h('span', { className: 'ct-repo-tag' }, t('repoPrivate')) : null))
       })
+      // The listbox itself owns focus, so the arrow keys move the highlight and
+      // Enter picks it without turning the pill into a second control.
+      function onMenuKey(event) {
+        const key = event && event.key
+        if (!key) return
+        if (key === 'Escape') {
+          if (event.preventDefault) event.preventDefault()
+          setOpen(false)
+          return
+        }
+        if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') {
+          if (event.preventDefault) event.preventDefault()
+          setActive(function (current) {
+            const index = typeof current === 'number' ? current : 0
+            if (key === 'Home') return 0
+            if (key === 'End') return items.length - 1
+            return key === 'ArrowDown' ? (index + 1) % items.length : (index - 1 + items.length) % items.length
+          })
+          return
+        }
+        if (key === 'Enter' || key === ' ') {
+          if (event.preventDefault) event.preventDefault()
+          chooseRepo(items[activeIndex].value)
+        }
+      }
       const menu = open && ReactDOM && typeof ReactDOM.createPortal === 'function'
         ? ReactDOM.createPortal(h('div', {
           ref: menuRef,
           className: 'ct-repo-menu',
           role: 'listbox',
+          tabIndex: -1,
+          'data-side': at.up ? 'up' : 'down',
           'aria-label': t('repoSelectAria'),
-          style: { top: at.top + 'px', left: at.left + 'px', width: at.width + 'px' },
+          'aria-activedescendant': items.length === 0 ? undefined : 'ct-repo-option-' + activeIndex,
+          style: menuStyle,
+          onKeyDown: onMenuKey,
         }, menuChildren), document.body)
         : null
 
-      const group = h('span', { className: 'ct-repo-group' },
-        pill,
-        menu,
-        note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null)
-
-      const portal = host && ReactDOM && typeof ReactDOM.createPortal === 'function'
-      return h('span', { className: 'ct-repo-anchor-wrap' },
-        h('span', { ref: anchor, className: 'ct-repo-anchor' }),
-        portal ? ReactDOM.createPortal(group, host) : (host ? null : group))
+      // The dock row renders in place above the composer: note (if any), then
+      // the pill, both flush with the input card's right edge.
+      return h('div', { className: 'ct-repo-dock' },
+        note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
+        h('span', { className: 'ct-repo-group' }, pill, menu))
     }
 
     function Page(props) {
@@ -1068,6 +1159,13 @@ window.__ModuleLoader__.load({
       const [ghMessage, setGhMessage] = React.useState('')
       const [ghBusy, setGhBusy] = React.useState(false)
       const [network, setNetwork] = React.useState(null)
+      // Workspace rules: one `AGENTS.md` per registered workspace. The registry
+      // is the allow list, and an empty list hides the whole block.
+      const [workspaceRules, setWorkspaceRules] = React.useState(null)
+      const [workspaceId, setWorkspaceId] = React.useState('')
+      const [workspaceText, setWorkspaceText] = React.useState('')
+      const [workspaceMessage, setWorkspaceMessage] = React.useState('')
+      const [workspaceBusy, setWorkspaceBusy] = React.useState(false)
       const mounted = React.useRef(true)
       const buttons = React.useRef({})
 
@@ -1079,6 +1177,7 @@ window.__ModuleLoader__.load({
         loadLogin()
         loadAuth()
         loadNetwork()
+        loadWorkspaceRules()
         return function () {
           mounted.current = false
         }
@@ -1132,6 +1231,78 @@ window.__ModuleLoader__.load({
           .catch(function (error) {
             if (!mounted.current) return
             setRulesMessage(t('rulesLoadFailed') + (error && error.message ? error.message : String(error)))
+          })
+      }
+
+      /**
+       * Workspace rules: the payload carries every registered workspace with
+       * its current text, so switching the selector never re-reads the disk and
+       * only a save talks to the host.
+       */
+      function applyWorkspaceRules(body) {
+        const list = body && Array.isArray(body.workspaces) ? body.workspaces : []
+        setWorkspaceRules(list.length === 0 ? null : body)
+        if (list.length === 0) {
+          setWorkspaceId('')
+          setWorkspaceText('')
+          return
+        }
+        const current = list.find(function (item) { return item.id === workspaceId }) || list[0]
+        setWorkspaceId(current.id)
+        setWorkspaceText(typeof current.text === 'string' ? current.text : '')
+      }
+
+      function loadWorkspaceRules() {
+        fetch(WORKSPACE_RULES_API, { credentials: 'same-origin' })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            applyWorkspaceRules(body)
+            setWorkspaceMessage('')
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setWorkspaceMessage(t('workspaceRulesLoadFailed') + messageOf(error))
+          })
+      }
+
+      function pickWorkspace(id) {
+        setWorkspaceId(id)
+        const list = workspaceRules && Array.isArray(workspaceRules.workspaces) ? workspaceRules.workspaces : []
+        const row = list.find(function (item) { return item.id === id })
+        setWorkspaceText(row && typeof row.text === 'string' ? row.text : '')
+        setWorkspaceMessage('')
+      }
+
+      function saveWorkspaceRules() {
+        if (!workspaceId) return
+        setWorkspaceBusy(true)
+        setWorkspaceMessage('')
+        fetch(WORKSPACE_RULES_API, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ workspaceId: workspaceId, rules: workspaceText }),
+        })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            const saved = body && body.workspace ? body.workspace : null
+            const list = workspaceRules && Array.isArray(workspaceRules.workspaces) ? workspaceRules.workspaces : []
+            if (saved) {
+              setWorkspaceRules({
+                ...(workspaceRules || {}),
+                workspaces: list.map(function (item) { return item.id === saved.id ? saved : item }),
+              })
+            }
+            setWorkspaceMessage(t('workspaceRulesSaved'))
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setWorkspaceMessage(t('workspaceRulesSaveFailed') + messageOf(error))
+          })
+          .then(function () {
+            if (mounted.current) setWorkspaceBusy(false)
           })
       }
 
@@ -1694,27 +1865,78 @@ window.__ModuleLoader__.load({
         networkBlock,
         ghMessage ? h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, ghMessage) : null)
 
+      // Workspace rules: the registry names the only workspaces this block may
+      // touch, and an empty registry hides the block instead of showing an
+      // empty picker.
+      const workspaceList = workspaceRules && Array.isArray(workspaceRules.workspaces)
+        ? workspaceRules.workspaces
+        : []
+      const workspaceRow = workspaceList.find(function (item) { return item.id === workspaceId }) || null
+      const workspaceDirty = Boolean(workspaceRow)
+        && (typeof workspaceRow.text === 'string' ? workspaceRow.text : '') !== workspaceText
+      const workspacePanel = workspaceList.length === 0
+        ? null
+        : h('section', { className: 'ct-panel' },
+          h('div', { className: 'ct-rules-head' },
+            h('h3', null, t('workspaceRulesTitle'))),
+          h('label', { className: 'ct-field' },
+            h('span', null, t('workspaceSelectLabel')),
+            h('select', {
+              className: 'ct-input',
+              value: workspaceId,
+              disabled: workspaceBusy,
+              onChange: function (event) { pickWorkspace(event.target.value) },
+            },
+            workspaceList.map(function (item) {
+              return h('option', { key: item.id, value: item.id }, item.title)
+            }))),
+          h('label', { className: 'ct-field' },
+            h('span', null, t('rulesLabel') + ' · ' + workspaceText.length + ' ' + t('rulesChars')),
+            h('textarea', {
+              className: 'ct-textarea',
+              rows: 8,
+              spellCheck: false,
+              value: workspaceText,
+              placeholder: t('workspaceRulesPlaceholder'),
+              disabled: workspaceBusy,
+              onChange: function (event) { setWorkspaceText(event.target.value) },
+            })),
+          workspaceRow
+            ? h('p', { className: 'ct-note' }, t('rulesPathLabel') + t('sep') + workspaceRow.file
+              + (workspaceRow.exists === false ? ' — ' + t('workspaceRulesMissing') : ''))
+            : null,
+          actionRow([
+            actionButton('workspaceRulesSave', workspaceBusy ? t('rulesSaving') : t('rulesSave'), {
+              disabled: workspaceBusy || !workspaceRow || !workspaceDirty,
+              onClick: saveWorkspaceRules,
+              primary: true,
+            }),
+          ]),
+          h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, workspaceMessage))
+
       return h('section', { className: 'ct-page' },
-        h('header', { className: 'ct-head' },
-          h('h2', null, t('title'))),
-        panel,
-        rulesPanel,
-        componentsPanel,
-        ghAuthPanel,
-        state
-          ? h('div', { className: 'ct-meta' },
-            h('span', null, t('engines') + t('sep') + engineCount),
-            h('span', null, t('lastCompact') + t('sep') + lastText),
-            state.paths && state.paths.settings
-              ? h('span', null, t('settingsPath') + t('sep') + state.paths.settings)
-              : null)
-          : null)
+        h('div', { className: 'ct-page-inner' },
+          h('header', { className: 'ct-head' },
+            h('h2', null, t('title'))),
+          panel,
+          rulesPanel,
+          workspacePanel,
+          componentsPanel,
+          ghAuthPanel,
+          state
+            ? h('div', { className: 'ct-meta' },
+              h('span', null, t('engines') + t('sep') + engineCount),
+              h('span', null, t('lastCompact') + t('sep') + lastText),
+              state.paths && state.paths.settings
+                ? h('span', null, t('settingsPath') + t('sep') + state.paths.settings)
+                : null)
+            : null))
     }
 
     /**
-     * The stylesheet is global: the session-header pill renders outside the
-     * settings page, so a `<style>` scoped to that page would leave the pill
-     * unstyled (default 300x150 SVG boxes) until the page was opened once.
+     * The stylesheet is global: the composer dock pill renders outside the
+     * toolbox panel, so a `<style>` scoped to that panel would leave the pill
+     * unstyled (default 300x150 SVG boxes) until the panel was opened once.
      */
     function installStyles() {
       if (typeof document === 'undefined' || !document.createElement || !document.head) {
@@ -1733,8 +1955,24 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** Five descending bars: the sidebar row's mark for the tier control. */
+    function PanelIcon(props) {
+      const size = props && props.size ? props.size : 16
+      return h('svg', {
+        viewBox: '0 0 16 16',
+        width: size,
+        height: size,
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: '1.3',
+        strokeLinecap: 'round',
+        'aria-hidden': 'true',
+      },
+      h('path', { d: 'M2.5 3.75h11M2.5 6.5h9M2.5 9.25h6.5M2.5 12h4' }))
+    }
+
     return {
-      inject: ['slots', 'locale'],
+      inject: ['slots', 'locale', 'layout'],
       apply(ctx) {
         ctx.effect(function () {
           return installStyles()
@@ -1743,25 +1981,32 @@ window.__ModuleLoader__.load({
           return ctx.locale.register(NS, DICTIONARIES)
         }, 'compression-tiers: locale')
         const t = ctx.locale.bind(NS)
-        function SettingsPage() {
+        function ToolboxPanel() {
           return h(Page, { t: t })
         }
-        ctx.slots.inject('settings.section', function () {
+        // The sidebar row selects the toolbox as a main panel. The old Settings
+        // section is gone on purpose: one entry, one page.
+        ctx.slots.inject('sidebar.panellist', function () {
           return ctx.slots.register({
-            name: 'settings.section',
+            name: 'sidebar.panellist',
             id: 'compression-tiers',
             order: 47,
             label: function () { return t('sectionLabel') },
-          }, SettingsPage)
+          }, PanelIcon)
         })
-        // Session header: which online repository this session publishes to.
-        // Title-adjacent actions is the official slot for this; the preset label
-        // sits at -10, so anything positive lands after it.
-        ctx.slots.inject('conversation.session.header.actions', function () {
+        ctx.slots.inject('main', function () {
           return ctx.slots.register({
-            name: 'conversation.session.header.actions',
+            name: 'main',
+            key: 'compression-tiers',
+          }, ToolboxPanel)
+        })
+        // Composer dock: which online repository this session publishes to.
+        // The dock renders in a blank Session too, unlike the title cluster.
+        ctx.slots.inject('conversation.input.dock', function () {
+          return ctx.slots.register({
+            name: 'conversation.input.dock',
             id: 'compression-repo',
-            order: 60,
+            order: 90,
             locale: NS,
           }, RepoBinding)
         })

@@ -13,16 +13,17 @@
 
 ## 范围
 
-- 本仓库只负责五档上下文压缩、全局规则编辑、组件管理、发布流程与会话发布仓库：档位参数、设置页、`compression_tiers` / `compression_context` / `compression_compact` / `github_push` 四个工具、把档位同步进预设隔离域的 `compaction-basic` 引擎、设置页里对 `<DSH home>/AGENTS.md` 的读取与原子写入、四套托管组件（GitHub CLI / git / ffmpeg+ffprobe / Python）的 PATH 检测与托管下载、`gh` 的设备码登录与网络体检、`github_push` 的发布流程、会话标题旁的在线仓库绑定，以及四套托管文件共用的下载根目录与整体迁移。
+- 本仓库只负责五档上下文压缩、全局与工作区规则编辑、组件管理、发布流程与会话发布仓库：档位参数、左侧栏「压缩分档」面板（`sidebar.panellist` + `main`）、`compression_tiers` / `compression_context` / `compression_compact` / `github_push` 四个工具、把档位同步进预设隔离域的 `compaction-basic` 引擎、面板里对 `<DSH home>/AGENTS.md` 与已注册工作区 `AGENTS.md` 的读取与原子写入、四套托管组件（GitHub CLI / git / ffmpeg+ffprobe / Python）的 PATH 检测与托管下载、`gh` 的设备码登录与网络体检、`github_push` 的发布流程、输入框上方按会话绑定的在线仓库胶囊，以及四套托管文件共用的下载根目录与整体迁移。
 - 不负责：`dsh-compaction-basic` 本身的压缩算法、会话历史、摘要模型选择、官方 `/compact` 命令；不解析或改写规则内容，只把它当作文本原样保存；不实现 PR/检查/评审/工作树面板本身（官方 `dsh-experimental-forge-bundle` 负责），只保证它找得到已登录的 `gh`。
-- 不做仓库列表面板：1.4.x 的左侧栏「仓库」面板在 1.5.0 删除，1.5.1 又删掉设置页里的默认仓库与推送/建仓/查看动作；1.6.0 只增加会话标题旁按会话绑定的单个在线仓库选择器（`conversation.session.header.actions`）。多仓库场景由智能体在各自会话里调用 `github_push`，不要再加仓库列表或推送按钮。
-- 不提供改写全局规则的智能体工具：高优先级契约只能由人在设置页保存。
+- 不做仓库列表面板：1.4.x 的左侧栏「仓库」面板在 1.5.0 删除，1.5.1 又删掉设置页里的默认仓库与推送/建仓/查看动作；1.6.0 只增加按会话绑定的单个在线仓库选择器，1.9.0 把它从会话头移到输入框上方（`conversation.input.dock`）。多仓库场景由智能体在各自会话里调用 `github_push`，不要再加仓库列表或推送按钮。
+- 不提供改写全局规则或工作区规则的智能体工具：高优先级契约只能由人在面板里保存。
 - 不维护 `homerdsh-workbench` 的其它子系统（会话、GitHub、记忆、视频、投研终端）。
 
 ## 事实来源
 
 - 当前策略：`<DSH home>/compression-tiers/settings.json`。引擎配置是派生态，可重建。
 - 全局规则唯一来源：`<DSH home>/AGENTS.md`，由官方 `dsh-agent-instructions` 读取；本插件不复制、不缓存，删文件即等于没有规则。
+- 工作区规则唯一来源：每个已注册工作区根目录的 `AGENTS.md`（工作区清单来自 `<DSH home>/storages/workspace.json` 的 `tables.workspaces`）；插件只读注册表、不写注册表，也不持有第二份规则文本。
 - GitHub CLI 版本唯一来源：`src/gh.js` 的 `GH_VERSION`（当前 `2.76.2`）与官方 release URL；托管副本在 `<toolsPath>/gh`，登录凭据在 `gh` 自己的存储里，插件不读取。
 - 下载位置唯一来源：`settings.json` 的 `toolsPath`（空 = `<DSH home>/compression-tiers`），由 `src/tools-path.js` 解析；`gh` 装 `<toolsPath>/gh`、git 装 `<toolsPath>/git`、ffmpeg 装 `<toolsPath>/ffmpeg`、Python 装 `<toolsPath>/python`。任何模块都不得再硬编码用户可见的安装目录。
 - 档位参数唯一来源：`src/levels.js` 的 `COMPRESSION`；文档与界面不得写出与之不一致的比例。
@@ -30,7 +31,7 @@
 - 会话发布目标唯一来源：`settings.json` 的 `sessionRepos`（会话 id → `owner/name`）；`github_push` 把它变成 `https://github.com/<owner/name>.git` 作为 `pushFlow` 的 `target`，没有绑定则回落到 `github.remote`（初始 `origin`）。
 - 音视频托管源唯一来源：`src/ffmpeg.js` 的 `SOURCES`（当前只有 Windows 的 `ffmpeg-release-essentials.zip`）；托管副本在 `<toolsPath>/ffmpeg/bin`，浮动 release 构建，钉住 URL 与安装后的自检。
 - git / Python 托管源唯一来源：`src/components.js` 的 `COMPONENTS`（钉住 MinGit `2.56.1` 与 python-build-standalone `3.11.18+20261110`，资源文件名与版本同步）；托管副本在 `<toolsPath>/git`、`<toolsPath>/python`。
-- 组件行唯一来源：`src/component-rows.js` 的 `COMPONENT_ORDER` 与四个 mapper（gh / git / ffmpeg / python → 统一行）。设置页不得自行拼装某一个组件的状态、版本或路径，也不得再为单个组件加一套状态行。
+- 组件行唯一来源：`src/component-rows.js` 的 `COMPONENT_ORDER` 与四个 mapper（gh / git / ffmpeg / python → 统一行）。面板不得自行拼装某一个组件的状态、版本或路径，也不得再为单个组件加一套状态行。
 - 运行时兼容声明：`package.json` 的 `engines.dsh`（当前 `>=0.2.2-rc.3 <0.3.0`），DSH 加载器据此拒绝不兼容版本。
 - 官方阈值公式：`floor(min(W × thresholdRatio, W − O − 65,536))`，逐字保留 `(W − O) × retainRatio`。
 
@@ -38,40 +39,42 @@
 
 1. 不手工改已安装 profile 的 `package.json` / `cordis.patch.yml`；安装与启用通过 `plugin_manager`。把 `link:` 本地链接换成 registry / git 安装时，必须先让插件页移除该条目（它会清掉 `node_modules` 里的 Junction）；pnpm 不能用 rename 覆盖 Junction，会报 `ERR_PNPM_EPERM` 并把 profile 清单里的条目一起弄丢。删 Junction 只能用 `cmd /c rmdir <link>`，禁止递归删除。
 2. 新增运行时文件必须同时更新 `package.json` 的 `files` 与 `exports`；locale、图标、详情文档保持在包内。
-3. 不引入 Harness Client 包作为模块；设置页只用主题 token 与自有控件。
+3. 不引入 Harness Client 包作为模块；面板只用主题 token 与自有控件。
 4. 状态写入必须原子（临时文件 + rename）；手改坏的 JSON 回落到默认值，不得让插件崩溃。
 5. 预设结构访问保持防御式：拿不到结构时放弃更新，保留官方默认。
 6. 插件不写 `$DSH_HOME/cordis.patch.yml`，不改宿主平面上的 `compaction-basic` 行。
 7. 文档内容冲突时优先级：AGENTS.md > README.md > locale 文案。
-8. 全局规则只写 `<DSH home>/AGENTS.md`，不写工作区 `AGENTS.md`；写入必须原子、去 BOM、CRLF 归一为 LF、保留单个结尾换行，超过 100,000 字符返回 413 而不是截断。
+8. 全局规则面板只写 `<DSH home>/AGENTS.md`；工作区规则面板只写注册表里那个工作区根目录的 `AGENTS.md`（见第 21 条），不得读写未注册目录。两处写入都必须原子、去 BOM、CRLF 归一为 LF、保留单个结尾换行，超过 100,000 字符返回 413 而不是截断。
 9. 系统提示只带规则的最新 2,000 字符摘要，不得整份注入或把摘要写回文件。
 10. GitHub CLI 下载固定 `GH_VERSION` 与官方 release URL；解压后必须先跑 `--version` 探测暂存副本再原子替换，失败回滚旧二进制；只把托管 `bin` 目录插到本进程 PATH 最前，不改系统环境变量。
 11. 登录只驱动 `gh auth login --web` 的设备码流程，不读取、不复制、不代存 `gh` 凭据；取消时结束子进程并丢弃会话状态。
 12. ffmpeg / ffprobe 下载用 `SOURCES` 里的 URL 与 HTTP Range 续传；解压后必须先对暂存的两个二进制各跑一次 `-version`，再原子替换 `bin` 目录、失败回滚旧版本；只把托管 `bin` 目录插到本进程 PATH 最前，不写系统环境变量。托管源只有 Windows，其它平台只做 PATH 检测。
 13. 会话发布仓库只允许改 `github_push` 的推送目标：不得因此克隆仓库、切换分支或改动会话工作区；绑定归一化必须是 `owner/name`，非法值丢弃，最多保留 200 条。
-14. 会话头选择器注册在官方 `conversation.session.header.actions`（id `compression-repo`）；不得改标题、工作区选择器或其它官方 slot 的注册。官方 header 对标题旁动作是 `overflow: clip`，需要渲染到标题下方时只能用 portal 挂到 View 标签行（`[data-conversation-tabs]` 的父节点）并负责清理，拿不到标签行就退回内联。胶囊固定在标签行内、紧跟标签之后（不得再用 `margin-left: auto` 甩到最右边），`margin-top: -4px` 让 24px 胶囊与标签文字基线对齐；不得为了多一行去改官方 `titleRow` / `tabs` 的布局——header 高度是桌面窗口 chrome 几何的锚点。下拉菜单顶部有标题行，`不使用仓库` 与仓库列表之间有分隔线。
-15. 设置页只放控件标签、当前值、路径与错误信息。不写教学性说明段（面板介绍、原理、操作步骤、"为什么需要它"）：这类文字写进本文件或 README，界面上的 `intro` / `*Note` 一类键不再新增；旧键删除后不得加回。示例值只能作为输入框 `placeholder`，不能变成段落。
-16. 所有动作按钮必须常显：条件不满足时渲染为 `disabled` 并用 `title`（或同一行的状态文本）说明原因，不得用条件渲染把按钮整个隐藏（弹层、菜单、进度条不在此列，它们不是动作按钮）。设置页现有按钮——档位、规则保存、组件行下载/重新检测、`gh` 登录、设备码复制/打开授权页/取消、网络体检、下载目录迁移/恢复默认——都按这条执行；组件行在状态还没读到时也要渲染（显示「正在读取…」并置灰），不得整行消失。
+14. 会话发布仓库胶囊注册在官方 `conversation.input.dock`（id `compression-repo`，order 90）：这是输入框正上方的 full-width 槽，空会话也渲染（新会话的 `titleCluster` 被 `hideChrome` 隐藏，标题旁的动作不出现，1.6.2–1.8.x 的旧做法因此在新会话里无入口）。不得改标题、工作区选择器或其它官方 slot 的注册；不要把胶囊挂回 `conversation.session.header.actions`，也不要再 portal 到 `[data-conversation-tabs]`。胶囊在 dock 行内右对齐、与输入卡右缘对齐（`padding: 0 var(--dsh-composer-side-clearance)`），不得用负 margin 贴边。菜单用 `createPortal` 挂 body、`position: fixed`，默认**上拉**：按 `bottom` 定位（`bottom = viewportHeight - rect.top + gap`），`max-height` 取胶囊上方空间；上方不足 200px 且小于下方时才翻转成向下（`data-side='down'`）。菜单顶部有标题行，`不使用仓库` 与仓库列表之间有分隔线；键盘支持 ↑ / ↓ / Home / End / Enter / Esc。
+15. 面板只放控件标签、当前值、路径与错误信息。不写教学性说明段（面板介绍、原理、操作步骤、"为什么需要它"）：这类文字写进本文件或 README，界面上的 `intro` / `*Note` 一类键不再新增；旧键删除后不得加回。示例值只能作为输入框 `placeholder`，不能变成段落。
+16. 所有动作按钮必须常显：条件不满足时渲染为 `disabled` 并用 `title`（或同一行的状态文本）说明原因，不得用条件渲染把按钮整个隐藏（弹层、菜单、进度条不在此列，它们不是动作按钮）。面板现有按钮——档位、规则保存、组件行下载/重新检测、`gh` 登录、设备码复制/打开授权页/取消、网络体检、下载目录迁移/恢复默认——都按这条执行；组件行在状态还没读到时也要渲染（显示「正在读取…」并置灰），不得整行消失。
 17. 下载根目录规则：`toolsPath` 只接受绝对路径，非法或相对值回落默认（写库时归一化为空串）；迁移前先做完整预检（目标已有同名组件即拒绝、任一下载进行中返回 409），四套组件要么都搬、要么都不动；跨卷 `EXDEV` 退化为复制后删除；迁移成功才写 `toolsPath`，失败保留旧值以便重试；迁移后必须把本进程 PATH 里的旧目录（`gh/bin`、`git/cmd`、`ffmpeg/bin`、`python` 与 `python/Scripts`）换成新的。
-18. 设置页按钮只有一套标准：所有动作按钮经 `actionButton()` 渲染（基础类 `ct-btn`，主操作 `ct-btn--primary` 只加描边与底色，不改尺寸）；每个动作行经 `actionRow()` 渲染为 `ct-actions`，行内只放按钮、状态文字另起一行；按钮标签走共享键（`downloadIdle` / `downloadKeep` / `downloadContinue` / `downloadRetry` / `downloadRunning` / `downloadDone` / `downloadUnsupported`、`probe`、`stateMissing` / `statePartial` / `stateFailed` / `stateSystem`），禁止再出现 `ghDownload` / `toolsInstall` 这类按面板分裂的副本。四套组件行必须结构一致（名称与版本 → 状态行 → 进度 → 路径/错误 → 同一行两个按钮，下载在左、重新检测在右），都由 `downloadControl()` 算出状态与标签。
+18. 面板按钮只有一套标准：所有动作按钮经 `actionButton()` 渲染（基础类 `ct-btn`，主操作 `ct-btn--primary` 只加描边与底色，不改尺寸）；每个动作行经 `actionRow()` 渲染为 `ct-actions`，行内只放按钮、状态文字另起一行；按钮标签走共享键（`downloadIdle` / `downloadKeep` / `downloadContinue` / `downloadRetry` / `downloadRunning` / `downloadDone` / `downloadUnsupported`、`probe`、`stateMissing` / `statePartial` / `stateFailed` / `stateSystem`），禁止再出现 `ghDownload` / `toolsInstall` 这类按面板分裂的副本。四套组件行必须结构一致（名称与版本 → 状态行 → 进度 → 路径/错误 → 同一行两个按钮，下载在左、重新检测在右），都由 `downloadControl()` 算出状态与标签。
 19. git / Python 的托管安装：下载用 `COMPONENTS` 里钉住的 URL 与 HTTP Range 续传；解压与暂存必须在 `<toolsPath>/.staging/<id>`（**不能**放在组件目录内，否则整棵树 rename 到 `<root>/<id>` 会踩父目录），先对暂存二进制跑一次 `--version`，通过后整棵树原子替换、失败回滚旧版本；只把 `git/cmd`、`python`、`python/Scripts` 插到本进程 PATH 最前，不写系统环境变量。托管源只有 Windows，其它平台只做 PATH 检测并报「当前系统不可用」。
 20. 安装替换必须经 `src/swap.js` 的 `moveIntoPlace()`，不得直接 `renameSync` 到安装目录：Windows 在目录里有文件被占用（杀毒扫描刚写出的二进制、`-version` 子进程还没退干净）时把 rename 报成 `EPERM`，必须「重试退避 → 仍失败就复制过去」，否则用户看到的就是一次白下的安装失败。下载完成的归档文件（`<root>/<id>/download/<file>`）要复用，重试时先判断它是否已存在，存在就不再下载。
+21. 工作区规则：清单唯一来源是 `<DSH home>/storages/workspace.json`（`global.workspaceIds` + `tables.workspaces`，由 `src/workspace-rules.js` 读取）。只允许编辑清单内且 `path` 为绝对路径的工作区；客户端传任意路径一律不接受，id 不在清单返回 404；同一目录只出现一次，最多 50 个。写入走 `normalizeRulesText` 与原子写入；清单为空或读不出来时整个区块不渲染（不置灰、不留空面板）。插件不改注册表，也不缓存第二份规则文本。
 
 ## 验证要求
 
 - 改动后运行 `npm test`；新增档位、路由或同步逻辑必须补 `node:test` 用例。
-- 修改 `src/rules.js`、`/compression-tiers/api/rules` 或设置页规则面板后，必须让 `test/rules.test.js` 与 `test/client.test.js` 覆盖读取、归一化、413、摘要与面板状态。
+- 修改 `src/rules.js`、`/compression-tiers/api/rules` 或面板的全局规则区块后，必须让 `test/rules.test.js` 与 `test/client.test.js` 覆盖读取、归一化、413、摘要与面板状态。
+- 修改 `src/workspace-rules.js`、`/compression-tiers/api/workspace-rules` 或面板的工作区规则区块后，必须让 `test/workspace-rules.test.js` 覆盖清单顺序与过滤（相对路径、重复目录、50 条上限）、BOM 与 CRLF 归一化、未注册 id 404、超限 413 不落盘、原子写入；`test/client.test.js` 覆盖工作区选择、脏态才可保存、清单为空时整块不渲染。
 - 修改 `src/gh.js`、`/compression-tiers/api/github` 或 GitHub CLI 面板后，`test/gh.test.js` 必须覆盖状态、断点续传、416 重启、**自动重试**（掉线重试并从 `.part` 续传、4xx 不重试、`aborted` 不重试、重试预算用尽后报出次数）、PATH 前插与设备码解析；真实下载/安装只在临时 home 验证，不写用户 DSH home。
 - 修改 `src/publish.js` 或 `/compression-tiers/api/github/network` 后，`test/publish.test.js` 必须覆盖代理归一化与优先级、GitHub 连通判定（直连 / 代理 / 代理不通 / 全断）、失败分类、push 的代理注入与超时终止、仓库快照、建仓确认与密钥扫描。
-- 修改 `src/push-flow.js` 或 `github_push` 工具后，`test/push-flow.test.js` 必须覆盖目录选择（显式 → 会话，无兜底）、不可用路径早退、密钥拦截与 `force` 放行、失败分类与报告文案；发布只能有 `github_push` 一个入口，不要再往设置页加推送按钮。会话绑定生效时还必须覆盖 `target` 作为远端、不再取仓库快照、以及拒绝推送时仍报告 `target`。
+- 修改 `src/push-flow.js` 或 `github_push` 工具后，`test/push-flow.test.js` 必须覆盖目录选择（显式 → 会话，无兜底）、不可用路径早退、密钥拦截与 `force` 放行、失败分类与报告文案；发布只能有 `github_push` 一个入口，不要再往面板加推送按钮。会话绑定生效时还必须覆盖 `target` 作为远端、不再取仓库快照、以及拒绝推送时仍报告 `target`。
 - 修改 `src/ffmpeg.js` 或 `/compression-tiers/api/ffmpeg` 后，`test/ffmpeg.test.js` 必须覆盖托管源选择、`-version` 解析、PATH 检测与托管优先、状态（missing / partial / installed）与 PATH 前插；真实下载只在临时 home 验证，不写用户 DSH home。
 - 修改 `src/manual-compact.js`（主动压缩队列）后，`test/manual-compact.test.js` 必须覆盖：排队后 `turn/end` 才压缩并注入一次续跑、重复请求被拒、`aborted` 丢弃、**真人消息优先**（结束前发言取消排队任务、压缩中发言只取消续跑）、宿主已按阈值压缩时不重复压缩但仍续跑。真人发言不得被压缩流程吞掉，也不得被续跑消息抢先回答。
-- 修改会话发布仓库（`sessionRepos`、`/api/github/online`、`/api/github/binding`）后，`test/gh.test.js` 覆盖仓库行解析与 `gh` 缺失分类，`test/store.test.js` 覆盖 `owner/name` 归一化与 200 条上限，`test/client.test.js` 覆盖会话头选择器的注册、选项与状态提示，以及胶囊位置（`.ct-repo-slot` 不含 `margin-left`、`margin-top: -4px`）和下拉菜单的标题行 + 分隔线顺序。
+- 修改会话发布仓库（`sessionRepos`、`/api/github/online`、`/api/github/binding`）后，`test/gh.test.js` 覆盖仓库行解析与 `gh` 缺失分类，`test/store.test.js` 覆盖 `owner/name` 归一化与 200 条上限，`test/client.test.js` 覆盖 `conversation.input.dock` 的注册、选项与状态提示，以及上拉定位（`up` 时用 `bottom` 与 `data-side='up'`、空间不足时 `data-side='down'`）、活动项高亮与 `aria-activedescendant`、标题行 + 分隔线顺序。
 - 修改 `src/http.js` 的 `queryParam` 后，`test/http.test.js` 必须覆盖缺参、空值与非字符串请求。
-- 修改 `src/tools-path.js`、`/compression-tiers/api/tools` 或设置页的下载目录区块后，`test/tools-path.test.js` 必须覆盖默认根、绝对路径校验、四套组件整体迁移、目标已存在时预检拒绝、任一下载进行中 409、跨卷 `EXDEV` 回退与「搬一半后重试」；`test/store.test.js` 覆盖 `toolsPath` 归一化，`test/client.test.js` 覆盖迁移与恢复默认按钮的禁用态。
+- 修改 `src/tools-path.js`、`/compression-tiers/api/tools` 或面板的下载目录区块后，`test/tools-path.test.js` 必须覆盖默认根、绝对路径校验、四套组件整体迁移、目标已存在时预检拒绝、任一下载进行中 409、跨卷 `EXDEV` 回退与「搬一半后重试」；`test/store.test.js` 覆盖 `toolsPath` 归一化，`test/client.test.js` 覆盖迁移与恢复默认按钮的禁用态。
 - 修改 `src/swap.js`（安装树替换）后，`test/swap.test.js` 必须覆盖首试成功、锁重试后成功、锁不释放退化为复制、不可重试错误（`ENOENT`）早退、跨卷 `EXDEV` 直接复制；`src/gh.js` / `src/ffmpeg.js` / `src/components.js` 里到安装目录的移动必须走 `moveIntoPlace`，不得留裸 `renameSync`。
 - 修改 src/components.js、/compression-tiers/api/components 或某一行组件后，`test/components.test.js` 必须覆盖钉住的 URL 与资源文件名（含 Python 的 `%2B`）、版本解析、PATH 检测、状态（missing / partial / installed / system）、PATH 前插去重与未知组件/无托管构建的早退；`test/component-rows.test.js` 覆盖四行顺序与 state → ready/managed/system/running 映射；`test/client.test.js` 覆盖四行的按钮一致性。
-- 修改设置页文案或按钮后，`test/client.test.js` 必须覆盖：动作按钮常显（含设备码复制 / 打开授权页 / 取消在空闲时仍渲染且 `disabled`、组件行在状态未到时仍渲染）、说明段键已删除（`intro`、`ghToolNote` 等不得回到字典里）、空状态行收起（`.ct-status:empty` / `.ct-note:empty` 不占位、面板底部不留白），以及四套组件行的按钮一致性（同样的类名、同样的标签键、同样的禁用态、同样的一行顺序）；按面板分裂的标签键（`ghDownload`、`toolsInstall` 等）与已合并的旧面板键（`toolsTitle`、`toolsPathTitle`、`ghTitle`、`ghPathLabel`）都不得回归。
+- 修改面板文案或按钮后，`test/client.test.js` 必须覆盖：动作按钮常显（含设备码复制 / 打开授权页 / 取消在空闲时仍渲染且 `disabled`、组件行在状态未到时仍渲染）、说明段键已删除（`intro`、`ghToolNote` 等不得回到字典里）、空状态行收起（`.ct-status:empty` / `.ct-note:empty` 不占位、面板底部不留白），以及四套组件行的按钮一致性（同样的类名、同样的标签键、同样的禁用态、同样的一行顺序）；按面板分裂的标签键（`ghDownload`、`toolsInstall` 等）与已合并的旧面板键（`toolsTitle`、`toolsPathTitle`、`ghTitle`、`ghPathLabel`）都不得回归。
 - 发布前运行 `npm run check:secrets`；新增运行时文件、改 `package.json` 的 `files` 或版本号后同步 `CHANGELOG.md` 并按版本打 tag（`vX.Y.Z`）。
 - 修改 manifest、locale、图标或 `client.js` 注册方式后，检查 `test/manifest.test.js` 全绿。
 - 安装验证以插件页的 `application` 结果与新会话中的工具/设置为准，不以下载或日志推断成功。
@@ -113,3 +116,8 @@
 - 2026-11-21：多二进制行的标题写成它覆盖的二进制（`ffmpeg / ffprobe`），两个都没装时只留「未安装」一行、不再补「未找到」——两者同义；只缺一个时保留该行（此时状态行是「未完成，可续传」，不同义）。版本 1.8.3。
 - 2026-11-21：主动压缩让位于真人输入：`src/manual-compact.js` 的 `user/message` 分支不再只在「压缩正在跑」时记录，任何真人消息都会取消排队中的压缩并阻止续跑消息（已开始的压缩不中断，但结束后不注入续跑）；新增 `test/manual-compact.test.js`（7 条）并把该模块纳入验证要求。测试增至 164 条；版本 1.8.4。
 - 2026-11-21：修复 `github_push` 必然崩溃：工具把 `githubSettings()`（只有 `github` 块）当成顶层 settings 去取 `sessionRepos[sessionId]`，任何会话都报 `Cannot read properties of undefined (reading 'session-…')`。新增 `src/push-flow.js` 的 `sessionTarget(settings, sessionId)` 作为绑定 → 目标的唯一换算（读顶层、缺 map 返回空串），工具与 `sessionRepoBinding` 共用，`test/push-flow.test.js` 补回归用例（含无 `sessionRepos` 的旧设置）。README 精简到 88 行。版本 1.8.5。
+- 2026-11-21：会话头仓库胶囊观感修正：胶囊挪到 View 标签行、紧跟标签之后（去掉 `margin-left: auto`），`margin-top: -4px` 让胶囊与标签文字基线对齐；胶囊 26→24px，展开时箭头旋转 180°，菜单加标题行与分隔线、选项 32px。版本 1.8.6。
+- 2026-11-22：组件下载失败自动重试：`downloadWithResume` 增加 `retries=3`（指数退避）、`onRetry` 钩子与可被 `abort` 打断的等待；每次尝试从磁盘重读 `.part` 大小，天然续传。只重试网络错误与 `RETRYABLE_STATUS`；`aborted` 与 4xx 立即失败；预算用尽时在错误里报出尝试次数。`test/gh.test.js` 覆盖掉线续传、404 不重试、`aborted` 不重试与预算用尽。版本 1.8.7。
+- 2026-11-22：修复 Windows 安装 `EPERM`：新增 `src/swap.js` 的 `moveIntoPlace()`（rename 重试 7 次指数退避，仍失败退化为复制；`EXDEV` 直接复制），gh / ffmpeg / git / Python 的落位全部改走它并保留回滚；已下载完成的归档在重试时复用，不再白下第二次。新增 `test/swap.test.js`（6 条）与第 20 条。版本 1.8.8。
+- 2026-11-24：插件说明按官方体例重写：显示名 `上下文压缩分档` → **`压缩分档与工具箱`**，`meta.description` 收成「一句话 + 准确 UI 文案 + 限制 + 数据流向 + 关掉后的变化」，中文 438 字 / 英文 971 字符（插件列表只显示一行）；`package.json` 的 description 与 keywords 同步。版本 1.8.9、1.8.10。
+- 2026-11-25：**1.9.0 UI 改造**：设置页搬进左侧栏——删除 `settings.section`，改为 `sidebar.panellist`（id `compression-tiers`，order 47，label 与图标）+ `main` 面板，页面自身成为滚动容器（`.ct-page` / `.ct-page-inner`），`package.json` 的 `dsh.client.inject` 换成 layout / sidebar / conversation 三个官方包。新增**工作区规则**：`src/workspace-rules.js` 读工作区注册表、校验后原子写各工作区根目录的 `AGENTS.md`，新增 `GET/POST /compression-tiers/api/workspace-rules`；注册表为空时整块不渲染。会话发布仓库胶囊从 `conversation.session.header.actions` 移到 `conversation.input.dock`（空会话也渲染、输入框正上方、右对齐），菜单改为默认上拉（`bottom` 定位 + 上方空间 `max-height`，上方不足时翻成 `data-side='down'`），并重做观感（14px 圆角、分组标题、32px 选项、活动项高亮、130ms 进场）与键盘操作（↑/↓/Home/End/Enter/Esc，`aria-activedescendant`）；新增 `test/workspace-rules.test.js`（8 条）与上拉/翻向/高亮用例，测试 188 条；版本 1.9.0。

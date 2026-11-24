@@ -1,6 +1,6 @@
-# 上下文压缩分档（dsh-harness-toolbox）
+# 压缩分档与工具箱（dsh-harness-toolbox）
 
-> DSH 插件：五档上下文压缩 + 全局规则编辑 + 组件管理（`gh` / git / ffmpeg / Python）+ `github_push` 发布。
+> DSH 插件：五档上下文压缩 + 全局与工作区规则编辑 + 组件管理（`gh` / git / ffmpeg / Python）+ `github_push` 发布。
 > 包名 `dsh-harness-toolbox`（旧名 `dsh-compression-tiers` 已弃用），加载器行 id 仍是 `compression-tiers`，状态目录不变。
 
 ## 目录
@@ -11,6 +11,7 @@
 - [智能体工具](#智能体工具)
 - [组件管理](#组件管理)
 - [全局规则](#全局规则)
+- [工作区规则](#工作区规则)
 - [兼容性与限制](#兼容性与限制)
 - [开发](#开发)
 
@@ -22,8 +23,8 @@
 
 包名 `dsh-harness-toolbox`（已发布在 npmjs.com，版本见 `npm view dsh-harness-toolbox version`）：
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.8.5`）；
-2. 安装完成后打开新会话 → **设置 → 上下文压缩**。
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.9.0`）；
+2. 安装完成后打开新会话 → 左侧栏的 **压缩分档** 面板。
 
 也可以在会话里让智能体用 `plugin_manager` 安装这个包名。
 
@@ -31,7 +32,7 @@
 
 1. 把本仓库放到任意目录；
 2. DSH → **插件 → 添加插件**，选择这个目录；
-3. 打开新会话 → **设置 → 上下文压缩**。
+3. 打开新会话 → 左侧栏的 **压缩分档** 面板。
 
 安装与启用都交给 DSH（不要手改 profile 的 `package.json` / `cordis.patch.yml`）。宿主包（`@deepseek-ai/dsh-home-paths`、`@deepseek-ai/dsh-tools`）由运行时提供，本包只声明为可选 `peerDependencies`，这样以「链接到外部目录」方式安装也能解析。
 
@@ -39,14 +40,15 @@
 
 ## 使用
 
-设置页只有四栏：
+左侧栏的 **压缩分档** 面板（不再占用系统设置页）有五块：
 
-- **上下文压缩**：五个档位按钮，点一下立即写入所有已挂载的预设压缩引擎（在 `<DSH home>/compression-tiers/settings.json` 留档），不需要重启。
+- **档位**：五个按钮，点一下立即写入所有已挂载的预设压缩引擎（在 `<DSH home>/compression-tiers/settings.json` 留档），不需要重启。
 - **全局规则**：直接编辑 `<DSH home>/AGENTS.md`，保存即原子写入；系统提示只带最新 2,000 字符摘要。
+- **工作区规则**：从已注册工作区里选一个，编辑它根目录的 `AGENTS.md`；工作区注册表为空时整块不显示。
 - **组件管理**：GitHub CLI、git、ffmpeg/ffprobe、Python 四行，每行「下载 / 重新检测」，底部是四套组件共用的下载目录。
 - **GitHub 登录**：账号状态、`gh auth login --web` 设备码、网络体检。
 
-会话标题下方还有一个「仓库」胶囊：给当前会话绑定一个在线仓库，`github_push` 默认推到它。
+输入框上方还有一个「仓库」胶囊：给当前会话绑定一个在线仓库，`github_push` 默认推到它；胶囊在空会话里也显示，菜单向上弹出。
 
 ## 五档参数
 
@@ -87,7 +89,14 @@
 
 ## 全局规则
 
-`<DSH home>/AGENTS.md` 是唯一事实来源，插件不复制、不缓存。保存是原子写入（去 BOM、CRLF→LF、单个结尾换行），单次上限 100,000 字符，超出返回 413。系统提示只带最新 2,000 字符摘要，不整份注入。智能体没有改写它的工具——只能由人在设置页保存。
+`<DSH home>/AGENTS.md` 是唯一事实来源，插件不复制、不缓存。保存是原子写入（去 BOM、CRLF→LF、单个结尾换行），单次上限 100,000 字符，超出返回 413。系统提示只带最新 2,000 字符摘要，不整份注入。智能体没有改写它的工具——只能由人在「压缩分档」面板里保存。
+
+## 工作区规则
+
+每个已注册工作区根目录的 `AGENTS.md` 是它自己的事实来源，官方指令加载器会在该工作区的会话里读取。面板从 `<DSH home>/storages/workspace.json` 读工作区清单，只允许编辑清单里的工作区（id 不在表里返回 404），写入与全局规则同样归一化、同样 100,000 字符上限。清单为空或读不出来时，这一块整块不渲染。
+
+- **接口**：`GET /compression-tiers/api/workspace-rules`（列出工作区与各自规则）、`POST`（`{workspaceId, rules}`）。
+- **边界**：插件不改工作区注册表，也不写未注册目录；清空 draft 再保存得到空文件。
 
 ## 兼容性与限制
 
@@ -96,8 +105,8 @@
 - **网络**：GitHub 与 npm 相关操作需要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需能访问 `www.gyan.dev`。
 - **托管副本会盖过系统版本**：装了托管 git / Python 后，本进程内的 `git` / `python` 优先用托管副本；删掉 `<root>/git`、`<root>/python` 并重启即回退。
 - **凭据**：`gh` 的登录凭据存在它自己的存储里，插件不读取；npm 发布需要 2FA。
-- **仓库 UI**：没有仓库列表面板，也没有推送按钮。多仓库由智能体在各自会话里调用 `github_push`。
-- **浏览器刷新**：改档位对引擎立即生效；设置页自身状态走接口刷新，个别情况需要刷新页面。
+- **仓库 UI**：没有仓库列表面板，也没有推送按钮。多仓库由智能体在各自会话里调用 `github_push`；输入框上方的胶囊只决定当前会话的推送目标。
+- **浏览器刷新**：改档位对引擎立即生效；面板自身状态走接口刷新，个别情况需要刷新页面。
 
 ## 开发
 
@@ -107,21 +116,22 @@ npm run check:secrets
 ```
 
 ```text
-index.js              Host 入口：工具、系统提示、设置路由、reconciler
-client.js             Web 设置页与会话头仓库选择器
+index.js              Host 入口：工具、系统提示、面板路由、reconciler
+client.js             侧边栏面板、输入框上方的仓库胶囊与菜单
 src/levels.js         五档参数与阈值公式
 src/presets.js        预设隔离域引擎同步
 src/context-meter.js  实时占用与 [context] 尾行
 src/manual-compact.js 主动压缩队列（真人输入优先）
 src/store.js          状态读写（原子）
 src/rules.js          全局规则：路径、校验、原子写入、摘要
+src/workspace-rules.js 工作区规则：注册表读取、校验、原子写入
 src/gh.js             GitHub CLI：托管下载、PATH、设备码登录、仓库列表
 src/ffmpeg.js         ffmpeg / ffprobe 托管下载与 PATH
 src/components.js     git / Python 托管下载与 PATH
-src/component-rows.js 设置页四行组件的统一形状
+src/component-rows.js 面板四行组件的统一形状
 src/tools-path.js     下载根目录与整体迁移
 src/publish.js        网络体检、push、密钥扫描、建仓
-src/push-flow.js      发布流程（工具与设置页共用）
+src/push-flow.js      发布流程（工具与面板共用）
 test/                 node:test 用例与 manifest 检查
 ```
 

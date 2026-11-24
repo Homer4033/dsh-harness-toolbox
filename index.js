@@ -6,6 +6,7 @@ import { attachContextMeter, compactionWindowNote, contextReportText, readContex
 import { attachCompactQueue, COMPACT_TOOL_NAME, resolveCompaction } from './src/manual-compact.js'
 import { readSettings, writeSettings, normalizeRepoName } from './src/store.js'
 import { MAX_RULES_CHARS, readRules, rulesPromptBlock, saveRules } from './src/rules.js'
+import { saveWorkspaceRules, workspacesPayload } from './src/workspace-rules.js'
 import { beginGithubLogin, cancelGithubLogin, ghAuthStatus, ghDownloadRunning, ghStatus, githubLoginStatus, listRepos, prependGhPath, resolveGh, startGhDownload } from './src/gh.js'
 import { networkReport, detectProxy } from './src/publish.js'
 import { ffmpegDownloadRunning, ffmpegStatus, prependFfmpegPath, startFfmpegDownload } from './src/ffmpeg.js'
@@ -549,6 +550,45 @@ export function apply(ctx) {
               return
             }
             sendJson(res, 200, rulesPayload(saveRules(homeDir(), body.rules)))
+            return
+          }
+          sendJson(res, 405, { error: 'GET or POST' })
+        } catch (error) {
+          sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
+        }
+      },
+    }))
+  })
+
+  // Workspace rules: one `AGENTS.md` per registered workspace. The registry
+  // file is the allow list, so an id that is not in it is refused before any
+  // path is touched.
+  ctx.inject(['webServer', 'connection'], (child) => {
+    child.effect(() => child.webServer.register({
+      kind: 'exact',
+      path: '/compression-tiers/api/workspace-rules',
+      handler: async (req, res) => {
+        if (guard(child, req, res)) return
+        try {
+          if (req.method === 'GET') {
+            sendJson(res, 200, workspacesPayload(homeDir()))
+            return
+          }
+          if (req.method === 'POST') {
+            const body = await readBody(req)
+            if (typeof body.rules !== 'string') {
+              sendJson(res, 400, { error: 'nothing to update: pass rules as a string' })
+              return
+            }
+            if (typeof body.workspaceId !== 'string' || !body.workspaceId.trim()) {
+              sendJson(res, 400, { error: 'pass workspaceId of a registered workspace' })
+              return
+            }
+            sendJson(res, 200, {
+              ok: true,
+              maxChars: MAX_RULES_CHARS,
+              workspace: saveWorkspaceRules(homeDir(), body.workspaceId, body.rules),
+            })
             return
           }
           sendJson(res, 405, { error: 'GET or POST' })
