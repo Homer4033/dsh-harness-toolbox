@@ -333,7 +333,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | `.ct-dock-mascots` / `.ct-dock-tools` / `.ct-mascot-stage` | 像素伙伴槽 / 右侧工具区 / 伙伴舞台（220 × 84） |
 | `.ct-vial` / `.ct-vial-popover` / `.ct-vial-canvas` | 试管触发器 / 浮窗 / 物理画布（96 × 220） |
 | `.ct-vial-rows` / `.ct-vial-bar` / `.ct-vial-legend` | 浮窗数字行 / 三段构成条 / 图例 |
-| `.ct-effort` / `.ct-effort-track` / `.ct-effort-gem` | 注入官方模型菜单的推理轨道（`gem` 是那颗白色圆钮） | / `role="slider"` 的轨道 / 切工水晶旋钮 |
+| `.ct-effort` / `.ct-effort-track` / `.ct-effort-gem` | 注入官方模型菜单的推理轨道 / `role="slider"` 的轨道 / 那颗白色圆钮（2.4.1 起不是切面宝石） |
 | `.ct-effort-rail` / `.ct-effort-fill` / `.ct-effort-dot` / `.ct-effort-error` | 轨道条 / 已选段 / 档位点 / 失败原因 |
 | `.ct-status` / `.ct-note` / `.ct-meta` / `.ct-scopes` | 状态行 / 弱化说明 / 页脚元信息 / 授权范围 |
 

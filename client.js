@@ -1659,17 +1659,12 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
 }
 /* ---- Prism art layer (host surfaces) -------------------------------------
    The palette only repaints tokens, which leaves every host surface flat. The
-   art upstream draws in its stylesheet — a wash behind the conversation, the
-   smoked user bubble, hairline rules, slim scrollbars, the composer sheen — is
-   addressed here through DSH's own semantic attributes. applyOptics() is the
-   only switch: it writes data-ct-palette / data-ct-art on <body>, and both are
-   inert for the host palette and when the art switch is off. */
-body[data-ct-art='on'] [data-conversation-region='chat'] {
-  background-image:
-    radial-gradient(150% 90% at 50% 86%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 20%, transparent) 0%, transparent 66%),
-    radial-gradient(80% 60% at 100% 0%, color-mix(in srgb, var(--dsw-alias-chart-tools) 11%, transparent) 0%, transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--dsw-alias-state-business-primary) 4%, transparent) 0%, transparent 40%);
-}
+   art upstream draws in its stylesheet — the smoked user bubble, hairline
+   rules, slim scrollbars, the composer sheen — is addressed here through DSH's
+   own semantic attributes; the backdrop itself is the one static gradient
+   further down. applyOptics() is the only switch: it writes data-ct-palette /
+   data-ct-art on <body>, and both are inert for the host palette and when the
+   art switch is off. */
 body[data-ct-art='on'] [data-conversation-region='chat'] [data-message-bubble] {
   border-radius: 16px;
   padding: 10px 15px;
