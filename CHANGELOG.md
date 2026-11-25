@@ -1,6 +1,18 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.2.1`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.3.0`。
+
+## 2.3.0 — 2026-11-25
+
+- **补上主题美术这一半**：2.0.0–2.2.1 的「主题预设」只复刻了配色 token，上游 `style.css` 里那层美术（背景泛光、烟熏气泡、发丝分隔线、细滚动条、输入卡光泽）一直没搬——宿主表面换完色仍然是一片平。这次按上游的配方补齐，并且只在**选了配色**时生效。
+- **背景泛光**：对话区（`[data-conversation-region='chat']`）底部一层 accent 径向泛光（20% → 66% 处透明）+ 右上角 chart-tools 冷光（11%）+ 顶部 4% 竖向提亮。上游那块是 canvas 着色器（`conv-aura` / `brand-glow`），没有对应 CSS，这里用同一套配色语言重画成静态泛光，不是逐像素复刻。
+- **烟熏用户气泡**：`[data-message-bubble]` 改成 16px 圆角、`10px 15px` 内边距、1px 描边；深色加 `linear-gradient(rgba(255,255,255,.022), transparent 55%)` 顶部光泽与 `inset 0 1px 0 rgba(255,255,255,.058)` + `0 6px 20px -10px rgba(0,0,0,.44)`；浅色按上游换 `inset 0 1px 0 #fff` + `0 4px 16px -10px rgba(15,23,42,.10)`。
+- **对话栏排版**：正文 `p` / `li` 的 `line-height` 1.72、`letter-spacing` .005em（上游给中日韩正文的同一条处理）；引用块左侧 1.5px accent→冷紫渐变竖条 + accent 4% 横向淡染；`hr` 收成 84% 宽的发丝渐变；对话滚动条 6px、thumb 16% label-primary；输入卡加 3% 顶部光泽（浅色 60%）与更深的落影。
+- **开关只有两个 body 属性**：`applyOptics()` 写 `data-ct-palette` / `data-ct-art`，样式表里每条美术规则都以 `body[data-ct-art='on']` 开头；`host` 或外观页「光学外观」关闭时是 `off`，DSH 原样一点不动。选择器只用 DSH 自己的语义属性（`[data-conversation-region]` / `[data-conversation-scroll]` / `[data-message-bubble]` / `[data-composer-card]`、对话区的 `hr` / `blockquote`），不碰哈希类名，命中不到就自然不生效。
+- **外观页多一组控件**：`appearance.art`（默认开）与配色 / 动效 / 伙伴并列；跟随宿主时按钮置灰、`title` 写「选一套配色后生效」（第 16 条：禁用要说明原因）。`src/store.js` 与 `client.js` 两侧的归一化都接受 `art`，只有显式 `false` 才关。
+- 测试 215 → **216** 条：新增「美术层挂在两个 body 属性上、宿主配色永远不上」（含未知值回落、样式表必须逐条以 `body[data-ct-art='on']` 开头、不得出现哈希类名钩子）与外观页第 4 个开关的断言。
+- 文档：README 新增「界面预览 2. 主题美术」小节与 `docs/screenshots/art.png`、亮点 / 技术细节 / 兼容性与限制同步；[docs/UI.md](docs/UI.md) 新增「主题美术（宿主表面）」一节（三层配方、开关边界、不抄的部分）与检查清单；[AGENTS.md](AGENTS.md) 第 23 条与验证要求同步。
+- **渲染未验证**：截图来自离线渲染舞台（按 DSH 的语义属性搭的对话区副本 + 本仓库真实样式表 + 2.2.x 的配色 token），真实 DSH 窗口里的观感（尤其宿主是不是把这些属性都挂上）仍需装上新版本后点一遍。
 
 ## 2.2.1 — 2026-11-25
 

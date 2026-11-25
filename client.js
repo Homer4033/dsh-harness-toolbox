@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.2.1'
+    const PLUGIN_VERSION = '2.3.0'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -33,7 +33,7 @@ window.__ModuleLoader__.load({
       { id: 'subtle', labelKey: 'motionSubtle' },
       { id: 'off', labelKey: 'motionOff' },
     ]
-    const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', mascots: true }
+    const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', mascots: true, art: true }
 
     /**
      * Whole-app skins, as opposed to this plugin's own `.ct-skin` surfaces.
@@ -373,6 +373,23 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * The theme art (background wash, bubbles, hairlines, slim scrollbars) is
+     * painted by our own stylesheet, so it needs a hook on <body>: which palette
+     * is on, and whether the art layer is allowed. Both live under `data-ct-*`
+     * so they cannot collide with a host attribute, and both are inert for the
+     * `host` palette — the official look is never repainted from underneath.
+     */
+    function applyOptics(appearance) {
+      if (typeof document === 'undefined' || !document.body
+        || typeof document.body.setAttribute !== 'function') return null
+      const spec = normalizeAppearance(appearance)
+      const art = spec.art !== false && spec.palette !== 'host'
+      document.body.setAttribute('data-ct-palette', spec.palette)
+      document.body.setAttribute('data-ct-art', art ? 'on' : 'off')
+      return { palette: spec.palette, art: art }
+    }
+
+    /**
      * A palette never moves the host theme: both install every mode, so flipping
      * DSH's light/dark keeps the chosen skin instead of fighting it.
      */
@@ -437,6 +454,10 @@ window.__ModuleLoader__.load({
         mascotsLabel: '像素伙伴',
         mascotsOn: '已开启',
         mascotsOff: '已关闭',
+        artLabel: '光学外观',
+        artOn: '已开启',
+        artOff: '已关闭',
+        artHost: '选一套配色后生效',
         appearanceApplied: '已应用。',
         appearanceFailed: '保存失败：',
         vialTitle: '上下文试管',
@@ -586,6 +607,10 @@ window.__ModuleLoader__.load({
         mascotsLabel: 'Pixel companions',
         mascotsOn: 'on',
         mascotsOff: 'off',
+        artLabel: 'Optical surfaces',
+        artOn: 'on',
+        artOff: 'off',
+        artHost: 'Pick a palette first',
         appearanceApplied: 'Applied.',
         appearanceFailed: 'Could not save: ',
         vialTitle: 'Context vial',
@@ -1617,6 +1642,79 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
   --ct-glass-shadow: 0 28px 64px rgba(0, 4, 10, 0.56), 0 2px 10px rgba(0, 4, 10, 0.34);
   --ct-glass-inner: inset 0 1px 0 rgba(200, 235, 255, 0.09), inset 0 -1px 0 rgba(0, 0, 0, 0.34);
 }
+/* ---- Prism art layer (host surfaces) -------------------------------------
+   The palette only repaints tokens, which leaves every host surface flat. The
+   art upstream draws in its stylesheet — a wash behind the conversation, the
+   smoked user bubble, hairline rules, slim scrollbars, the composer sheen — is
+   addressed here through DSH's own semantic attributes. applyOptics() is the
+   only switch: it writes data-ct-palette / data-ct-art on <body>, and both are
+   inert for the host palette and when the art switch is off. */
+body[data-ct-art='on'] [data-conversation-region='chat'] {
+  background-image:
+    radial-gradient(150% 90% at 50% 86%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 20%, transparent) 0%, transparent 66%),
+    radial-gradient(80% 60% at 100% 0%, color-mix(in srgb, var(--dsw-alias-chart-tools) 11%, transparent) 0%, transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--dsw-alias-state-business-primary) 4%, transparent) 0%, transparent 40%);
+}
+body[data-ct-art='on'] [data-conversation-region='chat'] [data-message-bubble] {
+  border-radius: 16px;
+  padding: 10px 15px;
+  border: 1px solid var(--dsw-alias-border-l2);
+}
+body[data-ct-art='on'][data-ds-dark-theme] [data-message-bubble] {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.022) 0%, transparent 55%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.058), 0 6px 20px -10px rgba(0, 0, 0, 0.44);
+}
+body[data-ct-art='on']:not([data-ds-dark-theme]) [data-message-bubble] {
+  background-image: none;
+  box-shadow: inset 0 1px 0 #ffffff, 0 4px 16px -10px rgba(15, 23, 42, 0.1);
+}
+/* CJK prose breathes a little wider than the host default. */
+body[data-ct-art='on'] [data-conversation-region='chat'] :is(p, li) {
+  line-height: 1.72;
+  letter-spacing: 0.005em;
+}
+body[data-ct-art='on'] [data-conversation-region='chat'] hr {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--dsw-alias-label-primary) 16%, transparent) 16%, color-mix(in srgb, var(--dsw-alias-label-primary) 16%, transparent) 84%, transparent 100%);
+}
+body[data-ct-art='on'] [data-conversation-region='chat'] blockquote {
+  position: relative;
+  margin: 10px 0;
+  padding: 7px 16px 7px 15px;
+  border: 0;
+  border-radius: 2px 0 0 2px;
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--dsw-alias-state-business-primary) 4%, rgba(128, 128, 128, 0.028)) 0%, rgba(128, 128, 128, 0.022) 76%, transparent 98%);
+}
+body[data-ct-art='on'] [data-conversation-region='chat'] blockquote::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(color-mix(in srgb, var(--dsw-alias-state-business-primary) 68%, transparent) 0%, color-mix(in srgb, var(--dsw-alias-chart-tools) 42%, transparent) 100%);
+}
+body[data-ct-art='on'] [data-conversation-scroll]::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+body[data-ct-art='on'] [data-conversation-scroll]::-webkit-scrollbar-track {
+  background: transparent;
+}
+body[data-ct-art='on'] [data-conversation-scroll]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 16%, transparent);
+  border-radius: 999px;
+}
+body[data-ct-art='on'][data-ds-dark-theme] [data-composer-card] {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03) 0%, transparent 58%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 30px -18px rgba(0, 0, 0, 0.5);
+}
+body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.6) 0%, transparent 60%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 6px 20px -16px rgba(15, 23, 42, 0.28);
+}
 /* ---- Appearance page ---------------------------------------------------- */
 .ct-swatches {
   display: grid;
@@ -2310,6 +2408,7 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         palette: palette,
         motion: MOTIONS.some(function (item) { return item.id === next.motion }) ? next.motion : DEFAULT_APPEARANCE.motion,
         mascots: next.mascots === false ? false : DEFAULT_APPEARANCE.mascots,
+        art: next.art === false ? false : DEFAULT_APPEARANCE.art,
       }
     }
 
@@ -4339,6 +4438,7 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         const optimistic = normalizeAppearance({ ...previous, ...patch })
         setState({ ...state, appearance: optimistic })
         setSkinPalette(optimistic.palette)
+        applyOptics(optimistic)
         setAppearanceBusy(true)
         setAppearanceMessage('')
         fetch(API, {
@@ -4352,7 +4452,9 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
             if (!mounted.current) return
             rememberSettings(body)
             setState(body)
-            setSkinPalette(normalizeAppearance(body.appearance).palette)
+            const saved = normalizeAppearance(body.appearance)
+            setSkinPalette(saved.palette)
+            applyOptics(saved)
             setAppearanceMessage(t('appearanceApplied'))
           })
           .catch(function (error) {
@@ -4361,6 +4463,7 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
               return current ? { ...current, appearance: previous } : current
             })
             setSkinPalette(previous.palette)
+            applyOptics(previous)
             setAppearanceMessage(t('appearanceFailed') + messageOf(error))
           })
           .then(function () {
@@ -4842,6 +4945,20 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
               onClick: function () { applyAppearance({ mascots: !appearance.mascots }) },
             }, appearance.mascots ? t('mascotsOn') : t('mascotsOff')),
           ])),
+        h('div', { className: 'ct-field' },
+          h('span', null, t('artLabel')),
+          actionRow([
+            h('button', {
+              key: 'art',
+              type: 'button',
+              className: 'ct-btn' + (appearance.art ? ' ct-btn--primary' : ''),
+              'data-action': 'appearanceArt',
+              'aria-pressed': appearance.art ? 'true' : 'false',
+              disabled: appearanceDisabled || appearance.palette === 'host',
+              title: appearance.palette === 'host' ? t('artHost') : undefined,
+              onClick: function () { applyAppearance({ art: !appearance.art }) },
+            }, appearance.art ? t('artOn') : t('artOff')),
+          ])),
         h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, appearanceMessage))
 
       // Navigation rail: every page is always listed, so a page never disappears
@@ -4957,6 +5074,8 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         skinTints: SKIN_TINTS,
         setSkinPalette: setSkinPalette,
         skinRuntime: skinRuntime,
+        normalizeAppearance: normalizeAppearance,
+        applyOptics: applyOptics,
         setSkinTheme: function (theme) {
           skinRuntime.theme = theme
           paintSkin()
@@ -5020,7 +5139,9 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
           // user opens anything — not only after the appearance page loads.
           try {
             loadSettingsSnapshot().then(function (body) {
-              setSkinPalette(normalizeAppearance(body && body.appearance).palette)
+              const appearance = normalizeAppearance(body && body.appearance)
+              setSkinPalette(appearance.palette)
+              applyOptics(appearance)
             }).catch(function () { /* the panel reports its own load errors */ })
           } catch { /* relative URLs throw in non-browser tests */ }
         }

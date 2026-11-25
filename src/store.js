@@ -54,6 +54,11 @@ export function defaultAppearance() {
     // Pixel companions above the composer. Opt-out, not opt-in: the 2.0.0
     // appearance page shows the switch next to the palettes.
     mascots: true,
+    // The theme art (background wash, user bubble, hairlines, scrollbars) that
+    // upstream paints through its stylesheet. Only meaningful together with a
+    // palette: `host` never paints it, and `false` strips it back to flat
+    // tokens while keeping the palette.
+    art: true,
   }
 }
 
@@ -73,6 +78,7 @@ export function normalizeAppearance(value) {
     palette,
     motion: APPEARANCE_MOTIONS.includes(next.motion) ? next.motion : base.motion,
     mascots: next.mascots === false ? false : true,
+    art: next.art === false ? false : true,
   }
 }
 

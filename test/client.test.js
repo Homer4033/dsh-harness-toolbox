@@ -36,7 +36,7 @@ function loadClient() {
   })
   vm.runInContext(source, sandbox)
   assert.equal(loaded.length, 1)
-  return { module: loaded[0], styles }
+  return { module: loaded[0], styles, sandbox }
 }
 
 /**
@@ -456,6 +456,7 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian',
       'paletteCrystal', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff',
       'mascotsLabel', 'mascotsOn', 'mascotsOff', 'appearanceApplied', 'appearanceFailed',
+      'artLabel', 'artOn', 'artOff',
       'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
       'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
       'vialLoading', 'vialClose',
@@ -1149,12 +1150,62 @@ test('the appearance page paints the two palettes, motion tiers and companions',
   assert.ok(mascots, 'the companions switch always renders')
   assert.equal(mascots.props['aria-pressed'], 'true')
   assert.equal(mascots.props.disabled, false)
+  // The art layer (wash, bubbles, hairlines) has its own switch next to them.
+  const art = buttonOf(nodes, 'appearanceArt')
+  assert.ok(art, 'the art switch always renders')
+  assert.equal(art.props['aria-pressed'], 'true')
+  // The fixture sits on the host palette, where the art layer is inert.
+  assert.equal(art.props.disabled, true)
+  assert.equal(art.props.title, 'artHost')
   // A palette choice is a radio, not a button row that vanishes while loading.
   assert.equal(nodes.some((node) => node.type === 'select'), false)
   // No teaching copy on the page: only control labels and values.
   for (const banned of ['intro', 'paletteNote', 'motionNote']) {
     assert.equal(deepText({ props: { children: nodes } }).includes(banned), false, banned + ' must not return')
   }
+})
+
+test('the art layer hangs off two body attributes and stays off for the host palette', () => {
+  const { module, styles, sandbox } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  const skin = plugin.__test
+  const attrs = {}
+  sandbox.document.body = {
+    setAttribute(name, value) { attrs[name] = String(value) },
+  }
+
+  const applied = skin.applyOptics({ palette: 'obsidian', art: true })
+  assert.equal(JSON.stringify(applied), '{"palette":"obsidian","art":true}')
+  assert.equal(attrs['data-ct-palette'], 'obsidian')
+  assert.equal(attrs['data-ct-art'], 'on')
+
+  // Turning the art off keeps the palette tokens: only the art layer stops.
+  skin.applyOptics({ palette: 'crystal', art: false })
+  assert.equal(attrs['data-ct-palette'], 'crystal')
+  assert.equal(attrs['data-ct-art'], 'off')
+
+  // The host palette paints nothing of ours, whatever the switch says.
+  skin.applyOptics({ palette: 'host', art: true })
+  assert.equal(attrs['data-ct-palette'], 'host')
+  assert.equal(attrs['data-ct-art'], 'off')
+
+  // Unknown values fall back to the defaults instead of leaking into the DOM.
+  skin.applyOptics({ palette: 'neon', art: 'yes' })
+  assert.equal(attrs['data-ct-palette'], 'host')
+  assert.equal(attrs['data-ct-art'], 'off')
+
+  // The stylesheet only reacts to those markers, and it addresses host surfaces
+  // through DSH's own semantic attributes rather than hashed class names.
+  const css = String(styles[0].textContent)
+  assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-region='chat'\] \{/)
+  assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-region='chat'\] \[data-message-bubble\] \{/)
+  assert.match(css, /body\[data-ct-art='on'\]\[data-ds-dark-theme\] \[data-message-bubble\] \{/)
+  assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-region='chat'\] hr \{/)
+  assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-scroll\]::-webkit-scrollbar \{/)
+  assert.match(css, /body\[data-ct-art='on'\]\[data-ds-dark-theme\] \[data-composer-card\] \{/)
+  // Never a hashed-class hook: every art rule is attribute-scoped.
+  assert.doesNotMatch(css, /\[data-ct-art='on'\] \.[a-z]+_[A-Za-z0-9]{4,}/)
 })
 
 test('a six-page rail keeps appearance in the navigation', () => {
