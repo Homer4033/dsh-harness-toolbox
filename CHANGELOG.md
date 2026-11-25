@@ -2,6 +2,11 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.6.2 — 2026-11-25
+
+- **「模型和组件」页改成列表，不再一个组件一张卡**（用户：「重新编排『模型和组件』分页的组件和模型，使用列表排列，不要使用一个卡牌排一个组件」）：整页现在只有一张卡片，卡片里是两段列表——一条 `.ct-list-head`（「组件」/「本地模型」）加 `.ct-list` 里的 `.ct-item` 行。行首是名称、钉住版本（数字钉 `v2.76.2`、源码树 `commit 6c43880`）与状态，行尾的 `.ct-actions` 放两个常显按钮（下载在左、重新检测在右）；路径、进度条、二进制明细与错误横跨整行，行与行之间只有 1px 分隔线。下载目录从卡片里的子块改成列表下方的 `.ct-section`。旧的 `.ct-component*` / `.ct-models` 样式与类名整块删除，单行不再有卡片、圆角或底色。
+- 测试 256 → **257**：整页只有一张卡片、两段列表、七行 `.ct-item`、每行行尾恰好两个按钮、样式表里不得再有 `ct-component`。
+- 第 18 条与验证要求、README §8、docs/UI.md（列表行规格、类名表、检查清单）、client 字典（新增 `componentsListLabel`）同步；版本 2.6.2。
 ## 2.6.1 — 2026-11-25
 
 - **本地模型下载改走 ModelScope，`hf-mirror.com` 退到第二**（用户实测 2.6.0 面板里 FLUX.2 [klein] 4B「下不动」，问「可以登录 huggingface.co 来下吗」）：登录不解决，也没法解决——`huggingface.co` 在这台机器上 TCP 都连不上（`curl` 21 秒超时），而这个模型在 Hugging Face 上本来就是 Apache-2.0、免登录的，没有可登录的东西。真正的问题是速度：`hf-mirror.com` 能把请求转给 `cas-bridge.xethub.hf.co`，但实测只有约 150 KB/s，7.75 GB 的 transformer 要 14 小时以上。`MODEL_ENDPOINTS` 现在先试 ModelScope 上 BFL 的官方镜像仓库（18 个文件与上游同路径同字节，逐个核对过），同一台机器实测约 38 MB/s；`hf-mirror.com` 与 `huggingface.co` 留在后面兜底。

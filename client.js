@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
     const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.6.1'
+    const PLUGIN_VERSION = '2.6.2'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -580,6 +580,7 @@ window.__ModuleLoader__.load({
         workspaceRulesSaveFailed: '保存失败：',
         workspaceRulesSaved: '已保存。',
         componentsTitle: '模型和组件',
+        componentsListLabel: '组件',
         componentsLoadFailed: '读取组件状态失败：',
         componentsActionFailed: '操作失败：',
         modelsLabel: '本地模型',
@@ -738,6 +739,7 @@ window.__ModuleLoader__.load({
         workspaceRulesSaveFailed: 'Could not save: ',
         workspaceRulesSaved: 'Saved.',
         componentsTitle: 'Models & components',
+        componentsListLabel: 'Components',
         componentsLoadFailed: 'Could not read the component state: ',
         componentsActionFailed: 'Action failed: ',
         modelsLabel: 'Local models',
@@ -1311,47 +1313,85 @@ window.__ModuleLoader__.load({
   color: var(--dsw-alias-label-tertiary);
   word-break: break-all;
 }
-.ct-component {
+/* Components and local models share one list. The page owns the only card
+   (the only card on the page), so every managed item is a flat .ct-item line separated by a
+   hairline and never by a surface of its own; the trailing edge of the line
+   carries the two buttons. Six components plus the model therefore read as a
+   list instead of a stack of mini cards. */
+.ct-list {
   display: grid;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
 }
-.ct-component:first-of-type {
-  padding-top: 0;
-  border-top: 0;
-}
-/* Local models: the same row shape as the components, one folder below them. */
-.ct-models {
-  display: grid;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
-}
-.ct-models h4 {
+.ct-list-head {
   margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--dsw-alias-border-l2);
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   font-weight: 600;
 }
-.ct-models .ct-component:first-of-type {
+.ct-list-head:first-child {
+  padding-top: 0;
   border-top: 0;
 }
-.ct-model .ct-component-name {
-  font-size: 13px;
+.ct-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--dsw-alias-border-l2);
 }
-.ct-component-head {
+/* The section label above a list already draws the divider for its first row. */
+.ct-list-head + .ct-list > .ct-item:first-child {
+  border-top: 0;
+}
+.ct-item-main {
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 10px;
+  gap: 2px 8px;
 }
-.ct-component-name {
+.ct-item-name {
+  color: var(--dsw-alias-label-primary);
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
 }
-.ct-component-path {
+.ct-item-pin {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+.ct-item-state {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+/* The action row keeps its one standard (.ct-actions holds buttons only); in a
+   list row it sits on the trailing edge instead of under the text. */
+.ct-item > .ct-actions {
+  grid-column: 2;
+  grid-row: 1;
+  justify-content: flex-end;
+}
+.ct-item-path {
+  grid-column: 1 / -1;
   word-break: break-all;
+}
+.ct-item > .ct-progress,
+.ct-item > .ct-tools-list,
+.ct-item > .ct-note,
+.ct-item > .ct-status {
+  grid-column: 1 / -1;
+}
+.ct-item > .ct-status {
+  margin: 0;
+}
+/* The download location is a setting below the list, not another list row. */
+.ct-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
 }
 /* The repository pill rides the composer dock: a full-width row directly above
    the input card, so it is present in a blank Session too (the title cluster is
@@ -4954,9 +4994,10 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           if (row && row.id) rowsById[row.id] = row
         })
       }
-      // Every row renders through the one download control and the one button
-      // standard; a component whose payload has not arrived still renders its
-      // two buttons, disabled, instead of vanishing from the panel.
+      // Components and local models render as one list: the page owns the only
+      // card, and every managed item is a flat row whose trailing edge carries
+      // the two buttons. A component whose payload has not arrived still renders
+      // its buttons, disabled, instead of vanishing from the panel.
       const componentNodes = COMPONENT_ROWS.map(function (def) {
         const row = rowsById[def.id] || null
         const control = downloadControl({
@@ -4971,7 +5012,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         })
         // A numeric pin reads as a version (`v2.76.2`); a source tree pinned to
         // a commit reads as what it is (`commit 6c43880`).
-        const pinned = row && row.version ? ' · ' + (/^\d/.test(row.version) ? 'v' : '') + row.version : ''
+        const pinned = row && row.version ? (/^\d/.test(row.version) ? 'v' : '') + row.version : ''
         const used = row && row.toolVersion ? ' (' + row.toolVersion + ')' : ''
         // A row that covers several binaries says so in its title, so "ffprobe
         // is part of this row" stays visible even when there is nothing to list.
@@ -4980,14 +5021,11 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           : (row && row.name ? row.name : def.name)
         const bar = Boolean(row) && row.percent != null
           && (row.state === 'downloading' || row.state === 'partial' || row.state === 'error')
-        return h('div', { className: 'ct-component', key: def.id },
-          h('div', { className: 'ct-component-head' },
-            h('strong', { className: 'ct-component-name' }, title),
-            h('span', { className: 'ct-note' }, control.stateText + pinned + used)),
-          bar ? h('div', { className: 'ct-progress' }, h('span', { style: { width: (row.percent || 0) + '%' } })) : null,
-          row && row.path ? h('p', { className: 'ct-note ct-component-path' }, t('pathLabel') + t('sep') + row.path) : null,
-          componentToolLines(row),
-          row && row.error ? h('p', { className: 'ct-status', role: 'alert' }, row.error) : null,
+        return h('div', { className: 'ct-item', key: def.id, 'data-component': def.id },
+          h('div', { className: 'ct-item-main' },
+            h('strong', { className: 'ct-item-name' }, title),
+            pinned ? h('span', { className: 'ct-item-pin' }, pinned) : null,
+            h('span', { className: 'ct-item-state' }, control.stateText + used)),
           actionRow([
             actionButton('download:' + def.id, control.label, {
               disabled: componentsBusy || control.disabled,
@@ -4995,7 +5033,11 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
               primary: true,
             }),
             actionButton('probe:' + def.id, t('probe'), { onClick: function () { loadComponents(); loadAuth() } }),
-          ]))
+          ]),
+          row && row.path ? h('p', { className: 'ct-note ct-item-path' }, t('pathLabel') + t('sep') + row.path) : null,
+          componentToolLines(row),
+          row && row.error ? h('p', { className: 'ct-status', role: 'alert' }, row.error) : null,
+          bar ? h('div', { className: 'ct-progress' }, h('span', { style: { width: (row.percent || 0) + '%' } })) : null)
       })
 
       // The shared download root sits in the same panel: it is what a component
@@ -5042,54 +5084,51 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       // Models are not PATH entries, so they have their own rows and their own
       // status route; the bytes come from the pinned sizes, not from a guess.
       const modelRows = models && Array.isArray(models.models) ? models.models : []
-      const modelNodes = h('div', { className: 'ct-models', 'data-models': true, key: 'models' },
-        h('div', { className: 'ct-rules-head' },
-          h('h4', null, t('modelsLabel')),
-          models && models.path
-            ? h('p', { className: 'ct-note' }, t('pathLabel') + t('sep') + models.path)
-            : null),
-        MODEL_ROWS.map(function (def) {
-          const row = modelRows.filter(function (item) { return item && item.id === def.id })[0] || null
-          const control = downloadControl({
-            loading: !row,
-            unsupported: false,
-            running: Boolean(row && row.running === true),
-            installed: Boolean(row && row.installed === true),
-            partial: Boolean(row && row.state === 'partial'),
-            failed: Boolean(row && row.error),
-            system: false,
-            percent: row ? row.percent : null,
-          })
-          const total = row && Number(row.total) > 0 ? bytesLabel(row.total) : ''
-          const detail = row && row.detail ? ' · ' + row.detail : ''
-          const progress = Boolean(row) && (row.running === true || row.state === 'partial' || Boolean(row.error))
-          return h('div', { className: 'ct-component ct-model', key: def.id, 'data-model': def.id },
-            h('div', { className: 'ct-component-head' },
-              h('strong', { className: 'ct-component-name' }, row && row.name ? row.name : def.name),
-              h('span', { className: 'ct-note' }, control.stateText + (total ? ' · ' + total : '') + detail)),
-            progress ? h('div', { className: 'ct-progress' }, h('span', { style: { width: (row.percent || 0) + '%' } })) : null,
-            row && row.running && row.file ? h('p', { className: 'ct-note' }, t('modelsFetching') + t('sep') + row.file) : null,
-            row && row.dir ? h('p', { className: 'ct-note ct-component-path' }, t('pathLabel') + t('sep') + row.dir) : null,
-            row && row.error ? h('p', { className: 'ct-status', role: 'alert' }, row.error) : null,
-            actionRow([
-              actionButton('model:' + def.id, control.label, {
-                disabled: modelsBusy || control.disabled,
-                onClick: function () { downloadModel(def.id) },
-                primary: true,
-              }),
-              actionButton('modelProbe:' + def.id, t('probe'), {
-                onClick: function () { loadModels() },
-              }),
-            ]))
-        }),
-        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, modelsMessage))
+      const modelNodes = MODEL_ROWS.map(function (def) {
+        const row = modelRows.filter(function (item) { return item && item.id === def.id })[0] || null
+        const control = downloadControl({
+          loading: !row,
+          unsupported: false,
+          running: Boolean(row && row.running === true),
+          installed: Boolean(row && row.installed === true),
+          partial: Boolean(row && row.state === 'partial'),
+          failed: Boolean(row && row.error),
+          system: false,
+          percent: row ? row.percent : null,
+        })
+        const total = row && Number(row.total) > 0 ? bytesLabel(row.total) : ''
+        const detail = row && row.detail ? ' · ' + row.detail : ''
+        const progress = Boolean(row) && (row.running === true || row.state === 'partial' || Boolean(row.error))
+        return h('div', { className: 'ct-item ct-model', key: def.id, 'data-model': def.id },
+          h('div', { className: 'ct-item-main' },
+            h('strong', { className: 'ct-item-name' }, row && row.name ? row.name : def.name),
+            total ? h('span', { className: 'ct-item-pin' }, total) : null,
+            h('span', { className: 'ct-item-state' }, control.stateText + detail)),
+          actionRow([
+            actionButton('model:' + def.id, control.label, {
+              disabled: modelsBusy || control.disabled,
+              onClick: function () { downloadModel(def.id) },
+              primary: true,
+            }),
+            actionButton('modelProbe:' + def.id, t('probe'), {
+              onClick: function () { loadModels() },
+            }),
+          ]),
+          row && row.running && row.file ? h('p', { className: 'ct-note' }, t('modelsFetching') + t('sep') + row.file) : null,
+          row && row.dir ? h('p', { className: 'ct-note ct-item-path' }, t('pathLabel') + t('sep') + row.dir) : null,
+          row && row.error ? h('p', { className: 'ct-status', role: 'alert' }, row.error) : null,
+          progress ? h('div', { className: 'ct-progress' }, h('span', { style: { width: (row.percent || 0) + '%' } })) : null)
+      })
 
       const componentsPanel = h('section', { className: 'ct-panel', key: 'components' },
         h('div', { className: 'ct-rules-head' },
           h('h3', null, t('componentsTitle'))),
-        componentNodes,
-        modelNodes,
-        pathBlock,
+        h('h4', { className: 'ct-list-head' }, t('componentsListLabel')),
+        h('div', { className: 'ct-list', 'data-components': true, key: 'component-list' }, componentNodes),
+        h('h4', { className: 'ct-list-head' }, t('modelsLabel')),
+        h('div', { className: 'ct-list', 'data-models': true, key: 'model-list' }, modelNodes),
+        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, modelsMessage),
+        h('div', { className: 'ct-section' }, pathBlock),
         h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, componentsMessage))
 
       const authText = auth === null

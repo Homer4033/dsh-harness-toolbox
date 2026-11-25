@@ -453,7 +453,12 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.match(styles[0].textContent, /\.ct-menu-option-active/)
   assert.match(styles[0].textContent, /\.ct-select \{/)
   assert.equal(/\.ct-repo-option|\.ct-repo-menu/.test(styles[0].textContent), false, 'the old menu classes are gone')
-  assert.match(styles[0].textContent, /\.ct-component \{/)
+  // Components and local models are one list, not one card per item: the page
+  // owns the only card and every row keeps its actions on the trailing edge.
+  assert.match(styles[0].textContent, /\.ct-item \{/)
+  assert.match(styles[0].textContent, /\.ct-item > \.ct-actions/)
+  assert.match(styles[0].textContent, /\.ct-list-head \+ \.ct-list > \.ct-item:first-child/)
+  assert.equal(/\.ct-component/.test(styles[0].textContent), false, 'the per-component blocks are gone')
   // Empty status/note lines must collapse instead of leaving a gap in the panel.
   assert.match(styles[0].textContent, /\.ct-status:empty,\s*\.ct-note:empty \{/)
   assert.match(styles[0].textContent, /display: none;/)
@@ -467,7 +472,7 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'workspaceRulesPlaceholder',
       'workspaceRulesMissing', 'workspaceRulesLoadFailed', 'workspaceRulesSaveFailed',
       'workspaceRulesSaved',
-      'componentsTitle', 'componentsLoadFailed', 'componentsActionFailed',
+      'componentsTitle', 'componentsListLabel', 'componentsLoadFailed', 'componentsActionFailed',
       'toolsPathLabel', 'toolsPathSave', 'toolsPathReset', 'toolsPathRunning',
       'ghAuthTitle', 'ghLogin', 'ghCopy', 'ghOpenDevice', 'ghCancel',
       'toolsNotFound', 'toolsManaged', 'toolsSystem', 'pathLabel',
@@ -581,26 +586,29 @@ test('the component panel renders one row per managed component', () => {
   ]
   const nodes = renderSection('components', { components: componentsPayload(rows) })
   const names = nodes
-    .filter((node) => String(node.props.className || '') === 'ct-component-name')
+    .filter((node) => String(node.props.className || '') === 'ct-item-name')
     .map((node) => textOf(node))
   // The page is 模型和组件 now: the PATH components and the two source trees,
   // then the local model.
   assert.deepEqual(names, ['GitHub CLI', 'git', 'ffmpeg / ffprobe', 'Python', 'ComfyUI', 'ComfyUI MCP', 'FLUX.2 [klein] 4B'])
-  const blocks = nodes.filter((node) => String(node.props.className || '') === 'ct-component')
-  assert.equal(blocks.length, 6)
+  const items = nodes.filter((node) => String(node.props.className || '') === 'ct-item')
+  assert.equal(items.length, 6, 'six list rows instead of six cards')
   assert.equal(nodes.filter((node) => Boolean(node.props['data-model'])).length, 1, 'one local model row')
-  assert.match(deepText(blocks[0]), /downloadDone · v2\.76\.2/)
-  assert.match(deepText(blocks[0]), /gh\\?\.exe|gh\.exe/)
+  assert.match(deepText(items[0]), /downloadDone/)
+  assert.match(deepText(items[0]), /v2\.76\.2/)
+  assert.match(deepText(items[0]), /gh\\?\.exe|gh\.exe/)
   // The ffmpeg row still lists both binaries and where they came from.
   const tools = nodes.filter((node) => String(node.props.className || '') === 'ct-tool-name').map((node) => textOf(node))
   assert.deepEqual(tools, ['ffmpeg', 'ffprobe'])
-  assert.match(deepText(blocks[2]), /toolsManaged v7\.1\.1/)
-  assert.match(deepText(blocks[2]), /ffprobe\.exe/)
+  assert.match(deepText(items[2]), /toolsManaged v7\.1\.1/)
+  assert.match(deepText(items[2]), /ffprobe\.exe/)
   // A source tree shows its tag with a `v`, a commit pin without one, and the
   // install root instead of a binary.
-  assert.match(deepText(blocks[4]), /downloadDone · v0\.46\.0/)
-  assert.match(deepText(blocks[4]), /comfyui/)
-  assert.match(deepText(blocks[5]), /downloadDone · commit 6c43880/)
+  assert.match(deepText(items[4]), /downloadDone/)
+  assert.match(deepText(items[4]), /v0\.46\.0/)
+  assert.match(deepText(items[4]), /comfyui/)
+  assert.match(deepText(items[5]), /downloadDone/)
+  assert.match(deepText(items[5]), /commit 6c43880/)
   // An installed component is done: the button is disabled but still rendered.
   for (const id of ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp']) {
     const download = buttonOf(nodes, `download:${id}`)
@@ -609,6 +617,31 @@ test('the component panel renders one row per managed component', () => {
     assert.equal(textOf(download), 'downloadDone')
     assert.ok(buttonOf(nodes, `probe:${id}`), `probe:${id} is rendered`)
   }
+})
+
+test('the components and the model are one list, not one card per item', () => {
+  const rows = ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp'].map((id) => componentRow(id, 'missing'))
+  const nodes = renderSection('components', { components: componentsPayload(rows) })
+  // The page owns the only card; the two groups are lists of rows inside it.
+  assert.equal(nodes.filter((node) => hasClass(node, 'ct-panel')).length, 1, 'one card for the whole page')
+  const lists = nodes.filter((node) => hasClass(node, 'ct-list'))
+  assert.equal(lists.length, 2, 'one list for the components, one for the local models')
+  assert.equal(lists[0].props['data-components'], true)
+  assert.equal(lists[1].props['data-models'], true)
+  // A section label names each group instead of a second card around it.
+  const heads = nodes.filter((node) => node.type === 'h4' && hasClass(node, 'ct-list-head')).map((node) => textOf(node))
+  assert.deepEqual(heads, ['componentsListLabel', 'modelsLabel'])
+  const items = nodes.filter((node) => hasClass(node, 'ct-item'))
+  assert.equal(items.length, 7, 'six components and one model, one line each')
+  for (const item of items) {
+    assert.ok(item.props['data-component'] || item.props['data-model'], 'every line has a stable handle')
+    const children = Array.isArray(item.props.children) ? item.props.children.flat(Infinity) : []
+    const actions = children.filter((child) => child && hasClass(child, 'ct-actions'))
+    assert.equal(actions.length, 1, 'the buttons ride the row itself')
+    assert.equal(actions[0].props.children.flat(Infinity).length, 2, 'download then re-check, no third button')
+  }
+  // No per-item surface: the old per-component block classes are gone.
+  assert.equal(nodes.some((node) => String(node.props.className || '').includes('ct-component')), false)
 })
 
 test('a missing ffprobe stays listed under the ffmpeg row', () => {
@@ -643,7 +676,7 @@ test('a row with no binary at all says it once instead of repeating the state', 
   assert.equal(toolRows.length, 0, 'nothing to list when neither binary is there')
   // The title still names both binaries, and the state appears exactly once.
   const head = nodes
-    .filter((node) => String(node.props.className || '') === 'ct-component-head')
+    .filter((node) => String(node.props.className || '') === 'ct-item-main')
     .find((node) => deepText(node).startsWith('ffmpeg / ffprobe'))
   assert.equal(deepText(head), 'ffmpeg / ffprobestateMissing')
   const text = deepText({ props: { children: nodes } })
@@ -677,7 +710,7 @@ test('a component with no managed build explains itself instead of hiding the bu
   const download = buttonOf(nodes, 'download:gh')
   assert.equal(download.props.disabled, true)
   assert.equal(textOf(download), 'downloadUnsupported')
-  assert.equal(deepText(nodes.find((node) => String(node.props.className || '') === 'ct-component-head')), 'GitHub CLIdownloadUnsupported · v2.76.2')
+  assert.equal(deepText(nodes.find((node) => String(node.props.className || '') === 'ct-item-main')), 'GitHub CLIv2.76.2downloadUnsupported')
 })
 
 test('a PATH-only component offers the same forced download', () => {
@@ -688,7 +721,7 @@ test('a PATH-only component offers the same forced download', () => {
   assert.equal(textOf(download), 'downloadKeep')
   assert.equal(download.props.disabled, false)
   const block = nodes
-    .filter((node) => String(node.props.className || '') === 'ct-component')
+    .filter((node) => String(node.props.className || '') === 'ct-item')
     .find((node) => deepText(node).startsWith('git'))
   assert.match(deepText(block), /stateSystem/)
   assert.match(deepText(block), /Git\/cmd\/git\.exe/)
@@ -722,8 +755,8 @@ test('a failed download keeps its error and offers a retry', () => {
 
 test('the component buttons wait for the payload instead of vanishing', () => {
   const nodes = renderSection('components')
-  const blocks = nodes.filter((node) => String(node.props.className || '') === 'ct-component')
-  assert.equal(blocks.length, 6, 'all six rows render before the fetch resolves')
+  const items = nodes.filter((node) => String(node.props.className || '') === 'ct-item')
+  assert.equal(items.length, 6, 'all six list rows render before the fetch resolves')
   for (const id of ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp']) {
     const download = buttonOf(nodes, `download:${id}`)
     assert.ok(download, `download:${id} is rendered while loading`)
@@ -1237,7 +1270,7 @@ test('the local model row keeps its buttons and reports bytes, progress and stat
     models: { ...payload, running: true, models: [{ ...model, running: true, state: 'partial', percent: 42, file: 'transformer/diffusion_pytorch_model.safetensors' }] },
   })
   const runningRow = running.find((node) => node.props['data-model'] === 'flux2-klein-4b')
-  assert.equal(String(runningRow.props.className), 'ct-component ct-model')
+  assert.equal(String(runningRow.props.className), 'ct-item ct-model')
   assert.match(deepText(runningRow), /modelsFetching/)
   assert.ok(running.some((node) => String(node.props.className) === 'ct-progress'))
 })
