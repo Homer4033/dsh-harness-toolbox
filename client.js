@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.3'
+    const PLUGIN_VERSION = '2.4.4'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -1910,10 +1910,13 @@ body[data-ct-art='on'][data-ds-dark-theme] [data-composer-card] {
    cut the glow off before the window edge, so it drops out and the card itself
    takes the fade (a translucent card over the horizon). */
 body[data-ct-art='on'] [data-composer-seat] {
-  background: none;
+  /* DSH paints this mask from a 3-class selector (root + data-phase + seat),
+     which beats an attribute-only selector — hence the !important: without it
+     the fade band still cuts the horizon at the card. */
+  background: none !important;
 }
 body[data-ct-art='on'] [data-composer-card] {
-  background-color: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 76%, transparent);
+  background-color: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 76%, transparent) !important;
 }
 body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
   background-image: linear-gradient(rgba(255, 255, 255, 0.6) 0%, transparent 60%);
