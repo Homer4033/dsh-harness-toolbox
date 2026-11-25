@@ -102,13 +102,13 @@ ctx.inject(['theme'], (scope) => {
 
 ### 主题美术（宿主表面）
 
-token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把上游 `style.css` 里**能用语义锚点表达**的那部分美术搬过来，只在**选了配色**且外观页「光学外观」打开时生效：
+token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把上游 `style.css` 里**能用语义锚点表达**的那部分美术搬过来，由外观页「光学外观」开关控制（默认开）；配色只决定用哪套 token 画，`host` 下就用 DSH 自己的颜色画：
 
 1. **只认语义属性**：`[data-conversation-region='chat']`（对话区画布）、`[data-conversation-scroll]`（滚动条）、`[data-message-bubble]`（用户气泡）、`[data-composer-card]`（输入卡）、对话区里的 `hr` / `blockquote`。这些是 DSH 自己写在 `src/client/chat/*` 里的属性，不是哈希类名；任何一条选择器命中不到就自然不生效。
 2. **开关只有两个 body 属性**：`data-ct-palette` 与 `data-ct-art`，由 `applyOptics()` 写入（`host` 或开关关闭时 `data-ct-art='off'`）。样式表里每条美术规则都必须以 `body[data-ct-art='on']` 开头——**禁止**写裸 `body` / `:root` 的背景，否则跟随宿主的用户也会被改观。
 3. **画的就是这三层**：对话区一层 accent 径向泛光（底部 20% → 66% 透明）+ 右上角 chart-tools 冷光 + 顶部 4% 的竖向提亮；用户气泡 16px 圆角、`10px 15px` 内边距、深色加 `linear-gradient(rgba(255,255,255,.022), transparent 55%)` 与 `inset 0 1px 0 rgba(255,255,255,.058)` + `0 6px 20px -10px rgba(0,0,0,.44)`，浅色换成 `inset 0 1px 0 #fff` + `0 4px 16px -10px rgba(15,23,42,.10)`；输入卡一层 3% 顶部光泽（浅色 60%）与更深的落影。
 4. **引用块与分隔线**：`blockquote` 左侧 1.5px accent→冷紫渐变竖条（`::before`，上下各留 2px）+ accent 4% 的横向淡染；`hr` 是 84% 宽度的发丝渐变，不占额外高度。
-5. **排版只放宽行距**：对话区 `p` / `li` 的 `line-height` 1.72、`letter-spacing` .005em（上游给中日韩正文的同一条处理），字号、字重、颜色一律不动。
+5. **排版只放宽行距**：对话区 `p` / `li` 的 `line-height` 1.72、`letter-spacing` .005em（上游给中日韩正文的同一条处理），字号、字重、颜色一律不动。\n5b. **让辉光到底**：DSH 的 `[data-composer-seat]` 会给底部 36px 铺一条到 `--dsw-alias-bg-base` 的遮罩，正好把辉光截在输入卡上方。美术层打开时这条遮罩让位（`background: none`），改成输入卡自己半透明（`bg-layer-3` 76%）——辉光才能一直到底。
 6. **美术层自身不加 CSS keyframes**：静态部分全是渐变；唯一的动效是下面那节 canvas 地平线辉光，`data-motion` 同时决定它的速度与强度。
 7. **不抄的部分**：壁纸、Omni 检视台、思考转译、配额遥测都不在本插件范围内。
 
@@ -117,7 +117,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 2.4.0 起美术层有了唯一一处动效：上游 `ripple-core.js` 的 2D 地平线渲染器（`conv-aura.js` 只负责状态机）。DSH 侧只移植渲染器，帧由自己的控制器调度。
 
 1. **挂在哪里**：`[data-conversation-region='chat']` 的第一个子节点 `.ct-aura-host`（`aria-hidden`、不接点击），里面一张 canvas；绝对定位贴底、高度 40%。`[data-conversation-scroll]` 同时被提到 `z-index: 1`，所以辉光画在**对话区底色之上、正文之下**，不会盖住文字，也不参与排版。
-2. **什么时候有**：只在美术层开启时挂载（选了配色且「光学外观」打开）；`host` 或 `art: false` 时整块移除，宿主表面一点不动。vendor 脚本也是那时才取（`?v=<PLUGIN_VERSION>` 同源）。
+2. **什么时候有**：只在美术层开启时挂载（「光学外观」打开，与配色无关）；`art: false` 时整块移除，宿主表面一点不动。vendor 脚本也是那时才取（`?v=<PLUGIN_VERSION>` 同源）。
 3. **画什么**：上游的逐像素辉光——底部 horizon 带、横向两个正弦波叠加的 curtain、`valueNoise` 的 jitter、halftone 点阵、深色用钴蓝→青、浅色用宝蓝水彩。渲染 `reach` 用 0.85（上游默认 0.47 是给没有输入卡遮挡的画布用的；DSH 输入卡压住底部约 150px，0.47 在真实窗口里只剩一条几乎看不见的边），强度 0.95。
 4. **动多久**：`rAF` 上限 ~30fps（与上游一致），画布按 `min(devicePixelRatio, 1.5) × 0.72` 出像素。
 5. **三档动效**：`full` 原速；`subtle` 速度 ×0.45、强度 0.55；`off` 只画一帧静态图、不再排帧；未知值回落 `full`。档位同时写到 `<body>` 的 `data-ct-motion` 上，CSS 侧（兜底层）按它降速/停用。文档隐藏（`document.hidden`）时不排帧。

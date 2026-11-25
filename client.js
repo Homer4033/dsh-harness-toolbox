@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.1'
+    const PLUGIN_VERSION = '2.4.2'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -383,7 +383,10 @@ window.__ModuleLoader__.load({
       if (typeof document === 'undefined' || !document.body
         || typeof document.body.setAttribute !== 'function') return null
       const spec = normalizeAppearance(appearance)
-      const art = spec.art !== false && spec.palette !== 'host'
+      // The art layer is its own switch: the palette only decides which tokens the
+      // art is drawn with, so host keeps DSH's colours and still gets the
+      // wash/bubbles/glow. Only the explicit art-off switch turns it off.
+      const art = spec.art !== false
       document.body.setAttribute('data-ct-palette', spec.palette)
       document.body.setAttribute('data-ct-art', art ? 'on' : 'off')
       document.body.setAttribute('data-ct-motion', spec.motion)
@@ -1901,6 +1904,16 @@ body[data-ct-art='on'] [data-conversation-scroll]::-webkit-scrollbar-thumb {
 body[data-ct-art='on'][data-ds-dark-theme] [data-composer-card] {
   background-image: linear-gradient(rgba(255, 255, 255, 0.03) 0%, transparent 58%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 30px -18px rgba(0, 0, 0, 0.5);
+}
+/* The composer seat paints an opaque fade band over the last 36px so transcript
+   text can scroll out under the card. With the art layer on, that band is what
+   cut the glow off before the window edge, so it drops out and the card itself
+   takes the fade (a translucent card over the horizon). */
+body[data-ct-art='on'] [data-composer-seat] {
+  background: none;
+}
+body[data-ct-art='on'] [data-composer-card] {
+  background-color: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 76%, transparent);
 }
 body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
   background-image: linear-gradient(rgba(255, 255, 255, 0.6) 0%, transparent 60%);
@@ -5154,8 +5167,7 @@ body[data-ct-art='on'] .ct-aura-host canvas {
               className: 'ct-btn' + (appearance.art ? ' ct-btn--primary' : ''),
               'data-action': 'appearanceArt',
               'aria-pressed': appearance.art ? 'true' : 'false',
-              disabled: appearanceDisabled || appearance.palette === 'host',
-              title: appearance.palette === 'host' ? t('artHost') : undefined,
+              disabled: appearanceDisabled,
               onClick: function () { applyAppearance({ art: !appearance.art }) },
             }, appearance.art ? t('artOn') : t('artOff')),
           ])),

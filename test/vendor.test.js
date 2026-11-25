@@ -129,7 +129,7 @@ test('the vendor route serves exactly the three shipped scripts', () => {
 test('the package declares GPL-3.0-only and ships the optical modules', () => {
   const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   assert.equal(manifest.license, 'GPL-3.0-only')
-  assert.equal(manifest.version, '2.4.1')
+  assert.equal(manifest.version, '2.4.2')
   for (const entry of ['vendor', 'NOTICE', 'THIRD_PARTY_NOTICES.md']) {
     assert.ok(manifest.files.includes(entry), `files is missing ${entry}`)
   }

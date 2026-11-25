@@ -1154,9 +1154,10 @@ test('the appearance page paints the two palettes, motion tiers and companions',
   const art = buttonOf(nodes, 'appearanceArt')
   assert.ok(art, 'the art switch always renders')
   assert.equal(art.props['aria-pressed'], 'true')
-  // The fixture sits on the host palette, where the art layer is inert.
-  assert.equal(art.props.disabled, true)
-  assert.equal(art.props.title, 'artHost')
+  // The art layer is its own switch now: the host palette still gets it (drawn
+  // with the host's own tokens), so the button is live instead of greyed out.
+  assert.equal(art.props.disabled, false)
+  assert.equal(art.props.title, undefined)
   // A palette choice is a radio, not a button row that vanishes while loading.
   assert.equal(nodes.some((node) => node.type === 'select'), false)
   // No teaching copy on the page: only control labels and values.
@@ -1165,7 +1166,7 @@ test('the appearance page paints the two palettes, motion tiers and companions',
   }
 })
 
-test('the art layer hangs off two body attributes and stays off for the host palette', () => {
+test('the art layer hangs off two body attributes and stays off only when switched off', () => {
   const { module, styles, sandbox } = loadClient()
   const plugin = module.factory(() => fakeReact(null))
   plugin.apply(sectionContext([]))
@@ -1186,15 +1187,16 @@ test('the art layer hangs off two body attributes and stays off for the host pal
   assert.equal(attrs['data-ct-palette'], 'crystal')
   assert.equal(attrs['data-ct-art'], 'off')
 
-  // The host palette paints nothing of ours, whatever the switch says.
+  // The host palette is a colour choice, not an art switch: it keeps DSH's
+  // tokens and still paints the layer (otherwise a fresh install shows nothing).
   skin.applyOptics({ palette: 'host', art: true })
   assert.equal(attrs['data-ct-palette'], 'host')
-  assert.equal(attrs['data-ct-art'], 'off')
+  assert.equal(attrs['data-ct-art'], 'on')
 
   // Unknown values fall back to the defaults instead of leaking into the DOM.
   skin.applyOptics({ palette: 'neon', art: 'yes' })
   assert.equal(attrs['data-ct-palette'], 'host')
-  assert.equal(attrs['data-ct-art'], 'off')
+  assert.equal(attrs['data-ct-art'], 'on')
 
   // The stylesheet only reacts to those markers, and it addresses host surfaces
   // through DSH's own semantic attributes rather than hashed class names.
