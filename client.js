@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.6'
+    const PLUGIN_VERSION = '2.4.7'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -437,7 +437,7 @@ window.__ModuleLoader__.load({
     const DICTIONARIES = {
       zh: {
         sectionLabel: '压缩分档',
-        title: '压缩分档与工具箱',
+        title: '压缩分档与综合工作台',
         levelsAria: '压缩档位',
         navAria: '面板分页',
         navLevels: '档位',
@@ -594,7 +594,7 @@ window.__ModuleLoader__.load({
       },
       en: {
         sectionLabel: 'Compression tiers',
-        title: 'Compression tiers & toolbox',
+        title: 'Compression tiers & workbench',
         levelsAria: 'Compression tier',
         navAria: 'Panel sections',
         navLevels: 'Tiers',

@@ -1,3 +1,12 @@
+## 2.4.7 — 2026-11-25
+
+- **中文显示名改为「压缩分档与综合工作台」**（英文 `Compression tiers & workbench`）：用户说「『压缩分档与工具箱 · dsh-harness-toolbox』github 中文名落后了，现在是个综合工作台了」。功能早就不止「压缩分档」——档位、全局与工作区规则、四套托管组件、两套配色与美术层、会话仓库发布，也早就不止「工具箱」。这次只改**显示名**：`locale/zh.json` 与 `locale/en.json` 的 `meta.title`、`client.js` 两个 `DICTIONARIES` 的 `title`、README 的 H1 与三处 `alt`；包名 `dsh-harness-toolbox`、加载器 id、槽位 id、状态目录 `<DSH home>/compression-tiers`、四个工具名**全都不动**，已装用户不用迁移。
+- **两处 `meta.description` 开头同步**：中文「加一套光学工具栏」→「加一套综合工作台」，英文「plus an optical toolbar」→「plus a workbench」；`package.json` 的 description 改成「a DeepSeek Harness workbench built around five-tier context compaction」（原文只有压缩分档一面），keywords 增补 `workbench`（保留 `toolbox`，老搜索词仍命中）。
+- **README 技术细节修掉两处 2.4.6 遗留的过时描述**：vendor 白名单在 2.4.6 已从三个名字收成两个（`horizon-glow.js` 随渲染器一起下线），但技术细节仍写「约 17 KB 的地平线渲染器 / 只服务这三个文件名」、测试清单里仍写「地平线辉光的挂载」——已改成两个名字并注明 2.4.6 起白名单只剩 `vial-core.js` 与 `dual-mascot-rig.js`。
+- `client.js` 的 `PLUGIN_VERSION`（vendor 路由的 `?v=` 缓存失效参数）同步到 `2.4.7`。
+- 测试仍是 219 条，但 `test/vendor.test.js` 里那条 `assert.equal(manifest.version, '2.4.6')` 改成**跟着变**的断言：读 `client.js` 的 `PLUGIN_VERSION` 与 `package.json` 的 `version` 比相等——原本每发一版都要改那个字面量，而真正要防的是「忘了同步缓存失效参数」。`test/manifest.test.js` 只断言 `meta.description.length > 40`，不锁显示名，所以改名不动它。
+- **渲染未验证**：显示名出现在插件管理器列表与面板标题栏两处，装上看一眼即可。
+
 ## 2.4.6 — 2026-11-25
 
 - **背景不再动**：用户说「背景动效不要了吧、改为纯线性渐变」，2.4.6 把 2.4.0 起的 canvas 地平线渲染器整层删掉——`vendor/obsidian-prism/horizon-glow.js`、`auraRuntime` / `auraAllowed` / `auraMotion` / `syncAura` / `drawAuraFrame` / `ensureAuraGlow` / `watchAura`、`.ct-aura-*` 样式、`VENDOR_SCRIPTS` 的第三个名字、`NOTICE` 里的那条衍生声明、vendor 测试一起下线。现在对话区底部只有一条静态渐变：`linear-gradient(to top, accent 16% → chart-tools 9% @26% → transparent @54%)`，挂在 `body[data-ct-art='on'] [data-conversation-region='chat']` 上，没有 canvas、没有帧、没有 `requestAnimationFrame`。
