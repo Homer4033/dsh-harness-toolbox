@@ -12,7 +12,7 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.6.4-0f172a?style=flat-square" alt="Version 2.6.4" />
+  <img src="https://img.shields.io/badge/Version-2.6.5-0f172a?style=flat-square" alt="Version 2.6.5" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Tests-258%20passing-16a34a?style=flat-square" alt="258 tests passing" />
@@ -134,7 +134,7 @@
 
 下载端点默认**先走 ModelScope，再走镜像 `hf-mirror.com`，最后回落 `huggingface.co`**：`huggingface.co` 在国内多数网络不可达（第一版只认它，用户看到的就是 `fetch failed (gave up after 4 attempts)`）；`hf-mirror.com` 连得上，但大文件被转到 `cas-bridge.xethub.hf.co`，实测只有约 150 KB/s（15.98 GB 要一天）；ModelScope 上有一份官方 BFL 镜像仓库，18 个文件与上游**同路径同字节**（逐个核对过），同一台机器实测大文件约 33–38 MiB/s（整包 14.88 GiB 用时 456 秒）。每个文件都按这个顺序尝试，`.part` 在各端点之间共享（字节相同），所以换了 host 也还是续传、不会从零开始。要换别的镜像就设环境变量 `DSH_HF_ENDPOINT`（带 `https://`，按上游形状 `/resolve/main/` 解析，排在首选）。所有端点都失败时，面板那一行的错误会写清**每个 host 与原因**（例如 `modelscope.cn: fetch failed (ENOTFOUND); hf-mirror.com: …`），不再只有一句 `fetch failed`。
 
-输入框上方那一行仍然只有插件在 `conversation.input.dock` 槽里加的控件：试管触发器、状态小字与当前会话的在线仓库胶囊（像素伙伴在 2.5.0 整块删除了）。行宽按输入卡的几何收窄（`--dsh-composer-card-max-width`），胶囊右缘与输入卡右缘对齐。
+输入框上方那一行仍然只有插件在 `conversation.input.dock` 槽里加的控件：试管触发器、状态小字与当前会话的在线仓库胶囊（像素伙伴在 2.5.0 整块删除了）。行宽照宿主自己的 dock 行收窄（卡宽再每边内缩 `--dsh-composer-dock-inset`），胶囊右缘与智能体任务栏的右缘对齐；试管触发器的底色也是宿主 dock 行那一层表面（`--dsw-specific-menu`）。
 
 ### 6. 推理滑块
 
@@ -170,7 +170,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.6.4`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.6.5`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -196,6 +196,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **2.6.1 → 2.6.2**：「模型和组件」页从「一个组件一张卡」改成一张卡片里的两段列表（组件六行 + 本地模型一行），行尾两个按钮，路径 / 进度 / 错误横跨整行；数据与行为都不变，只是排版。面板、设置与已下好的文件都不动，升级后再点「下载」会从原 `.part` 接着下。
 - **2.6.2 → 2.6.3**：输入框上方那一行（仓库栏 + 试管）在 `conversation.input.dock` 里的 `order` 从 90 抬到 1000，把次序写死并补了回归测试（方向在 2.6.4 按用户更正反转，2.6.3 可以跳过、直接升 2.6.4）。数据、设置与界面布局都不动。
 - **2.6.3 → 2.6.4**：同一个 dock 行的次序反转——插件行改取 `order: -1000`，排到宿主自己的行（任务清单条 0 / 工作树 5 / 目标 10 / 队列 20）**上面**，上到下变成「仓库栏和试管 → 任务栏 → 输入卡」：跟原版输入卡亲密性强的宿主 UI 贴着输入卡，插件行次之。数据、设置与界面布局都不动，升级后不需要任何操作。
+- **2.6.4 → 2.6.5**：同一行的横向几何与底色修正——行宽改成照宿主 dock 行收（卡宽再每边内缩 `--dsh-composer-dock-inset`），胶囊右缘从此压在任务栏右缘上（2.6.4 压在输入卡右缘，比任务栏多出 16px）；试管触发器的底色换成宿主 dock 行那一层表面 `--dsw-specific-menu`，不再比任务栏与输入卡暗一档。数据、设置与界面布局都不动，升级后不需要任何操作。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
 - **卸载**：插件页移除即可，托管组件目录留在原处，删掉目录即彻底清理。
 
@@ -287,10 +288,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.6.4`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.6.5`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.6.4` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.6.5` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」并禁用触发器（`title` 说明读不到），不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。

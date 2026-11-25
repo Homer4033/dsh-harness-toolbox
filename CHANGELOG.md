@@ -2,6 +2,13 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.6.5 — 2026-11-26
+
+- **2.6.4 装到实机后的两处视觉修正**（用户发截图：「右边缘没对齐，仓库那行左移动对齐任务栏的右边缘。试管底色好像跟对话栏和任务栏底色不一样。」）：
+  - **右缘要贴的是宿主 dock 行，不是输入卡本身**：宿主给每个 composer dock 行都套了同一层盒子——在卡宽基础上每边再内缩 `--dsh-composer-dock-inset`（宿主规则是 `width: calc(100% - 2 × clearance - 4 × inset)`、`max-width: calc(card-max - 4 × inset)`，实测任务栏左右各内缩 16px）。`.ct-repo-dock` 原来只按卡宽收窄，胶囊右缘因此比任务栏多出 16px（2560 宽窗口实测 `dockRight - todoRight = +16`、行宽 952 vs 任务栏 920）。现在照抄宿主盒子：`width: calc(100% - var(--dsh-composer-side-clearance) * 2 - var(--dsh-composer-dock-inset) * 4)` + `max-width: calc(var(--dsh-composer-card-max-width) - var(--dsh-composer-dock-inset) * 4)` + `margin: 0 auto`，实测 `dockRight - todoRight = 0`、行宽 920 = 任务栏 920，左右边缘都对齐。
+  - **试管底色跟宿主 dock 行同一层表面**：`.ct-vial` 从 `--dsw-alias-bg-layer-2`（#17171b，也是输入卡基色）换成 `--dsw-specific-menu`（#202026，宿主 `TodoPanel` 画的 token），与任务栏同色；截图取色旧值是 (23,23,27) vs 任务栏 (32,32,38)，新值两者都是 (32,32,38)。
+- 测试仍 **258** 条：注册用例新增 `--dsh-composer-dock-inset`、`max-width: calc(var(--dsh-composer-card-max-width…` 与 `.ct-vial` 的 `--dsw-specific-menu` 断言。
+- 第 14 条、验证要求、README §5 与升级说明、docs/UI.md（「胶囊必须正对输入卡」改成「对齐宿主 dock 行」+ 类名表）同步；版本 2.6.5。实机渲染已验证（headless Chrome 连桌面端 `127.0.0.1:12410`，注入新规则后测量并截图）。
 ## 2.6.4 — 2026-11-26
 
 - **反转输入框上方 dock 的次序——插件行在宿主原生行上面**（用户更正 2.6.3 的要求：「写错了。任务栏要在对话栏上面，没有任务栏时上到下：仓库栏和试管、对话栏。有任务栏时上到下：仓库栏和试管、任务栏、对话栏。既跟原版对话栏亲密性强的UI优先靠近对话栏，插件次之。」）：`conversation.input.dock` 按 `order` **升序**渲染（上小下大），所以「插件行在上、宿主原生 UI 贴着输入卡」等于取负值：`client.js` 的 `DOCK_ORDER_LAST = 1000` 换成 `DOCK_ORDER_FIRST = -1000`，注册行的 `order` 同步。宿主自己的行——智能体 `todo_write` 起的任务清单条 `todo`（0）、工作树进度 `forge-panel.worktree`（5）、目标条 `goal`（10）、队列 `queue`（20）——从此全部落在仓库行与输入卡之间，上到下固定为「仓库栏和试管 → 任务栏 → 输入卡」；没有任务条时仓库行直接贴在输入卡上方。

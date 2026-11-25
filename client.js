@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
     const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.6.4'
+    const PLUGIN_VERSION = '2.6.5'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -1407,11 +1407,17 @@ window.__ModuleLoader__.load({
    hidden there) and its menu can open upward without covering the input. */
 .ct-repo-dock {
   box-sizing: border-box;
-  /* Mirror the composer card's own box: the card is centered with a side
-     clearance, so a full-width dock row parked the pill at the window edge,
-     far right of the input. The row is capped to the card and centered, which
-     puts the pill's right edge on the card's right edge. */
-  width: min(calc(100% - var(--dsh-composer-side-clearance, 16px) * 2), var(--dsh-composer-card-max-width, 720px));
+  /* The host gives every composer dock row the same box: the input card is
+     centered on --dsh-composer-card-max-width, and the host's own rows (todo
+     bar, goal bar, queue) are inset again by --dsh-composer-dock-inset on each
+     side — their rule is 100% minus twice the clearance minus four insets,
+     capped to card-max minus four insets. A row that hugged the card itself
+     overhung those rows by 16px, so mirror the host's dock box instead: the
+     pill's right edge now lands on the task bar's right edge. */
+  width: calc(
+    100% - var(--dsh-composer-side-clearance, 16px) * 2 - var(--dsh-composer-dock-inset, 8px) * 4
+  );
+  max-width: calc(var(--dsh-composer-card-max-width, 720px) - var(--dsh-composer-dock-inset, 8px) * 4);
   margin: 0 auto;
   display: flex;
   align-items: flex-end;
@@ -2221,7 +2227,10 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
   padding: 0 10px 0 8px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
-  background: var(--dsw-alias-bg-layer-2);
+  /* Same surface as the host's own composer dock rows (the todo bar paints
+     --dsw-specific-menu): at layer-2 the chip read darker than the task bar
+     and the input card right below it. */
+  background: var(--dsw-specific-menu, var(--dsw-alias-bg-layer-2));
   color: var(--dsw-alias-label-secondary);
   font: inherit;
   font-size: 12px;

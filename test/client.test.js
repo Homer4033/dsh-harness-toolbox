@@ -387,15 +387,24 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   const dockCss = String(styles[0].textContent).match(/\.ct-repo-dock \{[^}]*\}/)
   assert.ok(dockCss, 'the dock row keeps its own rule')
   // 2.5.0 removed the companions: the row only holds the tools and is aligned
-  // to the card's right edge, with no container query left behind.
+  // to the dock grid, with no container query left behind.
   assert.match(dockCss[0], /justify-content: flex-end/)
   assert.doesNotMatch(dockCss[0], /container-type: inline-size/)
   assert.doesNotMatch(String(styles[0].textContent), /ct-dock-mascots/)
   assert.match(dockCss[0], /--dsh-composer-side-clearance/)
-  // The dock row is capped to the composer card and centered: a full-width row
-  // parked the pill at the window edge, far right of the input card.
+  // The row mirrors the host's own composer dock box: the card is centered on
+  // `--dsh-composer-card-max-width`, and the host's rows (todo bar, goal bar,
+  // queue) are inset once more by `--dsh-composer-dock-inset` per side. A row
+  // that hugged the card overhung the task bar by 16px on the right.
   assert.match(dockCss[0], /--dsh-composer-card-max-width/)
+  assert.match(dockCss[0], /--dsh-composer-dock-inset/)
+  assert.match(dockCss[0], /max-width: calc\(var\(--dsh-composer-card-max-width/)
   assert.match(dockCss[0], /margin: 0 auto/)
+  // The vial chip shares the surface of the host's dock rows: at layer-2 it
+  // read darker than the task bar and the input card next to it.
+  const vialCss = String(styles[0].textContent).match(/\.ct-vial \{[^}]*\}/)
+  assert.ok(vialCss, 'the vial trigger keeps its own rule')
+  assert.match(vialCss[0], /background: var\(--dsw-specific-menu/)
   // No tab-strip slot survives: the pill is no longer appended to the header.
   assert.doesNotMatch(styles[0].textContent, /\.ct-repo-slot/)
   // The main panel is its own scrollport, so the page cannot grow the frame.

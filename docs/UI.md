@@ -181,7 +181,8 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - **按面板宽度判断，不按窗口宽度**：左侧栏占掉窗口的一段固定宽度，1200px 的窗口留给面板的远不到 1200px；用 `@media` 会在「窗口够宽、面板不够宽」时错判。容器查询不可用的环境退回两栏，这是可接受的降级。
 - **窄面板（≤720px）**：导航栏变成页面上方的横向条（`flex` + `flex-wrap: wrap`，6px 内边距、16px 圆角、品牌行隐藏），导航项 `width: auto`、34px 高。必须换行，不能用 `overflow-x` 横滚——被裁掉的页面等于没有入口。
 - 卡片高度由内容决定（`align-items: start`）。
-- 不允许用负 margin 贴边；需要与输入卡对齐时用 `--dsh-composer-side-clearance` 与 `--dsh-composer-card-max-width` 把行**收窄并居中**（见「控件」里的胶囊）。
+- 不允许用负 margin 贴边；需要与宿主的 dock 行对齐时用 `--dsh-composer-side-clearance`、`--dsh-composer-dock-inset` 与 `--dsh-composer-card-max-width` 把行**收窄并居中**（见「控件」里的胶囊）。
+- **dock 行的表面色跟宿主走**：试管触发器 `.ct-vial` 用 `background: var(--dsw-specific-menu)`——宿主的任务栏（`TodoPanel`）就画这个 token；用 `--dsw-alias-bg-layer-2` 会比任务栏和输入卡都暗一档（2.6.4 的实机观感，2.6.5 修正）。
 
 ## 分页导航
 
@@ -217,9 +218,9 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - **下拉触发器** `.ct-select`：`aria-haspopup="listbox"`、`aria-expanded`，宽 `min(100%, 360px)`、高 34px、左对齐（`justify-self: start`），展开时描边转 `border-selected`、箭头 180° 旋转；禁用态用 `label-tertiary`。
 - **胶囊** `.ct-repo-pill`：26px 高、999px 圆角、图标 + 标签 + 值 + 箭头；绑定态用 accent 淡染底与 accent 混合描边。
 - **试管触发器** `.ct-vial`：26px 高胶囊，`flex: none`；里面是 10 × 16 的 SVG 迷你试管（液面 `rect` + 阈值 `line`）与百分比文字，`font-variant-numeric: tabular-nums`（数字变化时宽度不跳）。展开时 `aria-expanded='true'`，占用已贴近阈值时 `data-critical='true'` 转 warn 色。它**不是**动作按钮的例外——任何时候都渲染，投影缺失时显示「—」并禁用。
-- **胶囊必须正对输入卡**：`conversation.input.dock` 渲染在整宽的 `.composerStack` 里，而输入卡自己用 `--dsh-composer-card-max-width` 居中。`.ct-repo-dock` 因此写成
-  `width: min(calc(100% - var(--dsh-composer-side-clearance, 16px) * 2), var(--dsh-composer-card-max-width, 720px)); margin: 0 auto`，
-  行内 `justify-content: flex-end`，胶囊右缘就落在输入卡右缘上。整宽行配 `padding: 0 var(--dsh-composer-side-clearance)` 只解决「不贴窗口边」，锚不到卡右缘（1.9.x 的观测结果），不要再改回去。
+- **胶囊对齐的是宿主的 dock 行，不是输入卡本身**：`conversation.input.dock` 渲染在整宽的 `.composerStack` 里，输入卡用 `--dsh-composer-card-max-width` 居中，而宿主自己的行（智能体任务栏、目标条、队列）在卡宽的基础上**每边再内缩 `--dsh-composer-dock-inset`**（它们的规则是 `100% - 2 × clearance - 4 × inset`，`max-width` 是 `card-max - 4 × inset`）。`.ct-repo-dock` 因此照抄这个盒子：
+  `width: calc(100% - var(--dsh-composer-side-clearance, 16px) * 2 - var(--dsh-composer-dock-inset, 8px) * 4); max-width: calc(var(--dsh-composer-card-max-width, 720px) - var(--dsh-composer-dock-inset, 8px) * 4); margin: 0 auto`，
+  行内 `justify-content: flex-end`，胶囊右缘就落在任务栏右缘上（2.6.4 只按卡宽收窄，右缘压过任务栏 16px，2.6.5 修正）。整宽行配 `padding: 0 var(--dsh-composer-side-clearance)` 只解决「不贴窗口边」，锚不到任务栏（1.9.x 的观测结果），不要再改回去。
 
 ## 外观页
 
@@ -329,7 +330,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | `.ct-skin` | 插件自己的皮肤根：携带 `data-palette` / `data-motion`（面板页、dock 行、菜单、试管浮窗） |
 | `.ct-swatches` / `.ct-swatch` / `.ct-swatch-band` | 外观页配色栅格 / 单个色板（`role=radio`）/ 三段色带 |
 | `.ct-segments` / `.ct-segment` | 外观页动效分段组 / 单个分段按钮 |
-| `.ct-repo-dock` / `.ct-repo-pill` / `.ct-repo-note` | 输入框上方那一行（收窄到输入卡并居中，order -1000，排在宿主原生 dock 行之前）/ 仓库胶囊 / 状态小字 |
+| `.ct-repo-dock` / `.ct-repo-pill` / `.ct-repo-note` | 输入框上方那一行（按宿主 dock 盒子收窄并居中——卡宽再每边内缩 `--dsh-composer-dock-inset`，order -1000，排在宿主原生 dock 行之前）/ 仓库胶囊 / 状态小字 |
 | `.ct-list` / `.ct-list-head` | 「模型和组件」页的列表容器 / 分组标题（组件、本地模型） |
 | `.ct-item` / `.ct-item-main` / `.ct-item-name` / `.ct-item-pin` / `.ct-item-state` | 列表行 / 行首文本块 / 名称 / 钉住版本 / 状态 |
 | `.ct-item-path` / `.ct-item > .ct-actions` | 行内路径 / 住在行尾的两个按钮 |
