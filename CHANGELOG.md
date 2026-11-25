@@ -2,6 +2,15 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。
 
+## 2.4.1 — 2026-11-25
+
+- **推理滑块换成参考插件的几何**：用户看到 2.4.0 的注入滑块后说「开源的进度条好像不是这个样子的」。上游参考插件 `dsh-codex-effort-slider` 是 28px 胶囊轨道 + 白色圆钮；我们之前自己做了一颗切工水晶旋钮和一条 4px 细轨。现在改成同一套几何：28px 胶囊（底色 `--dsw-alias-border-l1`）、填充用 `--dsw-alias-state-business-primary` 并停在旋钮圆心（`width: calc(14px + (100% - 28px) × 位置)`）、旋钮是 28px 白色圆钮、档位点 3px；**只有满档**才把填充末端转成紫色并给轨道加 `0 0 14px` 紫色泛光（`data-energy='1'`）。切面宝石 SVG 与按位置取色的色阶一并删除。
+- **辉光更明显，且不再可能「整层消失」**：真实窗口里 32% 高度 + `reach` 0.72 的辉光只在窗口最底边留一条几乎看不见的边。现在高度 40%、`reach` 0.85、深色强度 0.95；canvas 下面再垫一层 `.ct-aura-fallback`（两个缓慢漂移的径向色块，26s 交替，GPU 合成的 `transform`），在 canvas 报首帧后淡出，渲染器取不到或起不来时它就是这一层，不会留一块死黑。
+- **启动时补齐外观**：以前只在启动时读一次设置，读失败（宿主还没就绪）就会让整个美术层整场都不生效。现在失败按 1.5s × 次数退避重试 5 次；动效档位同时写到 `<body>` 的 `data-ct-motion`，CSS 兜底层按它降速或停用。
+- 测试仍 219 条：`test/client.test.js` 增补 `data-ct-motion` 写入、`.ct-aura-fallback` 与 `data-ct-motion='off'` 的样式断言；滑块几何用例改成断言填充与旋钮共用同一条中心线。
+- 文档：README 的「推理滑块」小节与截图换新（`docs/screenshots/effort.png`）、「会动的背景」小节更新高度与兜底层；[docs/UI.md](docs/UI.md) 的「推理滑块」几何与颜色两条重写、新增兜底层条目；[AGENTS.md](AGENTS.md) 第 23 条与验证要求同步。
+- **渲染未验证**：两张截图都来自离线舞台（真实 `client.js` 样式表 + 真实 `horizon-glow.js` + 无头 Chrome），真实窗口里仍需看一眼。
+
 ## 2.4.0 — 2026-11-25
 
 - **补上上游真正的动效**：2.3.0 把美术层补成静态之后，用户问「跟 RMvdesi/obsidian-prism 一样吗？我感觉他有动效呢」。查上游仓库确认：它的动效不是 CSS keyframes，而是 `conv-aura.js` + `ripple-core.js` 里的 canvas 程序化渲染——逐像素画对话区底部的地平线辉光（两个正弦波叠出的 curtain、`valueNoise` 的 jitter、halftone 点阵、深色钴蓝→青 / 浅色宝蓝水彩）。`style.css` 里那批 keyframes 只是 Obsidian 自身 DOM（spinner、思考流、侧栏行）的微交互，DSH 没有对应结构。

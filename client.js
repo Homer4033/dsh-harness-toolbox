@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.0'
+    const PLUGIN_VERSION = '2.4.1'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -386,6 +386,7 @@ window.__ModuleLoader__.load({
       const art = spec.art !== false && spec.palette !== 'host'
       document.body.setAttribute('data-ct-palette', spec.palette)
       document.body.setAttribute('data-ct-art', art ? 'on' : 'off')
+      document.body.setAttribute('data-ct-motion', spec.motion)
       auraRuntime.spec = spec
       syncAura()
       return { palette: spec.palette, art: art }
@@ -406,7 +407,7 @@ window.__ModuleLoader__.load({
      * setting scales speed and intensity, `off` paints one still frame, and the
      * vendor script is only fetched once the layer is actually enabled.
      */
-    const AURA_HEIGHT_RATIO = 0.32
+    const AURA_HEIGHT_RATIO = 0.40
     const AURA_FRAME_MS = 33
     const AURA_HEALTH_MS = 1200
     const auraRuntime = {
@@ -417,6 +418,7 @@ window.__ModuleLoader__.load({
       target: null,
       raf: 0,
       loading: false,
+      failed: false,
       staticDrawn: false,
       startedAt: 0,
       lastDrawAt: 0,
@@ -454,6 +456,7 @@ window.__ModuleLoader__.load({
       auraRuntime.glow = null
       auraRuntime.target = null
       auraRuntime.loading = false
+      auraRuntime.failed = false
       auraRuntime.staticDrawn = false
     }
 
@@ -464,7 +467,7 @@ window.__ModuleLoader__.load({
     }
     /** Async vendor load: the canvas is in the DOM first, the renderer bites later. */
     function ensureAuraGlow() {
-      if (auraRuntime.glow || auraRuntime.loading) return
+      if (auraRuntime.glow || auraRuntime.loading || auraRuntime.failed) return
       auraRuntime.loading = true
       loadVendor('horizon').then(function (lib) {
         auraRuntime.loading = false
@@ -476,8 +479,10 @@ window.__ModuleLoader__.load({
         if (auraMotion(auraRuntime.spec) === 'off') drawAuraFrame(auraRuntime.startedAt)
         else startAuraFrames()
       }).catch(function () {
+        // Keep the host: the CSS fallback glow stays visible, so the layer never
+        // becomes a flat band just because the renderer could not be fetched.
         auraRuntime.loading = false
-        detachAura()
+        auraRuntime.failed = true
       })
     }
 
@@ -503,13 +508,13 @@ window.__ModuleLoader__.load({
       }
       auraRuntime.lastDrawAt = now
       const speed = motion === 'subtle' ? 0.45 : 1
-      const intensity = motion === 'subtle' ? 0.5 : 0.85
+      const intensity = motion === 'subtle' ? 0.55 : 0.95
       const seconds = ((now - auraRuntime.startedAt) / 1000) * speed
       try {
         // 0.72, not the upstream 0.47: the host canvas is the same 32% band, but
         // DSH's composer covers the lowest ~150px, so the glow has to reach
         // higher or only its bottom sliver stays visible.
-        glow.draw(seconds, hostIsDark(), intensity, 1, 0.72)
+        glow.draw(seconds, hostIsDark(), intensity, 1, 0.85)
         if (auraRuntime.host) auraRuntime.host.setAttribute('data-ct-aura-ready', '1')
       } catch { /* a lost 2d context must not break the page */ }
       if (motion !== 'off') scheduleAuraFrame()
@@ -544,6 +549,11 @@ window.__ModuleLoader__.load({
         host.className = 'ct-aura-host'
         host.setAttribute('aria-hidden', 'true')
         host.setAttribute('data-ct-aura', '')
+        // The drifting fallback lives under the canvas and disappears on the
+        // first rendered frame; if the renderer never starts, it *is* the layer.
+        const fallback = document.createElement('div')
+        fallback.className = 'ct-aura-fallback'
+        host.appendChild(fallback)
         const canvas = document.createElement('canvas')
         host.appendChild(canvas)
         region.insertBefore(host, region.firstChild)
@@ -1911,7 +1921,7 @@ body[data-ct-art='on'] .ct-aura-host {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 32%;
+  height: 40%;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -1921,15 +1931,44 @@ body[data-ct-art='on'] .ct-aura-host {
 body[data-ct-art='on'] .ct-aura-host[data-ct-aura-ready='1'] {
   opacity: 1;
 }
+/* The fallback glow: two drifting radial blobs, composited on the GPU, so the
+   layer is never a flat black band even if the canvas renderer cannot start. It
+   stays until the canvas reports its first frame, then fades out. */
+body[data-ct-art='on'] .ct-aura-fallback {
+  position: absolute;
+  inset: -10% 0 -10% 0;
+  background:
+    radial-gradient(58% 120% at 30% 100%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 42%, transparent), transparent 70%),
+    radial-gradient(46% 100% at 76% 100%, color-mix(in srgb, var(--dsw-alias-chart-tools) 30%, transparent), transparent 72%),
+    linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent) 100%);
+  animation: ct-aura-drift 26s ease-in-out infinite alternate;
+  transition: opacity 900ms ease;
+}
+body[data-ct-art='on'] .ct-aura-host[data-ct-aura-ready='1'] .ct-aura-fallback {
+  opacity: 0;
+  animation: none;
+}
+body[data-ct-art='on'][data-ct-motion='subtle'] .ct-aura-fallback {
+  opacity: 0.6;
+  animation-duration: 60s;
+}
+body[data-ct-art='on'][data-ct-motion='off'] .ct-aura-fallback {
+  opacity: 0.55;
+  animation: none;
+}
+@keyframes ct-aura-drift {
+  from { transform: translate3d(-5%, 0, 0) scale(1.04); }
+  to { transform: translate3d(5%, -5%, 0) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-ct-art='on'] .ct-aura-fallback { animation: none; }
+  body[data-ct-art='on'] .ct-aura-host { transition: none; }
+}
 body[data-ct-art='on'] .ct-aura-host canvas {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
-}
-@media (prefers-reduced-motion: reduce) {
-  body[data-ct-art='on'] .ct-aura-host {
-    transition: none;
-  }
 }
 /* ---- Appearance page ---------------------------------------------------- */
 .ct-swatches {
@@ -2046,8 +2085,10 @@ body[data-ct-art='on'] .ct-aura-host canvas {
 }
 /* ---- Reasoning effort slider (inside the official model menu) -------------
    Injected as a sibling of the official 推理等级 row, so it inherits the menu
-   surface and its tokens. The rail is inset by half a knob at both ends: the
-   knob is cut crystal, and the facets brighten with the level. */
+   surface and its tokens. Geometry follows the reference slider
+   (dsh-codex-effort-slider): one 28px pill track, an accent fill that ends at
+   the knob centre, a white circular knob that fills the tube, and 3px ticks at
+   every level. */
 .ct-effort {
   display: block;
   box-sizing: border-box;
@@ -2059,44 +2100,34 @@ body[data-ct-art='on'] .ct-aura-host canvas {
   position: relative;
   display: block;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-border-l1, rgba(15, 17, 21, 0.09));
   cursor: pointer;
   touch-action: none;
+  transition: box-shadow 200ms ease;
 }
 .ct-effort-track:focus-visible {
   outline: 2px solid var(--ct-effort-accent);
   outline-offset: 2px;
-}
-.ct-effort-rail {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  top: 50%;
-  height: 4px;
-  margin-top: -2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 24%, transparent);
 }
 .ct-effort-fill {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  width: 0;
-  border-radius: 999px;
-  background: linear-gradient(90deg,
-    color-mix(in srgb, var(--ct-effort-accent) 55%, transparent),
-    var(--ct-effort-accent));
+  width: 14px;
+  border-radius: 14px 0 0 14px;
+  background: var(--ct-effort-accent);
+  pointer-events: none;
 }
 .ct-effort-dot {
   position: absolute;
   top: 50%;
-  width: 4px;
-  height: 4px;
-  margin: -2px 0 0 -2px;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--dsw-alias-label-primary) 64%, transparent);
-  opacity: 0.4;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 26%, transparent);
   transition: opacity 140ms ease;
   pointer-events: none;
 }
@@ -2108,21 +2139,25 @@ body[data-ct-art='on'] .ct-aura-host canvas {
   height: 28px;
   margin-top: -14px;
   margin-left: -14px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
   pointer-events: none;
-  filter: drop-shadow(0 2px 7px var(--ct-effort-glow));
   transition: left 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.ct-effort-gem[data-gem='plain'] {
-  border-radius: 999px;
-  background: radial-gradient(60% 60% at 35% 30%, #ffffff 0%, var(--ct-effort-accent) 62%, color-mix(in srgb, var(--ct-effort-accent) 60%, #000000) 100%);
+/* Highest level: the tube glows violet and the fill turns violet at its end. */
+.ct-effort[data-energy='1'] .ct-effort-track {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ct-effort-glow) 80%, transparent);
 }
-.ct-effort-gem svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+.ct-effort[data-energy='1'] .ct-effort-fill {
+  background: linear-gradient(90deg, var(--ct-effort-accent) 0%, #a855f7 100%);
+}
+.ct-effort[data-energy='1'] .ct-effort-gem {
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 0 12px var(--ct-effort-glow);
 }
 .ct-effort[data-motion='off'] .ct-effort-gem,
-.ct-effort[data-motion='off'] .ct-effort-dot {
+.ct-effort[data-motion='off'] .ct-effort-dot,
+.ct-effort[data-motion='off'] .ct-effort-track {
   transition: none;
 }
 .ct-effort[data-busy='true'] .ct-effort-track {
@@ -3320,59 +3355,10 @@ body[data-ct-art='on'] .ct-aura-host canvas {
       }
     }
 
-    /** One facet of the cut crystal: brighter the further up the rail it is. */
-    function facetPaint(pct, facet, facets) {
-      const total = Math.max(1, Number(facets) || 1)
-      const offset = total === 1 ? 0 : (Math.max(0, Math.min(total - 1, Number(facet) || 0)) / (total - 1)) - 0.5
-      const lit = Math.min(1, Math.max(0, effortRatio(pct) + offset * 0.4))
-      const hue = Math.round(205 + lit * 80)
-      return {
-        fill: 'hsl(' + hue + ' 88% ' + Math.round(44 + lit * 34) + '%)',
-        opacity: Math.round((0.32 + lit * 0.68) * 100) / 100,
-      }
-    }
-
-    /** The cut-crystal knob, drawn as a faceted gem; a plain knob when SVG is unavailable. */
-    const EFFORT_FACETS = [
-      '16,3 26.5,11.5 16,15 5.5,11.5',
-      '5.5,11.5 16,15 16,29',
-      '16,15 26.5,11.5 16,29',
-      '5.5,11.5 2.5,7.5 16,3 16,15',
-    ]
-
-    function createEffortGem(doc) {
-      const host = doc.createElement('span')
-      host.setAttribute('class', 'ct-effort-gem')
-      let svg = null
-      try {
-        svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg')
-      } catch {
-        svg = null
-      }
-      if (!svg || typeof svg.appendChild !== 'function') {
-        host.setAttribute('data-gem', 'plain')
-        return { host: host, facets: [] }
-      }
-      svg.setAttribute('viewBox', '0 0 32 32')
-      svg.setAttribute('aria-hidden', 'true')
-      const facets = []
-      EFFORT_FACETS.forEach(function (points) {
-        const polygon = doc.createElementNS('http://www.w3.org/2000/svg', 'polygon')
-        polygon.setAttribute('points', points)
-        polygon.setAttribute('stroke', 'hsl(208 90% 96% / 0.5)')
-        polygon.setAttribute('stroke-width', '0.8')
-        svg.appendChild(polygon)
-        facets.push(polygon)
-      })
-      host.appendChild(svg)
-      host.setAttribute('data-gem', 'cut')
-      return { host: host, facets: facets }
-    }
-
     /**
-     * The injected control: a 28px rail with tick dots and the crystal knob.
-     * DOM-only on purpose — it lives inside a React-owned menu, so the fewer
-     * assumptions about that tree, the better.
+     * The injected control: one 28px pill track, an accent fill, 3px ticks and a
+     * white circular knob — the geometry of the reference slider, drawn with our
+     * own DOM because it lives inside a React-owned menu.
      */
     function createEffortSlider(doc, handlers) {
       const hooks = handlers || {}
@@ -3387,14 +3373,14 @@ body[data-ct-art='on'] .ct-aura-host canvas {
       track.setAttribute('aria-valuemin', '0')
       root.appendChild(track)
 
-      const rail = doc.createElement('span')
-      rail.setAttribute('class', 'ct-effort-rail')
-      track.appendChild(rail)
       const fill = doc.createElement('span')
       fill.setAttribute('class', 'ct-effort-fill')
-      rail.appendChild(fill)
-      const gem = createEffortGem(doc)
-      track.appendChild(gem.host)
+      fill.setAttribute('aria-hidden', 'true')
+      track.appendChild(fill)
+      const knob = doc.createElement('span')
+      knob.setAttribute('class', 'ct-effort-gem')
+      knob.setAttribute('aria-hidden', 'true')
+      track.appendChild(knob)
       const ticks = []
 
       const error = doc.createElement('p')
@@ -3412,17 +3398,15 @@ body[data-ct-art='on'] .ct-aura-host canvas {
         const steps = Math.max(1, count - 1)
         const pct = count <= 1 ? 0 : Math.min(1, Math.max(0, at / steps))
         const ramp = effortRamp(pct)
-        // The rail is inset by half a knob at both ends; the fill stops at the knob.
-        rail.style.setProperty('--ct-effort-accent', ramp.accent)
-        root.style.setProperty('--ct-effort-accent', ramp.accent)
-        root.style.setProperty('--ct-effort-glow', ramp.glow)
-        fill.style.setProperty('width', (Math.round(pct * 1000) / 10) + '%')
-        gem.host.style.setProperty('left', effortKnobLeft(pct))
-        gem.facets.forEach(function (facet, index) {
-          const paintFacet = facetPaint(pct, index, gem.facets.length)
-          facet.setAttribute('fill', paintFacet.fill)
-          facet.setAttribute('fill-opacity', String(paintFacet.opacity))
-        })
+        // Pill geometry: the knob centre runs from 14px to (100% - 14px), and the
+        // fill ends at that same centre (the reference slider's fill radius).
+        // The tube keeps the host accent; only the top level turns violet (the
+        // reference's "energy" state) and picks up a glow.
+        root.style.setProperty('--ct-effort-accent', 'var(--dsw-alias-state-business-primary, #4d93f8)')
+        root.style.setProperty('--ct-effort-glow', pct >= 0.999 ? 'hsl(270 86% 62% / 0.55)' : ramp.glow)
+        fill.style.setProperty('width', effortKnobLeft(pct))
+        knob.style.setProperty('left', effortKnobLeft(pct))
+        root.setAttribute('data-energy', pct >= 0.999 ? '1' : '0')
         ticks.forEach(function (tick, index) {
           const tickPct = count <= 1 ? 0 : index / steps
           tick.style.setProperty('left', effortKnobLeft(tickPct))
@@ -3432,7 +3416,7 @@ body[data-ct-art='on'] .ct-aura-host canvas {
           const tick = doc.createElement('span')
           tick.setAttribute('class', 'ct-effort-dot')
           tick.setAttribute('aria-hidden', 'true')
-          track.insertBefore(tick, gem.host)
+          track.insertBefore(tick, knob)
           ticks.push(tick)
         }
         const level = view.levels[at]
@@ -5313,8 +5297,7 @@ body[data-ct-art='on'] .ct-aura-host canvas {
           indexAt: effortIndexAt,
           step: stepEffort,
           ramp: effortRamp,
-          facetPaint: facetPaint,
-          findRow: findReasoningRow,
+            findRow: findReasoningRow,
           createSlider: createEffortSlider,
           bridge: effortBridge,
           setDocument: function (doc) { effortDocument = doc || null },
@@ -5367,14 +5350,27 @@ body[data-ct-art='on'] .ct-aura-host canvas {
         }
         if (typeof fetch === 'function') {
           // The palette lives in our own settings, so the skin is back before the
-          // user opens anything — not only after the appearance page loads.
-          try {
-            loadSettingsSnapshot().then(function (body) {
+          // user opens anything — not only after the appearance page loads. The
+          // retry matters: a host that answers before the plugin half is ready
+          // would otherwise leave the whole art layer off for the session.
+          let appearanceTry = 0
+          const loadAppearance = function () {
+            appearanceTry += 1
+            let request
+            try {
+              request = loadSettingsSnapshot()
+            } catch {
+              return
+            }
+            request.then(function (body) {
               const appearance = normalizeAppearance(body && body.appearance)
               setSkinPalette(appearance.palette)
               applyOptics(appearance)
-            }).catch(function () { /* the panel reports its own load errors */ })
-          } catch { /* relative URLs throw in non-browser tests */ }
+            }).catch(function () {
+              if (appearanceTry < 5 && typeof setTimeout === 'function') setTimeout(loadAppearance, 1500 * appearanceTry)
+            })
+          }
+          loadAppearance()
         }
         ctx.effect(function () {
           return ctx.locale.register(NS, DICTIONARIES)

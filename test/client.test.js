@@ -1179,6 +1179,7 @@ test('the art layer hangs off two body attributes and stays off for the host pal
   assert.equal(JSON.stringify(applied), '{"palette":"obsidian","art":true}')
   assert.equal(attrs['data-ct-palette'], 'obsidian')
   assert.equal(attrs['data-ct-art'], 'on')
+  assert.equal(attrs['data-ct-motion'], 'full')
 
   // Turning the art off keeps the palette tokens: only the art layer stops.
   skin.applyOptics({ palette: 'crystal', art: false })
@@ -1296,13 +1297,14 @@ test('the horizon aura mounts one canvas in the chat region and stands down with
   assert.ok(host, 'the aura host is inserted into the chat region')
   assert.equal(host.className, 'ct-aura-host')
   assert.equal(host.getAttribute('aria-hidden'), 'true')
-  assert.equal(host.children[0].tagName, 'CANVAS')
+  assert.equal(host.children[0].className, 'ct-aura-fallback')
+  assert.equal(host.children[1].tagName, 'CANVAS')
   assert.equal(body.getAttribute('data-ct-art'), null, 'the controller never writes the switches itself')
 
   // The vendor global is already there, so the mount is one microtask away.
   await new Promise((resolve) => setTimeout(resolve, 0))
   assert.equal(calls.resize, 1)
-  assert.deepEqual(calls.size, [900, 192])
+  assert.deepEqual(calls.size, [900, 240])
   assert.ok(frames.length >= 1, 'a full-motion aura schedules frames')
   frames.shift()(1200)
   assert.equal(calls.draw, 1)
@@ -1339,6 +1341,8 @@ test('the aura only ever renders inside the chat region, under the transcript', 
   assert.match(css, /body\[data-ct-art='on'\] \.ct-aura-host \{/)
   assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-scroll\] \{\n  position: relative;\n  z-index: 1;\n\}/)
   assert.match(css, /body\[data-ct-art='on'\] \.ct-aura-host\[data-ct-aura-ready='1'\] \{/)
+  assert.match(css, /body\[data-ct-art='on'\] \.ct-aura-fallback \{/)
+  assert.match(css, /body\[data-ct-art='on'\]\[data-ct-motion='off'\] \.ct-aura-fallback \{/)
 })
 
 test('a six-page rail keeps appearance in the navigation', () => {
@@ -1760,10 +1764,8 @@ test('the effort rail geometry keeps the knob inside the track', () => {
   assert.ok(high.hue > low.hue)
   assert.match(low.accent, /^hsl\(205 /)
   assert.match(high.accent, /^hsl\(285 /)
-  // Facets brighten with the level and across the gem.
-  const dark = effort.facetPaint(0, 0, 4)
-  const lit = effort.facetPaint(1, 0, 4)
-  assert.ok(lit.opacity > dark.opacity)
+  // The fill and the knob ride the same centre line, half a knob from each end.
+  assert.equal(effort.knobLeft(0.5), 'calc(14px + (100% - 28px) * 0.5)')
 })
 
 test('the bridge finds the official reasoning row by semantic attributes', () => {

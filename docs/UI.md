@@ -116,13 +116,14 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 2.4.0 起美术层有了唯一一处动效：上游 `ripple-core.js` 的 2D 地平线渲染器（`conv-aura.js` 只负责状态机）。DSH 侧只移植渲染器，帧由自己的控制器调度。
 
-1. **挂在哪里**：`[data-conversation-region='chat']` 的第一个子节点 `.ct-aura-host`（`aria-hidden`、不接点击），里面一张 canvas；绝对定位贴底、高度 32%。`[data-conversation-scroll]` 同时被提到 `z-index: 1`，所以辉光画在**对话区底色之上、正文之下**，不会盖住文字，也不参与排版。
+1. **挂在哪里**：`[data-conversation-region='chat']` 的第一个子节点 `.ct-aura-host`（`aria-hidden`、不接点击），里面一张 canvas；绝对定位贴底、高度 40%。`[data-conversation-scroll]` 同时被提到 `z-index: 1`，所以辉光画在**对话区底色之上、正文之下**，不会盖住文字，也不参与排版。
 2. **什么时候有**：只在美术层开启时挂载（选了配色且「光学外观」打开）；`host` 或 `art: false` 时整块移除，宿主表面一点不动。vendor 脚本也是那时才取（`?v=<PLUGIN_VERSION>` 同源）。
-3. **画什么**：上游的逐像素辉光——底部 horizon 带、横向两个正弦波叠加的 curtain、`valueNoise` 的 jitter、halftone 点阵、深色用钴蓝→青、浅色用宝蓝水彩。渲染 `reach` 用 0.72（上游默认 0.47 是给没有输入卡遮挡的画布用的；DSH 输入卡压住底部约 150px，0.47 只剩一条边）。
+3. **画什么**：上游的逐像素辉光——底部 horizon 带、横向两个正弦波叠加的 curtain、`valueNoise` 的 jitter、halftone 点阵、深色用钴蓝→青、浅色用宝蓝水彩。渲染 `reach` 用 0.85（上游默认 0.47 是给没有输入卡遮挡的画布用的；DSH 输入卡压住底部约 150px，0.47 在真实窗口里只剩一条几乎看不见的边），强度 0.95。
 4. **动多久**：`rAF` 上限 ~30fps（与上游一致），画布按 `min(devicePixelRatio, 1.5) × 0.72` 出像素。
-5. **三档动效**：`full` 原速；`subtle` 速度 ×0.45、强度 0.5；`off` 只画一帧静态图、不再排帧；未知值回落 `full`。文档隐藏（`document.hidden`）时不排帧。
-6. **重建**：React 换掉对话区节点时，控制器每 1.2s 复核一次，节点没了就重新挂（不靠哈希类名、不派发 `resize`）。
-7. **为什么不加 CSS keyframes**：上游的动效本来就不是 CSS 动画；用渐变模拟只能得到平移的色块，得不到噪声与 halftone 的呼吸感。
+5. **三档动效**：`full` 原速；`subtle` 速度 ×0.45、强度 0.55；`off` 只画一帧静态图、不再排帧；未知值回落 `full`。档位同时写到 `<body>` 的 `data-ct-motion` 上，CSS 侧（兜底层）按它降速/停用。文档隐藏（`document.hidden`）时不排帧。
+6. **兜底层**：canvas 之下还有一层 `.ct-aura-fallback`——两个缓慢漂移的径向色块（GPU 合成的 `transform` 动画，26s 交替）。它在 canvas 报告首帧（`data-ct-aura-ready='1'`）后淡出；如果渲染器取不到或起不来，它就是这一层，**不留一块死黑**。
+7. **重建**：React 换掉对话区节点时，控制器每 1.2s 复核一次，节点没了就重新挂（不靠哈希类名、不派发 `resize`）。
+8. **为什么不直接写 CSS keyframes**：上游的动效是逐像素噪声与 halftone，CSS 渐变做出来只是平移色块；所以主层是 canvas，CSS 只做兜底。
 
 ## 间距、圆角与控件高度
 
@@ -245,9 +246,9 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 它不属于本插件自己的面板，但样式也在本仓库里，所以同样受本文件约束。
 
 1. **只挂在官方那一行下面**：锚点只用语义属性——`aria-haspopup="menu"` + `aria-expanded` + `aria-controls` 找到菜单、`role="menuitem"` 找到根面板的行、`[data-composer-card]` 判断这颗触发器是不是本会话输入卡的。**认行靠标签不靠位置**：读每行第一个 `span` 的文字，命中官方 `menu.effort` 文案（`推理等级` / `Effort` 及各语言写法）才算推理等级行；根面板恰好两行时按官方布局取第 2 行作为兜底，多于两行又没有标签命中就什么都不加（订阅类选择器会在同一面板里再加 Speed / Verbosity 行，按位置取会把滑条挂到别的设置上）。命中后把 `.ct-effort` 插到该行的**下一个兄弟位**，不包裹、不改写官方节点，不读 DSH 的哈希类名。注入后**不派发 `resize`**：部分宿主的菜单用 resize 兜底关闭，派发会让菜单刚打开就收起来；现代宿主用 CSS 锚点定位，自己会跟着高度走。
-2. **尺寸与几何**：轨道 28px 高（也是旋钮直径），中间 4px 轨道条；两端各留半个旋钮（14px），旋钮位置 `left: calc(14px + (100% - 28px) × 位置%)`，因此旋钮永远不会跑出轨道。档位点（4px）与旋钮同一条轴。
-3. **切工水晶**：旋钮是一颗 4 个切面的宝石 SVG（`viewBox 0 0 32 32`），切面 `fill` 与 `fill-opacity` 由位置算出（冰蓝 → 紫罗兰）；`createElementNS` 不可用时退化成 `data-gem='plain'` 的圆点旋钮。**不要**给它加贴图或外链资源。
-4. **颜色只来自 token 与位置**：轨道底色用 `--dsw-alias-label-tertiary` 混合，填充色与光晕由 `hsl(205…285)` 位置色计算，写入 `--ct-effort-accent` / `--ct-effort-glow`。不写死某一档的颜色。
+2. **尺寸与几何（对齐参考插件）**：轨道是一条 28px 高的胶囊（`border-radius: 999px`，底色 `--dsw-alias-border-l1`），旋钮直径也是 28px、正好填满管口；两端各留半个旋钮（14px），旋钮位置 `left: calc(14px + (100% - 28px) × 位置%)`，填充的 `width` 用同一个表达式，所以填充正好停在旋钮圆心。档位点是 3px 圆点，与旋钮同一条轴，当前档及以下不透明度 0.9、以上 0.4。
+3. **旋钮与能量态**：旋钮是白色圆钮（`#fff` + `0 1px 5px rgba(0,0,0,.34)` 与半像素描边），不是切面宝石；填充固定用 `--dsw-alias-state-business-primary`（宿主强调色），只有**最高档**才把填充末端转成紫色并给轨道加 `0 0 14px` 的紫色泛光（`data-energy='1'`）。档位与颜色不再用位置色阶，颜色语义只剩「普通 / 满档」。**不要**给它加贴图或外链资源。
+4. **颜色只来自 token**：轨道底色用 `--dsw-alias-border-l1`，填充用 `--dsw-alias-state-business-primary`（缺省回落 `#4d93f8`），满档的紫色泛光写进 `--ct-effort-glow`。不写死某一档的颜色。
 5. **交互**：拖动（pointer capture）时只移动旋钮预览，`pointerup` 才提交；键盘 ↑ / ↓ 走一档、Home / End 到两端，每次都直接提交。写入中 `data-busy='true'` 锁住并降到 72% 不透明；失败时 `.ct-effort-error` 写原因（`:empty` 时不占位），旋钮回到宿主确认的档位。
 6. **渲染不出来就不渲染**：宿主没有 `modelDirectories`、模型没有 `reasoning.efforts`、只有一档、菜单没开、锚点认不出——一律什么都不加，官方菜单保持原样。**不得**做拨动后无效果的装饰控件。
 7. **会话目录按需重取，不长期缓存**：`directoryFor(sessionId)` 在会话作用域就绪前会抛错，宿主还会在模型代次变化时换掉实例，所以每次读、每次写都重新解析；解析失败时保留手上那份实例（订阅仍在喂它），从未拿到过则按 60 / 240 / 540 / 960 / 1500 / 3000ms 退避重试，取到新实例就退掉旧订阅、重新订阅并按 400ms 节流调一次 `load()`（`load()` 在已就绪时直接回缓存，共享官方那一份目录）。React 切换子面板时可能丢掉我们的节点，所以每轮都复核「节点仍是该行的下一个兄弟」，丢了就重建。
@@ -326,7 +327,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | `.ct-dock-mascots` / `.ct-dock-tools` / `.ct-mascot-stage` | 像素伙伴槽 / 右侧工具区 / 伙伴舞台（220 × 84） |
 | `.ct-vial` / `.ct-vial-popover` / `.ct-vial-canvas` | 试管触发器 / 浮窗 / 物理画布（96 × 220） |
 | `.ct-vial-rows` / `.ct-vial-bar` / `.ct-vial-legend` | 浮窗数字行 / 三段构成条 / 图例 |
-| `.ct-effort` / `.ct-effort-track` / `.ct-effort-gem` | 注入官方模型菜单的推理轨道 / `role="slider"` 的轨道 / 切工水晶旋钮 |
+| `.ct-effort` / `.ct-effort-track` / `.ct-effort-gem` | 注入官方模型菜单的推理轨道（`gem` 是那颗白色圆钮） | / `role="slider"` 的轨道 / 切工水晶旋钮 |
 | `.ct-effort-rail` / `.ct-effort-fill` / `.ct-effort-dot` / `.ct-effort-error` | 轨道条 / 已选段 / 档位点 / 失败原因 |
 | `.ct-status` / `.ct-note` / `.ct-meta` / `.ct-scopes` | 状态行 / 弱化说明 / 页脚元信息 / 授权范围 |
 

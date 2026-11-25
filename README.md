@@ -12,7 +12,7 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.4.0-0f172a?style=flat-square" alt="Version 2.4.0" />
+  <img src="https://img.shields.io/badge/Version-2.4.1-0f172a?style=flat-square" alt="Version 2.4.1" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Tests-219%20passing-16a34a?style=flat-square" alt="219 tests passing" />
@@ -94,11 +94,11 @@
   <img src="docs/screenshots/art.png" width="100%" alt="深空黑曜下的对话区泛光、烟熏用户气泡、引用块竖条与输入卡光泽" />
 </p>
 
-这层美术挂在 `<body>` 的两个属性上（`data-ct-palette` / `data-ct-art`），只在**选了配色**且外观页「光学外观」开着时生效——「跟随宿主」下 DSH 的原样一点不动。所有选择器只用 DSH 自己的语义属性（`[data-conversation-region]`、`[data-message-bubble]`、`[data-composer-card]`、`[data-conversation-scroll]`），不碰哈希类名，命中不到就自然不生效。上游的背景极光本身是 canvas 着色器，2.3.0 只重画了静态部分；2.4.0 把渲染器也搬来了，见下面那节。
+这层美术挂在 `<body>` 的属性上（`data-ct-palette` / `data-ct-art` / `data-ct-motion`），只在**选了配色**且外观页「光学外观」开着时生效——「跟随宿主」下 DSH 的原样一点不动。所有选择器只用 DSH 自己的语义属性（`[data-conversation-region]`、`[data-message-bubble]`、`[data-composer-card]`、`[data-conversation-scroll]`），不碰哈希类名，命中不到就自然不生效。上游的背景极光本身是 canvas 着色器，2.3.0 只重画了静态部分；2.4.0 把渲染器也搬来了，见下面那节。
 
 ### 3. 会动的背景：地平线辉光
 
-静态泛光之上，2.4.0 把上游真正的那层动效搬了过来：`ripple-core.js` 里的 2D 地平线渲染器（`conv-aura.js` 只是它的状态机）。它逐像素画一条贴着对话区底部的辉光带——两个正弦波叠出的 curtain、`valueNoise` 抖出的边缘、halftone 点阵，深色是钴蓝到青、浅色是宝蓝水彩；DSH 侧把它挂在对话区第一个子节点（底部 32%、`z-index: 0`，正文被提到 `1`），约 30fps，正文永远在它上面。
+静态泛光之上，2.4.0 把上游真正的那层动效搬了过来：`ripple-core.js` 里的 2D 地平线渲染器（`conv-aura.js` 只是它的状态机）。它逐像素画一条贴着对话区底部的辉光带——两个正弦波叠出的 curtain、`valueNoise` 抖出的边缘、halftone 点阵，深色是钴蓝到青、浅色是宝蓝水彩；DSH 侧把它挂在对话区第一个子节点（底部 40%、`z-index: 0`，正文被提到 `1`），约 30fps，正文永远在它上面；canvas 下面还垫了一层缓慢漂移的 CSS 兜底光，渲染器起不来时也不会留一块死黑。
 
 <p align="center">
   <img src="docs/screenshots/aura.png" width="100%" alt="深空黑曜对话区底部的地平线辉光与 halftone 点阵" />
@@ -124,13 +124,13 @@
 
 伙伴是 canvas 逐帧绘制的像素画，右侧那一行是插件在 `conversation.input.dock` 槽里加的控件：试管触发器与当前会话的在线仓库胶囊，读取中或保存失败时中间还会出现一行状态小字。行宽按输入卡的几何收窄（`--dsh-composer-card-max-width`），胶囊右缘与输入卡右缘对齐；面板或窗口窄于 620px 时伙伴自动让位，只留控件。
 
-### 6. 推理滑块与切工水晶
+### 6. 推理滑块
 
 <p align="center">
-  <img src="docs/screenshots/effort.png" width="360" alt="官方模型菜单里的推理等级行与切工水晶滑块" />
+  <img src="docs/screenshots/effort.png" width="360" alt="官方模型菜单里的推理等级行与推理滑块" />
 </p>
 
-DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推理等级」这一行下面注入一条 28px 的轨道，旋钮是一颗切工的紫水晶——切面亮度与色相随档位从左到右（冰蓝 → 紫罗兰）变化。拖动或按 ↑ / ↓ / Home / End 时，写入走的是官方那同一个 `modelDirectories.directoryFor(sessionId).select({ provider, model, reasoningEffort })`，所以官方行上的档位名、触发器的副标题会立刻跟着变——**没有拨动后什么都不影响的装饰控件**。
+DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推理等级」这一行下面注入一条 28px 的胶囊轨道——填充从左边长到旋钮中心，旋钮是一颗直径等于轨道高度的白色圆钮，档位点 3px，最高档时轨道泛紫光、填充末端转成紫色。这套几何跟参考插件 [`dsh-codex-effort-slider`](https://github.com/Microqian2th/dsh-codex-effort-slider) 一致。拖动或按 ↑ / ↓ / Home / End 时，写入走的是官方那同一个 `modelDirectories.directoryFor(sessionId).select({ provider, model, reasoningEffort })`，所以官方行上的档位名、触发器的副标题会立刻跟着变——**没有拨动后什么都不影响的装饰控件**。
 
 挂载是 fail-open 的：宿主没有 `modelDirectories` 服务、当前模型没有 `reasoning.efforts`、只有一档、菜单没开、或者写入被拒（比如会话正被写者占用），都退回「什么都不加」，并把失败原因写在滑块下方，旋钮回到宿主确认的那一档。锚点只用语义属性（`aria-haspopup="menu"` + `aria-controls` 找菜单、`role="menuitem"` 的行配上行首标签文字认出「推理等级」、`[data-composer-card]` 判归属），不认 DSH 的哈希类名。会话目录是按需重取的——`directoryFor()` 在会话作用域就绪前会抛错，所以拿不到时按退避重试，宿主换掉目录实例时跟着重订阅；菜单前面多出别的选择器行时按标签认行、不按位置认，认不出就不加，注入后也不派发 `resize`（部分宿主用它兜底关菜单）。
 
@@ -158,7 +158,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.4.0`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.4.1`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -266,17 +266,17 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.4.0`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.4.1`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）、`dual-mascot-rig.js`（约 231 KB）与 `horizon-glow.js`（约 17 KB，从上游 `ripple-core.js` 抽出的 2D 地平线渲染器）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（只服务这三个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.4.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）、`dual-mascot-rig.js`（约 231 KB）与 `horizon-glow.js`（约 17 KB，从上游 `ripple-core.js` 抽出的 2D 地平线渲染器）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（只服务这三个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.4.1` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」，不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
 - **配色只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行与 portal 出去的菜单上，这些值不会渗到宿主界面；`host` 是空集，保持官方主题不变。两个配色的本地 token 也按宿主模式分两份：默认块是浅色宿主读到的值，`body[data-ds-dark-theme]`（官方主题 presenter 自己写的属性）下换成深色那份；这里不写 `color-scheme`，`html` 上已经有宿主设的那一份。
 - **皮肤不掰用户的主题**：2.0.0 选深色配色会把宿主外观偏好一并切到深色，2.2.0 去掉了这次写入——配色自带亮暗两份值，用户切官方主题时皮肤跟着走。
 - **美术层只认语义属性**：`applyOptics()` 在 `<body>` 上写 `data-ct-palette` / `data-ct-art`，样式表里每条美术规则都以 `body[data-ct-art='on']` 开头，选择器只用 DSH 自己的 `[data-conversation-region]` / `[data-conversation-scroll]` / `[data-message-bubble]` / `[data-composer-card]` 与对话区的 `hr` / `blockquote`；命中不到就不生效，不碰哈希类名。
-- **推理滑块挂官方那一行，写入走官方那条路**：客户端 `ctx.inject(['modelDirectories'])` 拿到每个会话的模型目录，读 `store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，并用 `store.subscribe()` 跟官方行同步。DOM 桥只用语义属性——`button[aria-haspopup="menu"][aria-expanded="true"]` + `aria-controls` 找菜单、`button[role="menuitem"]` 配上行首标签认出推理等级行（根面板恰好两行时按官方布局兜底，更多行且无标签命中就不注入）、`[data-composer-card]` 判归属——认不出就不注入；目录按需重取（会话作用域就绪前 `directoryFor()` 会抛错，按 60 / 240 / 540 / 960 / 1500 / 3000ms 退避重试），实例被换掉时退旧订阅、重新订阅。切工水晶是本插件自己画的 SVG（4 个切面，亮度与色相按位置从左到右由冰蓝到紫罗兰），`createElementNS` 不可用时退化成圆点旋钮。写失败会在轨道下方写原因并把旋钮退回宿主确认的档位，不谎报成功。
+- **推理滑块挂官方那一行，写入走官方那条路**：客户端 `ctx.inject(['modelDirectories'])` 拿到每个会话的模型目录，读 `store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，并用 `store.subscribe()` 跟官方行同步。DOM 桥只用语义属性——`button[aria-haspopup="menu"][aria-expanded="true"]` + `aria-controls` 找菜单、`button[role="menuitem"]` 配上行首标签认出推理等级行（根面板恰好两行时按官方布局兜底，更多行且无标签命中就不注入）、`[data-composer-card]` 判归属——认不出就不注入；目录按需重取（会话作用域就绪前 `directoryFor()` 会抛错，按 60 / 240 / 540 / 960 / 1500 / 3000ms 退避重试），实例被换掉时退旧订阅、重新订阅。几何与参考插件一致：28px 胶囊轨道、白色圆钮、3px 档位点，填充停在旋钮圆心，满档时轨道泛紫光。写失败会在轨道下方写原因并把旋钮退回宿主确认的档位，不谎报成功。
 - **状态只落一个文件**：`<DSH home>/compression-tiers/settings.json`，所有写入是「临时文件 + rename」；手改坏的 JSON 回落到默认值，不让插件崩。`appearance` 在读写两侧都归一化，未知配色 / 动效值直接回落默认而不是报错。
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍。PATH 前插只影响本进程，且去重。
