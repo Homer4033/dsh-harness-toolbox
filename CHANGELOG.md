@@ -2,6 +2,12 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。
 
+## 2.4.5 — 2026-11-25
+
+- **推理滑块补上星尘粒子**：用户说「推理条没有粒子效果」。参考插件 `dsh-codex-effort-slider` 的满档是「紫色星云 + 扫光 + 22 颗星尘」，2.4.1 只抄了轨道几何和满档紫光，能量层和粒子没搬。现在补上：`.ct-effort-energy`（四段紫渐变星云，只覆盖已填充段，强度由 `--ct-effort-energy` 一个变量驱动）+ 扫光 + `.ct-effort-stars` 里 22 颗 3px 星尘，横向整轨 `translate3d(-100%)` 扫过。粒子位置全部由下标算出（相位取黄金比低差异序列、高度取带最小间隔的哈希排列），不用 `Math.random`，重渲染不跳变；`animation-duration` 与负 `animation-delay` 内联在元素上（写进样式表时负相位在真宿主里不生效）。能量曲线按**位置**算：`pct ≤ 1/3` 为 0、`2/3` 为 0.5、满档 1，速度 0.55×–2×（用 `playbackRate` 缩放、不动 duration/delay，所以拖动不会倒着走）；`data-energy='0'` 与外观页动效 `off` 都会 `animation-play-state: paused`。
+- **分页切换卡顿**：切页会把所有卡片重建一遍，而每张 `.ct-panel` 都带 `backdrop-filter: blur(22px)`——每个新出现的模糊面都要重新采样背景，4 核机器上就是肉眼可见的顿一下。现在卡片不再模糊（保留半透明底 + 顶光 + `contain: paint`），模糊只留给导航栏一处，半径 26px → 16px。
+- 测试仍 219 条（新增星尘数量 / 能量层 / `--ct-effort-energy` 断言；面板用例改成「卡片不得有 `backdrop-filter: blur`、导航栏仍有」）。`docs/screenshots/effort.png` 按 2 倍放大重出，能看到满档的星尘。
+
 ## 2.4.4 — 2026-11-25
 
 - **输入卡底遮罩的 `!important`**：2.4.2 想用 `body[data-ct-art='on'] [data-composer-seat]` 关掉 DSH 那条渐到 `bg-base` 的底遮罩，但那台机器装的是 2.4.2、截图里辉光仍被截在卡片上方——原因是 DSH 的遮罩来自 `.root[data-phase='active'] .composerSeat`（特指度 0,3,0），压过了我们只靠属性选择器的规则。现在两条覆盖都加 `!important`，辉光才能真的画到窗口底边。

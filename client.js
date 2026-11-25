@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.4'
+    const PLUGIN_VERSION = '2.4.5'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -995,8 +995,8 @@ window.__ModuleLoader__.load({
   background: var(--ct-glass-rail);
   background-image: var(--ct-glass-sheen);
   box-shadow: var(--ct-glass-shadow), var(--ct-glass-inner);
-  -webkit-backdrop-filter: blur(26px) saturate(170%);
-  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
 }
 .ct-nav-brand {
   display: flex;
@@ -1114,8 +1114,12 @@ window.__ModuleLoader__.load({
   background: var(--ct-glass-fill);
   background-image: var(--ct-glass-sheen);
   box-shadow: var(--ct-glass-shadow), var(--ct-glass-inner);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  backdrop-filter: blur(22px) saturate(160%);
+  /* No backdrop-filter on the cards on purpose: a page switch re-creates every
+     card, and each new blurred surface has to sample and blur the gradient
+     behind it — on a 4-core box that is the difference between a crisp switch
+     and a stutter. The rail keeps its blur; the cards get by on the translucent
+     fill plus the sheen. */
+  contain: paint;
 }
 .ct-levels {
   display: grid;
@@ -2161,19 +2165,100 @@ body[data-ct-art='on'] .ct-aura-host canvas {
   margin-left: -14px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    0 0 calc(var(--ct-effort-energy, 0) * 12px) var(--ct-effort-glow);
   pointer-events: none;
   transition: left 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 /* Highest level: the tube glows violet and the fill turns violet at its end. */
 .ct-effort[data-energy='1'] .ct-effort-track {
-  box-shadow: 0 0 14px color-mix(in srgb, var(--ct-effort-glow) 80%, transparent);
+  box-shadow: 0 0 calc(var(--ct-effort-energy, 0) * 16px) color-mix(in srgb, var(--ct-effort-glow) 80%, transparent);
 }
-.ct-effort[data-energy='1'] .ct-effort-fill {
-  background: linear-gradient(90deg, var(--ct-effort-accent) 0%, #a855f7 100%);
+.ct-effort[data-energy='0'] .ct-effort-star,
+.ct-effort[data-energy='0'] .ct-effort-energy-sweep {
+  animation-play-state: paused;
 }
-.ct-effort[data-energy='1'] .ct-effort-gem {
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 0 12px var(--ct-effort-glow);
+/* The energy layer is the reference slider's violet nebula: it covers the filled
+   part of the rail only, and one custom property drives its strength, so "turning
+   on" is a colour interpolation the compositor does for us. */
+.ct-effort-energy {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 14px;
+  border-radius: 14px 0 0 14px;
+  overflow: hidden;
+  opacity: var(--ct-effort-energy, 0);
+  transition: opacity 200ms ease;
+  background: linear-gradient(90deg, #3b1178 0%, #6d28d9 30%, #9333ea 62%, #c084fc 100%);
+  pointer-events: none;
+}
+.ct-effort-energy-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 18%, rgba(255, 255, 255, 0.3) 50%, transparent 82%);
+  transform: translateX(100%);
+  animation: ct-effort-sweep 2.4s linear infinite;
+}
+@keyframes ct-effort-sweep {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+/* Stardust rides its own layer: if it shared the nebula's opacity, the stars
+   would sit at 0.25 on the high tier and read as absent. */
+.ct-effort-stars {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 14px;
+  border-radius: 14px 0 0 14px;
+  overflow: hidden;
+  opacity: var(--ct-effort-star-opacity, 0);
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+.ct-effort-star {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  margin-top: -1.5px;
+  animation-name: ct-effort-star-sweep;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  pointer-events: none;
+}
+.ct-effort-star-dot {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.85);
+  opacity: var(--ct-effort-b, 1);
+  transform: scale(var(--ct-effort-b, 1));
+}
+@keyframes ct-effort-star-sweep {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  6% { opacity: 1; }
+  94% { opacity: 1; }
+  100% { transform: translate3d(-100%, 0, 0); opacity: 0; }
+}
+body[data-ds-dark-theme] .ct-effort-star-dot {
+  background: #f5f3ff;
+  box-shadow: 0 0 5px rgba(216, 180, 254, 0.95);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ct-effort-energy { transition: none; }
+  .ct-effort-energy-sweep { display: none; }
+}
+.ct-effort[data-motion='off'] .ct-effort-star {
+  animation-play-state: paused;
 }
 .ct-effort[data-motion='off'] .ct-effort-gem,
 .ct-effort[data-motion='off'] .ct-effort-dot,
@@ -3375,13 +3460,78 @@ body[data-ct-art='on'] .ct-aura-host canvas {
       }
     }
 
+    /* Energy curve of the reference slider: nothing before the second tier, half
+       strength on `high`, full on `max`. It is driven by position, not by level
+       names, so any model's ladder gets the same feel. */
+    const EFFORT_ENERGY_START = 1 / 3
+    const EFFORT_STAR_COUNT = 22
+    const EFFORT_GOLDEN = 0.6180339887498949
+    const EFFORT_MIN_HEIGHT_SLOTS = 2
+    const EFFORT_STAR_BASE_SECONDS = 2
+
+    function effortEnergy(pct) {
+      const t = effortRatio(pct)
+      return Math.max(0, Math.min(1, (t - EFFORT_ENERGY_START) / (1 - EFFORT_ENERGY_START)))
+    }
+
+    /** More energy, faster stardust — 0.55× on the left, 2× at the top. */
+    function effortSpeed(pct) {
+      return Math.min(2, Math.max(0.55, 3 * effortRatio(pct) - 1))
+    }
+
+    function effortHash01(index, salt) {
+      const value = ((index + 1) * salt * 2654435761) % 4294967296
+      return ((value >>> 8) % 1000) / 1000
+    }
+
+    /* Deterministic starfield: phases from a golden-ratio sequence (any prefix of
+       it spreads evenly), heights from a hashed permutation of evenly spaced
+       slots. No random number, so a re-render never reshuffles the sky. */
+    const EFFORT_STARS = (function buildEffortStars() {
+      const count = EFFORT_STAR_COUNT
+      const stars = []
+      for (let i = 0; i < count; i += 1) {
+        stars.push({ y: 0, phase: ((i + 1) * EFFORT_GOLDEN) % 1, duration: 0, delay: 0 })
+      }
+      const byPhase = stars.map(function (_, i) { return i })
+      byPhase.sort(function (a, b) { return stars[a].phase - stars[b].phase })
+      let slots = null
+      for (let salt = 71; salt < 4000 && slots === null; salt += 1) {
+        const candidate = stars.map(function (_, i) { return i })
+        candidate.sort(function (a, b) {
+          const ha = effortHash01(a, salt)
+          const hb = effortHash01(b, salt)
+          return ha === hb ? a - b : ha - hb
+        })
+        let ok = true
+        for (let k = 1; k < count && ok; k += 1) {
+          if (Math.abs(candidate[k] - candidate[k - 1]) < EFFORT_MIN_HEIGHT_SLOTS) ok = false
+        }
+        if (ok) slots = candidate
+      }
+      if (slots === null) {
+        slots = []
+        for (let i = 0; i < count; i += 1) slots.push((i * 5) % count)
+      }
+      for (let rank = 0; rank < count; rank += 1) {
+        stars[byPhase[rank]].y = 8 + (slots[rank] / (count - 1)) * 84
+      }
+      for (let i = 0; i < count; i += 1) {
+        // Per-star duration spread (±8%) keeps them from marching in lockstep.
+        const spread = 0.92 + 0.16 * effortHash01(i, 29)
+        stars[i].duration = EFFORT_STAR_BASE_SECONDS * spread
+        const jitter = effortHash01(i, 53) * 0.03
+        stars[i].delay = -((stars[i].phase + jitter) % 1) * stars[i].duration
+      }
+      return stars
+    })()
+
     /**
      * The injected control: one 28px pill track, an accent fill, 3px ticks and a
      * white circular knob — the geometry of the reference slider, drawn with our
      * own DOM because it lives inside a React-owned menu.
      */
-    function createEffortSlider(doc, handlers) {
-      const hooks = handlers || {}
+    function createEffortSlider(doc, handlers) {      const hooks = handlers || {}
       const root = doc.createElement('div')
       root.setAttribute('class', 'ct-effort')
       root.setAttribute('role', 'presentation')
@@ -3397,6 +3547,34 @@ body[data-ct-art='on'] .ct-aura-host canvas {
       fill.setAttribute('class', 'ct-effort-fill')
       fill.setAttribute('aria-hidden', 'true')
       track.appendChild(fill)
+
+      const energy = doc.createElement('span')
+      energy.setAttribute('class', 'ct-effort-energy')
+      energy.setAttribute('aria-hidden', 'true')
+      const sweep = doc.createElement('span')
+      sweep.setAttribute('class', 'ct-effort-energy-sweep')
+      energy.appendChild(sweep)
+      track.appendChild(energy)
+
+      const stars = doc.createElement('span')
+      stars.setAttribute('class', 'ct-effort-stars')
+      stars.setAttribute('aria-hidden', 'true')
+      track.appendChild(stars)
+      const starNodes = EFFORT_STARS.map(function (star, index) {
+        const row = doc.createElement('span')
+        row.setAttribute('class', 'ct-effort-star')
+        row.setAttribute('data-star', String(index))
+        row.style.setProperty('top', star.y + '%')
+        row.style.setProperty('animation-duration', star.duration.toFixed(3) + 's')
+        row.style.setProperty('animation-delay', star.delay.toFixed(3) + 's')
+        const dot = doc.createElement('span')
+        dot.setAttribute('class', 'ct-effort-star-dot')
+        dot.style.setProperty('--ct-effort-b', (0.5 + 0.5 * effortHash01(index, 61)).toFixed(3))
+        row.appendChild(dot)
+        stars.appendChild(row)
+        return { row: row, dot: dot }
+      })
+
       const knob = doc.createElement('span')
       knob.setAttribute('class', 'ct-effort-gem')
       knob.setAttribute('aria-hidden', 'true')
@@ -3426,7 +3604,27 @@ body[data-ct-art='on'] .ct-aura-host canvas {
         root.style.setProperty('--ct-effort-glow', pct >= 0.999 ? 'hsl(270 86% 62% / 0.55)' : ramp.glow)
         fill.style.setProperty('width', effortKnobLeft(pct))
         knob.style.setProperty('left', effortKnobLeft(pct))
-        root.setAttribute('data-energy', pct >= 0.999 ? '1' : '0')
+        const energyLevel = effortEnergy(pct)
+        const left = effortKnobLeft(pct)
+        energy.style.setProperty('width', left)
+        stars.style.setProperty('width', left)
+        root.style.setProperty('--ct-effort-energy', energyLevel.toFixed(3))
+        root.setAttribute('data-energy', energyLevel > 0.001 ? '1' : '0')
+        stars.style.setProperty('--ct-effort-star-opacity', (0.6 + 0.4 * energyLevel).toFixed(3))
+        // Stars arrive one by one as the rail fills: the k-th dot needs its own
+        // slice of the remaining travel, and only the last few stay faint.
+        starNodes.forEach(function (node, index) {
+          const threshold = index / EFFORT_STARS.length
+          const reveal = Math.min(1, Math.max(0, (energyLevel - threshold) / 0.22))
+          node.dot.style.setProperty('opacity', reveal.toFixed(3))
+        })
+        const rate = effortSpeed(pct)
+        starNodes.forEach(function (node) {
+          const anims = typeof node.row.getAnimations === 'function' ? node.row.getAnimations() : []
+          for (const anim of anims) {
+            try { anim.playbackRate = rate } catch { /* animation may be gone */ }
+          }
+        })
         ticks.forEach(function (tick, index) {
           const tickPct = count <= 1 ? 0 : index / steps
           tick.style.setProperty('left', effortKnobLeft(tickPct))

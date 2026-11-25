@@ -418,7 +418,11 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   const panelCss = String(styles[0].textContent).match(/\.ct-panel \{[^}]*\}/)
   assert.match(panelCss[0], /border-radius: 20px/)
   assert.match(panelCss[0], /--ct-glass-fill/)
-  assert.match(panelCss[0], /backdrop-filter: blur/)
+  // Cards stay un-blurred on purpose: every page switch re-creates them, and one
+  // blurred surface per card is what made the switch stutter.
+  assert.equal(/backdrop-filter: blur/.test(panelCss[0]), false, 'cards do not blur the page behind them')
+  assert.match(panelCss[0], /contain: paint/)
+  assert.match(styles[0].textContent, /\.ct-nav \{[^}]*backdrop-filter: blur/s)
   // The old single-scroll two-column page is gone on purpose.
   assert.equal(/\.ct-page-inner|\.ct-columns|\.ct-col \{/.test(styles[0].textContent), false, 'the two-column page is gone')
   // The removed license page leaves no stylesheet or dictionary behind.
@@ -1930,6 +1934,17 @@ test('the slider writes through the official directory and rolls back a refusal'
   assert.equal(track.getAttribute('aria-valuetext'), '高')
   assert.equal(track.getAttribute('aria-label'), '推理等级')
   assert.equal(slider.querySelectorAll('.ct-effort-dot').length, 4, 'one tick per level')
+  // The energy layer and its stardust are part of the control, not decoration
+  // bolted on afterwards: 22 deterministic dots, one nebula, one sweep.
+  assert.equal(slider.querySelectorAll('.ct-effort-star').length, 22, 'the starfield is present')
+  assert.equal(slider.querySelectorAll('.ct-effort-star-dot').length, 22)
+  assert.equal(slider.querySelectorAll('.ct-effort-energy').length, 1)
+  assert.equal(slider.querySelectorAll('.ct-effort-energy-sweep').length, 1)
+  // The 'high' level already carries half the energy; the fill reports it through
+  // one custom property instead of per-frame style writes.
+  const energyValue = Number(slider.style.values['--ct-effort-energy'])
+  assert.ok(energyValue > 0.4 && energyValue < 0.6, 'high sits around half energy, got ' + energyValue)
+  assert.equal(slider.getAttribute('data-energy'), '1')
   // A second sync must not stack a second control.
   effort.sync()
   assert.equal(menu.querySelectorAll('.ct-effort').length, 1)

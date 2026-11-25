@@ -64,7 +64,7 @@
 | `--ct-glass-inner` | `inset 0 1px 0 rgba(255,255,255,.16)` + `inset 0 -1px 0 rgba(0,0,0,.2)` | 内高光与底边压暗 |
 
 - **画布要有可折射的东西**：`.ct-page` 的底色是三段 accent 径向渐变（左上 26%、右上 15%、左下 8%）加一层从 accent 轻染到 `bg-base` 的线性渐变；玻璃块没有背后的明暗差就只是一块灰。渐变是面板里唯一的装饰性画布，其余一律落在 token 上。
-- 玻璃块统一 `backdrop-filter: blur(22–26px) saturate(160–170%)`；边缘 1px `--ct-glass-edge`，不加第二层描边。
+- 玻璃块只有**导航栏**保留 `backdrop-filter: blur(16px) saturate(150%)`；卡片（`.ct-panel`）**不模糊**——切页会把所有卡片重建一遍，每张都是一个要重新采样背景的模糊面，是切页卡顿的来源；卡片靠 `--ct-glass-fill` 半透明底色 + 顶光 + `contain: paint` 撑住观感。边缘 1px `--ct-glass-edge`，不加第二层描边。
 
 ## 配色皮肤
 
@@ -247,7 +247,8 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 1. **只挂在官方那一行下面**：锚点只用语义属性——`aria-haspopup="menu"` + `aria-expanded` + `aria-controls` 找到菜单、`role="menuitem"` 找到根面板的行、`[data-composer-card]` 判断这颗触发器是不是本会话输入卡的。**认行靠标签不靠位置**：读每行第一个 `span` 的文字，命中官方 `menu.effort` 文案（`推理等级` / `Effort` 及各语言写法）才算推理等级行；根面板恰好两行时按官方布局取第 2 行作为兜底，多于两行又没有标签命中就什么都不加（订阅类选择器会在同一面板里再加 Speed / Verbosity 行，按位置取会把滑条挂到别的设置上）。命中后把 `.ct-effort` 插到该行的**下一个兄弟位**，不包裹、不改写官方节点，不读 DSH 的哈希类名。注入后**不派发 `resize`**：部分宿主的菜单用 resize 兜底关闭，派发会让菜单刚打开就收起来；现代宿主用 CSS 锚点定位，自己会跟着高度走。
 2. **尺寸与几何（对齐参考插件）**：轨道是一条 28px 高的胶囊（`border-radius: 999px`，底色 `--dsw-alias-border-l1`），旋钮直径也是 28px、正好填满管口；两端各留半个旋钮（14px），旋钮位置 `left: calc(14px + (100% - 28px) × 位置%)`，填充的 `width` 用同一个表达式，所以填充正好停在旋钮圆心。档位点是 3px 圆点，与旋钮同一条轴，当前档及以下不透明度 0.9、以上 0.4。
-3. **旋钮与能量态**：旋钮是白色圆钮（`#fff` + `0 1px 5px rgba(0,0,0,.34)` 与半像素描边），不是切面宝石；填充固定用 `--dsw-alias-state-business-primary`（宿主强调色），只有**最高档**才把填充末端转成紫色并给轨道加 `0 0 14px` 的紫色泛光（`data-energy='1'`）。档位与颜色不再用位置色阶，颜色语义只剩「普通 / 满档」。**不要**给它加贴图或外链资源。
+2b. **能量层与星尘（2.4.5 起对齐参考插件的「满档通电」）**：`.ct-effort-energy` 是紫色星云，只覆盖已填充那一段（宽度与填充同一个表达式），四段渐变 `#3b1178 → #6d28d9 → #9333ea → #c084fc`，强度由根节点的 `--ct-effort-energy`（0..1）驱动，靠 `opacity` 过渡而不逐帧写样式；里面再放一条 `.ct-effort-energy-sweep` 做扫光。星尘单独一层 `.ct-effort-stars`（不跟星云一起淡入，否则 high 档的星被星云的 0.5 透明度压没了）：22 颗 3px 圆点，横向整轨 `translate3d(-100%)` 扫过，`animation-duration` 与负 `animation-delay` **内联写在元素上**（写进样式表时负相位在真宿主里不生效）；位置全部由下标算出、不用随机数——相位取黄金比低差异序列，高度取带最小间隔约束的哈希排列，亮度 `--ct-effort-b` 取 0.5–1。能量曲线按位置而不是档位名：`pct ≤ 1/3` 为 0、`pct = 2/3`（四档模型的 high）为 0.5、满档为 1；`energy ≤ 0.001` 时 `data-energy='0'` 把动画设成 `animation-play-state: paused`，22 个隐形元素不白烧 GPU；`data-motion='off'` 同样暂停。
+3. **旋钮与能量态**：旋钮是白色圆钮（`#fff` + `0 1px 5px rgba(0,0,0,.34)` 与半像素描边），不是切面宝石；填充固定用 `--dsw-alias-state-business-primary`（宿主强调色），能量强度驱动轨道外发光 `0 0 calc(--ct-effort-energy × 16px)` 与旋钮外发光。档位与颜色不再用位置色阶，颜色语义只剩「普通 / 通电」。**不要**给它加贴图或外链资源。
 4. **颜色只来自 token**：轨道底色用 `--dsw-alias-border-l1`，填充用 `--dsw-alias-state-business-primary`（缺省回落 `#4d93f8`），满档的紫色泛光写进 `--ct-effort-glow`。不写死某一档的颜色。
 5. **交互**：拖动（pointer capture）时只移动旋钮预览，`pointerup` 才提交；键盘 ↑ / ↓ 走一档、Home / End 到两端，每次都直接提交。写入中 `data-busy='true'` 锁住并降到 72% 不透明；失败时 `.ct-effort-error` 写原因（`:empty` 时不占位），旋钮回到宿主确认的档位。
 6. **渲染不出来就不渲染**：宿主没有 `modelDirectories`、模型没有 `reasoning.efforts`、只有一档、菜单没开、锚点认不出——一律什么都不加，官方菜单保持原样。**不得**做拨动后无效果的装饰控件。
