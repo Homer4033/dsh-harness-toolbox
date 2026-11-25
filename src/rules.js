@@ -39,8 +39,11 @@ export function readRules(home) {
   }
   let text
   try {
-    // Hand edits often carry a UTF-8 BOM; hide it instead of showing it.
-    text = readFileSync(path, 'utf8').replace(/^\uFEFF/, '')
+    // Hand edits often carry a UTF-8 BOM; hide it instead of showing it. Line
+    // endings are normalized on read as well: the panel compares the editor to
+    // this text, and a textarea hands back LF, so a CRLF file would otherwise
+    // look edited the moment it is loaded.
+    text = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
   } catch {
     return { path, exists: false, text: '', chars: 0, lines: 0, updatedAt: null, unreadable: true }
   }

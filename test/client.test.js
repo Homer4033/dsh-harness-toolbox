@@ -6,7 +6,7 @@ import vm from 'node:vm'
 const source = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
 
 /** Evaluate the browser module without touching a real ModuleLoader. */
-function loadClient() {
+function loadClient(options = {}) {
   const loaded = []
   const styles = []
   const sandbox = vm.createContext({
@@ -30,8 +30,8 @@ function loadClient() {
       },
       querySelector: () => null,
     },
-    fetch: () => Promise.resolve({ ok: true, json: async () => ({}) }),
-    setTimeout,
+    fetch: options.fetch || (() => Promise.resolve({ ok: true, json: async () => ({}) })),
+    setTimeout: options.setTimeout || setTimeout,
     console,
   })
   vm.runInContext(source, sandbox)
@@ -1426,6 +1426,76 @@ test('a vial without a reading says so instead of inventing zero', () => {
   assert.ok(dialog)
   assert.match(deepText(dialog), /vialUnavailable/)
   assert.equal(nodes.some((node) => hasClass(node, 'ct-vial-row')), false)
+})
+
+test('a vial without a projection is disabled instead of only empty', () => {
+  const empty = renderVial({ vialStates: [false, false] }).nodes
+  const disabledTrigger = empty.find((node) => hasClass(node, 'ct-vial'))
+  assert.equal(disabledTrigger.props.disabled, true)
+  assert.equal(disabledTrigger.props['data-empty'], 'true')
+  const pressure = { projectedTokens: 260000, contextWindow: 512000 }
+  const live = renderVial({ pressure, vialStates: [false, false] }).nodes
+  assert.equal(live.find((node) => hasClass(node, 'ct-vial')).props.disabled, false)
+})
+
+test('motion off pauses every effort animation, the sweep included', () => {
+  const { module, styles } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  const css = String(styles[0].textContent)
+  assert.match(
+    css,
+    /\.ct-effort\[data-motion='off'\] \.ct-effort-star,\n\.ct-effort\[data-motion='off'\] \.ct-effort-energy-sweep \{\n  animation-play-state: paused;\n\}/,
+  )
+})
+
+test('the settings snapshot is pushed to subscribers so the dock follows the panel', () => {
+  const { module } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  const settings = plugin.__test.settings
+  const seen = []
+  const off = settings.subscribe(function (body) { seen.push(body) })
+  settings.remember({ appearance: { palette: 'crystal', motion: 'off', mascots: false, art: false } })
+  assert.equal(seen.length, 1)
+  assert.equal(seen[0].appearance.motion, 'off')
+  off()
+  settings.remember({ appearance: { palette: 'host' } })
+  assert.equal(seen.length, 1, 'unsubscribing stops the pushes')
+})
+
+test('the appearance bootstrap retries a failed snapshot instead of painting defaults', async () => {
+  const attrs = {}
+  const scheduled = []
+  let settingsCalls = 0
+  const { module, sandbox } = loadClient({
+    fetch: (url) => {
+      if (String(url) !== '/compression-tiers/api/settings') {
+        return Promise.resolve({ ok: true, json: async () => ({}) })
+      }
+      settingsCalls += 1
+      if (settingsCalls === 1) return Promise.reject(new Error('the route is not up yet'))
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ appearance: { palette: 'obsidian', motion: 'subtle', mascots: false, art: false } }),
+      })
+    },
+    setTimeout: (fn) => { scheduled.push(fn); return 0 },
+  })
+  sandbox.document.body = { setAttribute(name, value) { attrs[name] = String(value) } }
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  // The failed read painted nothing over the user's palette ...
+  assert.deepEqual(attrs, {})
+  // ... and the retry the comment promises really was scheduled.
+  assert.equal(scheduled.length, 1)
+  scheduled.shift()()
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal(settingsCalls, 2)
+  assert.equal(attrs['data-ct-palette'], 'obsidian')
+  assert.equal(attrs['data-ct-art'], 'off')
+  assert.equal(attrs['data-ct-motion'], 'subtle')
 })
 
 

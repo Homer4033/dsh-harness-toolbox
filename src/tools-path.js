@@ -129,16 +129,30 @@ export function migrateTools({ home, settings, target, running = {}, platform = 
 
   mkdir(to, { recursive: true })
   for (const item of plan) {
+    // `partial` tracks "the destination may hold a half-copied tree": a failed
+    // copy leaves one behind, and the next run's pre-flight would then refuse
+    // with "destination already exists" forever while the source is still
+    // intact. Rolling it back keeps the retry possible.
+    let partial = false
     try {
       try {
         rename(item.source, item.destination)
       } catch (error) {
         if (!error || error.code !== 'EXDEV') throw error
+        partial = true
         copy(item.source, item.destination, { recursive: true })
         remove(item.source, { recursive: true, force: true })
+        partial = false
       }
       report.moved.push(item.name)
     } catch (error) {
+      if (partial) {
+        try {
+          remove(item.destination, { recursive: true, force: true })
+        } catch {
+          // Keeping the partial copy only affects the next retry's pre-flight.
+        }
+      }
       report.failed.push({ name: item.name, error: error instanceof Error ? error.message : String(error) })
     }
   }

@@ -134,6 +134,25 @@ test('a workspace reads only its fenced supplement, never the rest of the file',
   }
 })
 
+test('a CRLF supplement reads with LF so the editor is not dirty on load', () => {
+  const home = tempHome()
+  const root = tempHome()
+  try {
+    const dir = workspaceDir(root, 'space')
+    writeRegistry(home, ['w1'], { w1: { path: dir, title: 'Space' } })
+    writeFileSync(
+      join(dir, 'AGENTS.md'),
+      `${WORKSPACE_BLOCK_START}\r\none\r\ntwo\r\n${WORKSPACE_BLOCK_END}\r\n\r\n# Space\r\n`,
+    )
+    const row = readWorkspaceRules(findWorkspace(home, 'w1'))
+    assert.equal(row.text, 'one\ntwo')
+    assert.equal(row.chars, 'one\ntwo'.length)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('the fenced block round-trips: extract, strip and compose agree', () => {
   const block = `${WORKSPACE_BLOCK_START}\nsupplement line\n${WORKSPACE_BLOCK_END}`
   assert.equal(extractWorkspaceBlock(`${block}\n\nrest`), 'supplement line')
@@ -252,6 +271,50 @@ test('saving a workspace puts the supplement at the top and keeps the rest', () 
     // An empty save clears the supplement and leaves the file's own text.
     assert.equal(saveWorkspaceRules(home, 'w1', '').text, '')
     assert.equal(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), '# Space\n\nmine\n')
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a registry written with a BOM still lists its workspaces', () => {
+  const home = tempHome()
+  const root = tempHome()
+  try {
+    const dir = workspaceDir(root, 'space')
+    mkdirSync(join(home, 'storages'), { recursive: true })
+    // Hand-edited registries often carry a UTF-8 BOM; it must not hide them.
+    writeFileSync(workspaceRegistryPath(home), '\uFEFF' + JSON.stringify({
+      global: { initialized: true, workspaceIds: ['w1'] },
+      tables: { workspaces: { w1: { path: dir, title: 'Space' } } },
+    }))
+    const list = listWorkspaces(home)
+    assert.equal(list.length, 1)
+    assert.equal(list[0].path, dir)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a supplement with a whole-line fence marker is refused and the file untouched', () => {
+  const home = tempHome()
+  const root = tempHome()
+  try {
+    const dir = workspaceDir(root, 'space')
+    writeRegistry(home, ['w1'], { w1: { path: dir, title: 'Space' } })
+    const before = '# Space\n\nmine\n'
+    writeFileSync(join(dir, 'AGENTS.md'), before)
+    for (const marker of [WORKSPACE_BLOCK_START, WORKSPACE_BLOCK_END]) {
+      assert.throws(
+        () => saveWorkspaceRules(home, 'w1', `one\n  ${marker}  \ntwo`),
+        (error) => error.status === 400 && /fence marker/.test(error.message),
+      )
+    }
+    assert.equal(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), before, 'nothing was written')
+    // A mention inside a line cannot close the fence, so it stays allowed.
+    const saved = saveWorkspaceRules(home, 'w1', `mention ${WORKSPACE_BLOCK_START} inline`)
+    assert.equal(saved.text, `mention ${WORKSPACE_BLOCK_START} inline`)
   } finally {
     rmSync(home, { recursive: true, force: true })
     rmSync(root, { recursive: true, force: true })

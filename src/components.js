@@ -284,7 +284,15 @@ async function swapTree(finalDir, stagedDir, spec, platform, run) {
         // Already executable; the probe above is the real check.
       }
     }
-    if (existsSync(backup)) rmSync(backup, { recursive: true, force: true })
+    // A stale backup is harmless; the new tree already answered its probe.
+    // Failing here would roll back a verified install because of a locked file.
+    if (existsSync(backup)) {
+      try {
+        rmSync(backup, { recursive: true, force: true })
+      } catch {
+        // Keep the new install; a later install replaces the stale backup.
+      }
+    }
   } catch (error) {
     try {
       if (moved && existsSync(finalDir)) rmSync(finalDir, { recursive: true, force: true })
@@ -344,23 +352,35 @@ export async function startComponentDownload(root, id, { platform = process.plat
     const staging = stagingRoot(root, id)
     rmSync(staging, { recursive: true, force: true })
     const unpacked = join(staging, 'unpacked')
-    await extractArchive(archive, unpacked, asset.kind, platform)
     const tree = spec.subdir ? join(unpacked, spec.subdir) : unpacked
-    if (!existsSync(join(tree, spec.binary))) {
-      throw new Error(`the archive did not contain ${spec.binary}`)
-    }
-    // Probe the staged copy first: a broken binary must never replace a working one.
-    const stagedCheck = await run(join(tree, spec.binary), spec.args, { timeoutMs: VERIFY_TIMEOUT_MS })
-    if (platform !== 'win32') {
-      try {
-        chmodSync(join(tree, spec.binary), 0o755)
-      } catch {
-        // Non-fatal; the probe already ran.
+    try {
+      await extractArchive(archive, unpacked, asset.kind, platform)
+      if (!existsSync(join(tree, spec.binary))) {
+        throw new Error(`the archive did not contain ${spec.binary}`)
       }
-    }
-    if (stagedCheck.code !== 0) {
-      const detail = `${stagedCheck.stderr}${stagedCheck.stdout}`.trim().slice(-300)
-      throw new Error(`${spec.name} staged probe failed: ${detail || `exit ${stagedCheck.code}`}`)
+      // Probe the staged copy first: a broken binary must never replace a working one.
+      const stagedCheck = await run(join(tree, spec.binary), spec.args, { timeoutMs: VERIFY_TIMEOUT_MS })
+      if (platform !== 'win32') {
+        try {
+          chmodSync(join(tree, spec.binary), 0o755)
+        } catch {
+          // Non-fatal; the probe already ran.
+        }
+      }
+      if (stagedCheck.code !== 0) {
+        const detail = `${stagedCheck.stderr}${stagedCheck.stdout}`.trim().slice(-300)
+        throw new Error(`${spec.name} staged probe failed: ${detail || `exit ${stagedCheck.code}`}`)
+      }
+    } catch (error) {
+      // The archive is the suspect (truncated body, an HTML page served with
+      // 200): drop it so the next attempt downloads again instead of unpacking
+      // the same broken file forever.
+      try {
+        rmSync(archive, { force: true })
+      } catch {
+        // Best effort; the caller still reports the extraction error.
+      }
+      throw error
     }
     const staged = join(staging, 'tree')
     if (spec.subdir) {

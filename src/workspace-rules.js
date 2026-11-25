@@ -42,7 +42,8 @@ function readRegistry(home) {
   const path = workspaceRegistryPath(home)
   if (!existsSync(path)) return null
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8'))
+    // Hand edits often carry a UTF-8 BOM; a BOM must not hide every workspace.
+    const parsed = JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''))
     return parsed && typeof parsed === 'object' ? parsed : null
   } catch {
     // A hand-edited registry reads as "no workspaces": the block stays hidden
@@ -195,7 +196,9 @@ export function readWorkspaceRules(workspace) {
   let exists = false
   if (existsSync(file)) {
     try {
-      text = extractWorkspaceBlock(readFileSync(file, 'utf8'))
+      // Normalize line endings on read: the panel compares the editor value
+      // (always LF) to this text, so a CRLF file must not look edited.
+      text = extractWorkspaceBlock(readFileSync(file, 'utf8')).replace(/\r\n?/g, '\n')
       exists = true
     } catch {
       exists = false
@@ -229,6 +232,21 @@ export function workspacesPayload(home) {
 }
 
 /**
+ * A marker on a line of its own inside the supplement would close the fence
+ * early: the next read would stop at that line and the next save would copy the
+ * remainder into the body. Inline mentions are fine, whole lines are refused.
+ */
+export function workspaceSupplementConflict(value) {
+  const lines = asSource(value).split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed === WORKSPACE_BLOCK_START) return WORKSPACE_BLOCK_START
+    if (trimmed === WORKSPACE_BLOCK_END) return WORKSPACE_BLOCK_END
+  }
+  return null
+}
+
+/**
  * Save the panel's supplement for one registered workspace. The rest of the
  * file is preserved: the old fenced block is removed and the new one goes in at
  * the top, and a workspace without an `AGENTS.md` gets the file created.
@@ -243,6 +261,12 @@ export function saveWorkspaceRules(home, id, value) {
   // Validation happens before the read and the write, so an oversized draft
   // leaves the file untouched and the route answers 413.
   const supplement = normalizeRulesText(value).replace(/\n+$/, '')
+  const conflict = workspaceSupplementConflict(supplement)
+  if (conflict) {
+    const error = new Error(`the supplement must not contain a whole line with the fence marker (${conflict}); mention it inline instead`)
+    error.status = 400
+    throw error
+  }
   const current = readWorkspaceFile(workspace)
   const next = composeWorkspaceFile(current.text, supplement)
   // Clearing an editor for a workspace that has no file creates nothing: there

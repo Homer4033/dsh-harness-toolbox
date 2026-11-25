@@ -188,6 +188,9 @@ const RETRYABLE_CODE = new Set([
 function isRetryableDownloadError(error, signal) {
   if (!error || signal?.aborted) return false
   if (error.name === 'AbortError') return false
+  // A body that ended before its advertised length: the next attempt resumes
+  // from the bytes already on disk, so this is worth retrying.
+  if (error.shortRead === true) return true
   if (typeof error.status === 'number') return RETRYABLE_STATUS.has(error.status)
   if (RETRYABLE_CODE.has(String(error.code || ''))) return true
   return /fetch failed|socket hang up|other side closed|premature|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN/i.test(String(error.message || ''))
@@ -255,6 +258,15 @@ async function downloadAttempt({ url, partPath: target, fetchImpl, onProgress, s
     onProgress?.({ received, total, resumedFrom: restart ? 0 : existing })
   })
   await pipeline(source, file)
+  // A body that just stops (a proxy answering 200 with an HTML page, a chunked
+  // response cut short) still resolves the pipeline. Promoting that file to the
+  // archive path would make every later "retry" import the same broken archive,
+  // so a short read is a retryable error instead.
+  if (total !== null && received !== total) {
+    const error = new Error(`download ended at ${received} of ${total} bytes`)
+    error.shortRead = true
+    throw error
+  }
   return { received, total, resumedFrom: restart ? 0 : existing }
 }
 
@@ -336,24 +348,32 @@ export function runCommand(command, args, { timeoutMs = COMMAND_TIMEOUT_MS, env 
 }
 
 /** Extract a zip with the platform `tar` (bsdtar reads zip), then PowerShell. */
-export async function extractArchive(archivePath, destDir, kind, platform = process.platform) {
+export async function extractArchive(archivePath, destDir, kind, platform = process.platform, run = runCommand) {
   mkdirSync(destDir, { recursive: true })
   if (kind === 'tar.gz') {
-    const extracted = await runCommand('tar', ['-xzf', archivePath, '-C', destDir], { timeoutMs: EXTRACT_TIMEOUT_MS })
+    const extracted = await run('tar', ['-xzf', archivePath, '-C', destDir], { timeoutMs: EXTRACT_TIMEOUT_MS })
     if (extracted.code === 0) return
     throw new Error(extracted.stderr.slice(-400) || 'extract failed')
   }
   if (kind === 'zip') {
-    const extracted = await runCommand('tar', ['-xf', archivePath, '-C', destDir], { timeoutMs: EXTRACT_TIMEOUT_MS })
+    const extracted = await run('tar', ['-xf', archivePath, '-C', destDir], { timeoutMs: EXTRACT_TIMEOUT_MS })
     if (extracted.code === 0) return
     if (platform === 'win32') {
-      const powershell = await runCommand('powershell.exe', [
+      // `-Command 'verb $args[0]'` does not receive arguments (PowerShell parses
+      // the trailing tokens as part of the command line, leaving `$args` empty),
+      // so the parameters are declared on a script block and bound positionally.
+      const powershell = await run('powershell.exe', [
         '-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
-        'Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force',
+        '& { param($a, $b) Expand-Archive -LiteralPath $a -DestinationPath $b -Force }',
         archivePath, destDir,
       ], { timeoutMs: EXTRACT_TIMEOUT_MS })
       if (powershell.code === 0) return
-      throw new Error(powershell.stderr.slice(-400) || extracted.stderr.slice(-400) || 'extract failed')
+      // Report both attempts: the tar failure is usually the informative one.
+      const detail = [powershell.stderr.slice(-400), extracted.stderr.slice(-400)]
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join(' | ')
+      throw new Error(detail || 'extract failed')
     }
     throw new Error(extracted.stderr.slice(-400) || 'extract failed')
   }
@@ -494,10 +514,23 @@ export function startGhDownload(root, { platform = process.platform, arch = proc
   ready.then(async () => {
     clearTimeout(timer)
     const staging = join(ghRoot(root), 'src')
-    await extractArchive(archivePath, staging, asset.kind, platform)
     const binaryName = ghBinaryName(platform)
-    const binary = findBinary(staging, binaryName)
-    if (!binary) throw new Error(`archive did not contain ${binaryName}`)
+    let binary
+    try {
+      await extractArchive(archivePath, staging, asset.kind, platform)
+      binary = findBinary(staging, binaryName)
+      if (!binary) throw new Error(`archive did not contain ${binaryName}`)
+    } catch (error) {
+      // The archive is the suspect here (a truncated body, an HTML page served
+      // with 200): drop it so "retry" downloads again instead of unpacking the
+      // same broken file forever.
+      try {
+        rmSync(archivePath, { force: true })
+      } catch {
+        // Best effort; the caller still reports the extraction error.
+      }
+      throw error
+    }
     const binDir = ghBinDir(root)
     mkdirSync(binDir, { recursive: true })
     const final = join(binDir, binaryName)
@@ -663,6 +696,16 @@ const GH_DEVICE_URL = 'https://github.com/login/device'
 const GH_CODE = /\b([A-Z0-9]{4}-[A-Z0-9]{4})\b/
 
 /**
+ * The one-time device code in `gh auth login --web` output, uppercased, or `''`
+ * when the output does not carry one yet. Pure so the panel's dialog can be
+ * tested without spawning `gh`.
+ */
+export function parseDeviceCode(output) {
+  const code = GH_CODE.exec(String(output || '').toUpperCase())
+  return code ? code[1] : ''
+}
+
+/**
  * Live `gh auth login --web` child. `gh` prints a one-time device code first
  * and then waits for Enter before it opens the browser, so the dialog shows the
  * code and clicks through instead of sending the user to a terminal.
@@ -742,9 +785,9 @@ export function beginGithubLogin(root, { platform = process.platform, envPath = 
   const collect = (chunk) => {
     output += chunk
     if (!session.code) {
-      const code = GH_CODE.exec(output.toUpperCase())
+      const code = parseDeviceCode(output)
       if (code) {
-        session.code = code[1]
+        session.code = code
         session.state = 'waiting'
         session.note = 'copy the one-time code, then paste it on the GitHub page'
         pressEnter()

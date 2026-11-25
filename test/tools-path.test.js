@@ -186,6 +186,45 @@ test('a cross-volume move falls back to copy and delete', () => {
   }
 })
 
+test('a copy that dies halfway is rolled back so the retry is not blocked', () => {
+  const home = tempDir()
+  const target = tempDir()
+  try {
+    const from = plantedRoot(defaultToolsPath(home))
+    const exdev = () => {
+      const error = new Error('EXDEV: cross-device link not permitted')
+      error.code = 'EXDEV'
+      throw error
+    }
+    // The copy dies after writing part of the tree, so the destination exists.
+    const failingCopy = (source, destination) => {
+      mkdirSync(join(destination, 'bin'), { recursive: true })
+      writeFileSync(join(destination, 'bin', 'half.txt'), 'half')
+      throw new Error('ENOSPC: no space left on device')
+    }
+    assert.throws(
+      () => migrateTools({
+        home,
+        settings: {},
+        target,
+        fs: { renameSync: exdev, cpSync: failingCopy, rmSync, existsSync, mkdirSync },
+      }),
+      /could not move/,
+    )
+    for (const name of TOOL_DIRS) {
+      // The half-copied tree is gone, the source is intact, so the next run's
+      // pre-flight no longer refuses with "destination already exists".
+      assert.equal(existsSync(join(target, name)), false, `${name}: the partial copy was rolled back`)
+      assert.equal(existsSync(join(from, name)), true, `${name}: the source survived`)
+    }
+    const report = migrateTools({ home, settings: {}, target })
+    assert.deepEqual(report.moved.sort(), TOOL_DIRS.slice().sort())
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+    rmSync(target, { recursive: true, force: true })
+  }
+})
+
 test('a second run over half-migrated directories finishes the job', () => {
   const home = tempDir()
   const target = tempDir()

@@ -2,6 +2,24 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。
 
+## 2.4.10 — 2026-11-25
+
+- **整理 + 代码审查后的修复版**（用户说「整理文件、文档。然后审查代码。」）：整理部分已单独提交（`46d9165`：README 过时描述、死代码、temp 归档、文档链接）。审查用只读审计代理逐文件过了一遍，下面每条都先在代码里复现、再修、再补用例；没有「顺手重构」。
+- **`gh` 解压的 PowerShell 兜底其实一直是坏的**（`src/gh.js`）：`powershell.exe -Command 'Expand-Archive … $args[0] …'` 后面跟的参数不会进 `$args`（PowerShell 把它们当命令行的其余部分），实测 `count=0`，兜底永远失败。改成 `& { param($a, $b) Expand-Archive -LiteralPath $a -DestinationPath $b -Force }` 再跟两个路径，失败时把 tar 与 PowerShell 两边的 stderr 一起报出来。`extractArchive()` 增加可注入的 `run`，用例断言参数声明与位置参数。
+- **短读的下载会变成永久坏归档**：body 比 `content-length` 短时 `pipeline` 仍然正常结束，`.part` 被改名成归档，之后每次「重试」都解压同一个坏文件。现在 `received !== total` 抛可重试错误（断点续传从磁盘字节继续），只有完整下载才落到归档路径。解压失败、归档里找不到二进制、暂存自检失败同样会删掉归档再抛错，让重试重新下载（`gh` / `ffmpeg` / 组件三处一致）。
+- **验证通过的安装被一次清理失败回滚**（`src/ffmpeg.js`、`src/components.js`）：成功路径里的 `rmSync(backup)` 在 Windows 上遇到占用会抛错，落进 `catch` 后删掉刚验证过的新目录、再把旧目录搬回来，用户看到「安装失败」。备份清理改成独立 `try/catch`：清理失败只留一个陈旧备份，不动已装好的版本。
+- **迁移失败后永远无法重试**（`src/tools-path.js`）：跨卷 `EXDEV` 走 `cpSync`，复制中途失败会留下半份目标目录，下一次预检看到「源和目标都在」直接 409。现在复制失败（以及复制成功后删源失败）会回滚目标、保留源，重试可以完整跑完。
+- **补充规则里的整行围栏标记会截断受管块**（`src/workspace-rules.js`）：如果人在补充规则里写了一整行 START/END，下一次读会在那里提前收尾、下一次保存会把剩余部分当正文抄走。现在保存前就返回 400（`the supplement must not contain a whole line with the fence marker`），文件一个字不动；行内提及仍然允许。顺手给工作区注册表读取加了 BOM 剥离（手改过的 JSON 带 BOM 时原本会「没有任何工作区」）。
+- **外观引导的重试是死代码**（`client.js`）：`loadSettingsSnapshot()` 原先在 catch 里返回旧快照（首次为 `null`），所以「失败 → 重试」分支永远不执行，冷启动时还会用默认值盖掉用户的配色。现在首次失败会 reject（有旧快照时仍回退到它），重试真的发生；用例断言第一次失败后**没有**写 `data-ct-*`，重试后才写入。
+- **dock 行跟不上面板里的外观改动**：设置快照加了订阅（`subscribeSettings` / `rememberSettings`），面板保存档位或外观后把响应推给 dock，不必等切会话重挂载；dock 的 effect 同时补了 rejection 分支与退订。
+- **取不到投影时试管触发器没有禁用**：规则 23 写的是「渲染「—」并禁用触发器」，实现只加了 `data-empty`；现在 `disabled: !meter`，用例断言有/无投影两种状态。
+- **动效关掉后扫光还在跑**：`[data-motion='off']` 只暂停了 `.ct-effort-star`，没暂停 `.ct-effort-energy-sweep`；两条选择器合并。菜单按 Esc 关闭后焦点回到触发器（此前留在即将卸载的菜单上）。
+- **两处小校验**：`POST /api/settings` 的 `appearance.art` 非布尔现在 400（和 palette / motion / mascots 一致）；`sessionRepos` 的查表改用 `Object.hasOwn`（`constructor` 之类的键不再变成远端）；GitHub 页登录按钮补上禁用时的 `title`。
+- 测试 225 → **238** 条：`test/gh.test.js` 补短读重试、PowerShell 兜底参数、双 stderr、设备码解析；`test/tools-path.test.js` 补「复制失败回滚后半程可重试」；`test/workspace-rules.test.js` 补整行标记 400、行内提及放行、带 BOM 的注册表；`test/client.test.js` 补试管禁用态、扫光暂停、设置快照推送、外观引导失败不涂抹；`test/rules.test.js` 与 `test/workspace-rules.test.js` 补「手改的 BOM/CRLF 文件读回已归一，编辑器一打开不会就是脏的」。
+- **顺带修掉两处读侧不一致**：`readRules()` / `readWorkspaceRules()` 现在把 BOM 与 CRLF 归一后再交给面板——textarea 拿回来的是 LF，不归一的话一个 CRLF 的 `AGENTS.md` 刚打开就被判成「已修改」，保存按钮一直可点；工作区保存成功后编辑器对齐到服务端归一后的文本（草稿结尾的换行不会再把脏态卡住）。**明确没改**：`MAX_RULES_CHARS` 仍按输入字符计（结尾那一个换行不算超限，不改变已保存文件）；请求路径里的同步读文件保持原样（体积小、失败有兜底）；`Select` 菜单的 Tab 焦点顺序不动（Esc 的焦点归还已补）。
+- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.10`；AGENTS.md 第 10 / 12 / 17 / 21 / 23 条与验证要求、[docs/UI.md](docs/UI.md) 的动效与试管小节同步。
+- **渲染未验证**：试管禁用态、dock 跟随面板、扫光暂停在真宿主里的观感要装上看。
+
 ## 2.4.9 — 2026-11-25
 
 - **工作区规则卡不再显示 `AGENTS.md` 正文**（用户说「工作区规则不是说不显示 AGENTS.md 的内容吗？用户写好注入到 AGENTS.md 开头就行了」）：2.4.8 的受管块用 `indexOf` 在**整份文件**里找围栏，而这个工作区的 `AGENTS.md` 在正文里描述受管块时把两个标记各写了一次——于是「正文里那对标记之间」被当成补充规则读进面板，点保存还会把这段正文剥出来重新前置，等于用截断的契约覆盖文件。现在围栏**只认文件开头**：首个非空行必须是 START、END 必须是后面一整行，行内顺口提到的标记一律不算；半个围栏（只有 START 没有 END）按空块处理，保存后不会出现第二个 START，围栏下面那段文字当别人的正文原样保留。

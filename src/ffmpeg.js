@@ -187,7 +187,15 @@ async function swapBinDir(root, stagedBin, platform) {
         throw new Error(`${name} failed its probe after install: ${`${check.stderr}${check.stdout}`.trim().slice(-300) || `exit ${check.code}`}`)
       }
     }
-    if (existsSync(backup)) rmSync(backup, { recursive: true, force: true })
+    // A leftover backup is harmless; the installed binaries already passed
+    // their probe. Failing here would roll the verified install back.
+    if (existsSync(backup)) {
+      try {
+        rmSync(backup, { recursive: true, force: true })
+      } catch {
+        // Keep the new install; the next install replaces the stale backup.
+      }
+    }
   } catch (error) {
     try {
       if (moved && existsSync(binDir)) rmSync(binDir, { recursive: true, force: true })
@@ -250,20 +258,31 @@ export function startFfmpegDownload(root, { platform = process.platform, arch = 
       await moveIntoPlace(part, archive)
     }
     const staging = join(ffmpegRoot(root), 'src')
-    await extractArchive(archive, staging, source.kind, platform)
     const stagedBin = join(ffmpegRoot(root), 'staged-bin')
-    rmSync(stagedBin, { recursive: true, force: true })
-    mkdirSync(stagedBin, { recursive: true })
-    for (const [name, file] of Object.entries(source.binaries)) {
-      const found = findBinary(staging, file)
-      if (!found) throw new Error(`the archive did not contain ${file}`)
-      const target = join(stagedBin, file)
-      copyFileSync(found, target)
-      if (platform !== 'win32') chmodSync(target, 0o755)
-      const check = await runCommand(target, ['-version'], { timeoutMs: VERIFY_TIMEOUT_MS })
-      if (check.code !== 0) {
-        throw new Error(`${name} failed its probe before install: ${`${check.stderr}${check.stdout}`.trim().slice(-300) || `exit ${check.code}`}`)
+    try {
+      await extractArchive(archive, staging, source.kind, platform)
+      rmSync(stagedBin, { recursive: true, force: true })
+      mkdirSync(stagedBin, { recursive: true })
+      for (const [name, file] of Object.entries(source.binaries)) {
+        const found = findBinary(staging, file)
+        if (!found) throw new Error(`the archive did not contain ${file}`)
+        const target = join(stagedBin, file)
+        copyFileSync(found, target)
+        if (platform !== 'win32') chmodSync(target, 0o755)
+        const check = await runCommand(target, ['-version'], { timeoutMs: VERIFY_TIMEOUT_MS })
+        if (check.code !== 0) {
+          throw new Error(`${name} failed its probe before install: ${`${check.stderr}${check.stdout}`.trim().slice(-300) || `exit ${check.code}`}`)
+        }
       }
+    } catch (error) {
+      // The archive is the suspect (truncated body, wrong file behind a proxy):
+      // drop it so the next attempt downloads instead of unpacking it again.
+      try {
+        rmSync(archive, { force: true })
+      } catch {
+        // Best effort; the caller still reports the extraction error.
+      }
+      throw error
     }
     await swapBinDir(root, stagedBin, platform)
     prune(root)

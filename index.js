@@ -134,7 +134,9 @@ function sessionIdOf(exec) {
 function sessionRepoBinding(sessionId, settings = readSettings(homeDir()).settings) {
   if (!sessionId) return null
   const repos = settings && settings.sessionRepos ? settings.sessionRepos : {}
-  return repos[sessionId] || null
+  // Own keys only: `constructor` / `toString` would otherwise resolve to the
+  // prototype and build a nonsense remote.
+  return Object.hasOwn(repos, sessionId) ? repos[sessionId] : null
 }
 
 function trace(stage, detail) {  // Keep the console quiet: only failures, skipped work and adoption matter.
@@ -550,6 +552,10 @@ export function apply(ctx) {
               }
               if (patch.mascots !== undefined && typeof patch.mascots !== 'boolean') {
                 sendJson(res, 400, { error: 'mascots must be a boolean' })
+                return
+              }
+              if (patch.art !== undefined && typeof patch.art !== 'boolean') {
+                sendJson(res, 400, { error: 'art must be a boolean' })
                 return
               }
             }

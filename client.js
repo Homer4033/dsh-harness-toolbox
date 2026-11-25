@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.9'
+    const PLUGIN_VERSION = '2.4.10'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -2039,7 +2039,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
   .ct-effort-energy { transition: none; }
   .ct-effort-energy-sweep { display: none; }
 }
-.ct-effort[data-motion='off'] .ct-effort-star {
+.ct-effort[data-motion='off'] .ct-effort-star,
+.ct-effort[data-motion='off'] .ct-effort-energy-sweep {
   animation-play-state: paused;
 }
 .ct-effort[data-motion='off'] .ct-effort-gem,
@@ -2710,13 +2711,29 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
      * request fills the tier spec, the palette and the mascot flag. Actions that
      * write settings hand the response back here so both surfaces agree.
      */
-    const settingsCache = { body: null, at: 0, pending: null }
+    const settingsCache = { body: null, at: 0, pending: null, listeners: new Set() }
     const SETTINGS_CACHE_MS = 60_000
 
     function rememberSettings(body) {
       if (!body || typeof body !== 'object') return
       settingsCache.body = body
       settingsCache.at = Date.now()
+      // The dock and the composer row read the same snapshot as the panel; a
+      // save in the panel must reach them without waiting for a remount.
+      settingsCache.listeners.forEach(function (listener) {
+        try {
+          listener(body)
+        } catch {
+          // One stale surface must not break the write that just succeeded.
+        }
+      })
+    }
+
+    function subscribeSettings(listener) {
+      settingsCache.listeners.add(listener)
+      return function () {
+        settingsCache.listeners.delete(listener)
+      }
     }
 
     function loadSettingsSnapshot() {
@@ -2730,12 +2747,19 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           rememberSettings(body)
           return body
         })
-        .catch(function () {
-          return settingsCache.body
+        .catch(function (error) {
+          // A stale snapshot still beats nothing, but a first load failure has to
+          // stay visible: the appearance bootstrap retries on rejection instead
+          // of applying defaults over the user's palette.
+          if (settingsCache.body) return settingsCache.body
+          throw error
         })
         .then(function (body) {
           settingsCache.pending = null
           return body
+        }, function (error) {
+          settingsCache.pending = null
+          throw error
         })
       return settingsCache.pending
     }
@@ -2823,7 +2847,14 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           close()
         }
         const onKey = function (event) {
-          if (event.key === 'Escape') close()
+          if (event.key !== 'Escape') return
+          close()
+          // Escape is a keyboard action: focus belongs back on the trigger
+          // rather than on a menu that is about to unmount.
+          const node = triggerRef && triggerRef.current
+          if (node && typeof node.focus === 'function') {
+            try { node.focus() } catch { /* the trigger may already be gone */ }
+          }
         }
         const onResize = function () { close() }
         if (doc) doc.addEventListener('mousedown', onDown)
@@ -2998,6 +3029,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         className: 'ct-vial',
         'data-critical': meter && meter.critical ? 'true' : 'false',
         'data-empty': meter ? 'false' : 'true',
+        // Without the official projection there is nothing to show; the reading
+        // is not invented and the trigger stays out of the tab order.
+        disabled: !meter,
         'aria-haspopup': 'dialog',
         'aria-expanded': open ? 'true' : 'false',
         'aria-label': ariaLabel,
@@ -3947,8 +3981,13 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
 
       React.useEffect(function () {
         mounted.current = true
+        const unsubscribe = subscribeSettings(function (body) {
+          if (mounted.current) setSettings(body)
+        })
         loadSettingsSnapshot().then(function (body) {
           if (mounted.current && body) setSettings(body)
+        }, function () {
+          // The dock keeps its last snapshot; the panel reports the failure.
         })
         if (sessionId) {
           fetch(GH_BINDING_API + '?session=' + encodeURIComponent(sessionId), { credentials: 'same-origin' })
@@ -3967,6 +4006,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         })
         return function () {
           mounted.current = false
+          unsubscribe()
         }
       }, [sessionId])
 
@@ -4454,6 +4494,10 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
                 ...(workspaceRules || {}),
                 workspaces: list.map(function (item) { return item.id === saved.id ? saved : item }),
               })
+              // The server normalizes the draft (BOM, line endings, trailing
+              // blanks); align the editor with what was stored, or the dirty
+              // check would keep the save button enabled forever.
+              setWorkspaceText(typeof saved.text === 'string' ? saved.text : workspaceText)
             }
             setWorkspaceMessage(t('workspaceRulesSaved'))
           })
@@ -5071,6 +5115,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         actionRow([
           actionButton('ghLogin', auth && auth.authenticated ? t('ghRelogin') : t('ghLogin'), {
             disabled: ghBusy || loggingIn || !auth || !auth.available,
+            title: ghBusy || loggingIn ? '' : (!auth ? t('loading') : (auth.available ? '' : t('ghLoginInactive'))),
             onClick: loginGh,
             primary: true,
           }),
@@ -5327,6 +5372,12 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         normalizeAppearance: normalizeAppearance,
         applyOptics: applyOptics,
         vialUsage: vialUsage,
+        // The shared settings snapshot: the panel writes it, the dock subscribes.
+        settings: {
+          subscribe: subscribeSettings,
+          remember: rememberSettings,
+          load: loadSettingsSnapshot,
+        },
 
         setSkinTheme: function (theme) {
           skinRuntime.theme = theme

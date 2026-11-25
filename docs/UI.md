@@ -226,7 +226,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 1. **配色用色板，不用下拉**：`.ct-swatches` 是 3 列栅格（`@container (max-width: 640px)` 时 2 列），每个选项是 `role="radio"` + `aria-checked` 的按钮；顶部 `.ct-swatch-band` 是一条 22px 的三段渐变色带（深色端 / 浅色端 / accent），下面 12px 名称。两套配色都跟随宿主深浅，所以色带同时露出深色端与浅色端；色带只用作预览，颜色写死在各 `data-choice` 里——它展示的**不是**当前主题的 token。
 2. **动效用分段按钮**：`.ct-segment` 34px 高，`role="radiogroup"` 包住三个 `role="radio"`；选中态 accent 16% 淡染 + 50% 描边。
 3. **像素伙伴用开关式动作按钮**：`actionButton()` 渲染，`aria-pressed` 表示状态，开启时加 `ct-btn--primary`；标签随状态在「已开启 / 已关闭」之间切换，不用复选框、不用开关滑块。
-4. **写入是乐观的**：点选立刻改本地状态并发 `POST /compression-tiers/api/settings`；失败回滚到上一个值，并在卡片底部的 `.ct-status`（`role="status"`）写一条失败提示。请求进行中三个控件一起 `disabled`，避免连点打架。
+4. **写入是乐观的**：点选立刻改本地状态并发 `POST /compression-tiers/api/settings`；失败回滚到上一个值，并在卡片底部的 `.ct-status`（`role="status"`）写一条失败提示。请求进行中三个控件一起 `disabled`，避免连点打架。成功响应同时推给设置快照的订阅者（`rememberSettings()` → `subscribeSettings()`），所以输入框上方那一行不必等切会话重挂载就会跟着换配色 / 动效 / 伙伴开关；外观引导读取失败时**不**用默认值涂抹，而是按 1.5s × 次数退避重试（首次失败有旧快照才回退）。
 5. 颜色与动效同时作用于面板页根、输入框上方那一行与 portal 出去的菜单——皮肤靠 `data-palette` / `data-motion` 三个根节点各自带上属性，不要指望继承。
 
 ## 输入框上方那一行
@@ -250,7 +250,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 1. **只挂在官方那一行下面**：锚点只用语义属性——`aria-haspopup="menu"` + `aria-expanded` + `aria-controls` 找到菜单、`role="menuitem"` 找到根面板的行、`[data-composer-card]` 判断这颗触发器是不是本会话输入卡的。**认行靠标签不靠位置**：读每行第一个 `span` 的文字，命中官方 `menu.effort` 文案（`推理等级` / `Effort` 及各语言写法）才算推理等级行；根面板恰好两行时按官方布局取第 2 行作为兜底，多于两行又没有标签命中就什么都不加（订阅类选择器会在同一面板里再加 Speed / Verbosity 行，按位置取会把滑条挂到别的设置上）。命中后把 `.ct-effort` 插到该行的**下一个兄弟位**，不包裹、不改写官方节点，不读 DSH 的哈希类名。注入后**不派发 `resize`**：部分宿主的菜单用 resize 兜底关闭，派发会让菜单刚打开就收起来；现代宿主用 CSS 锚点定位，自己会跟着高度走。
 2. **尺寸与几何（对齐参考插件）**：轨道是一条 28px 高的胶囊（`border-radius: 999px`，底色 `--dsw-alias-border-l1`），旋钮直径也是 28px、正好填满管口；两端各留半个旋钮（14px），旋钮位置 `left: calc(14px + (100% - 28px) × 位置%)`，填充的 `width` 用同一个表达式，所以填充正好停在旋钮圆心。档位点是 3px 圆点，与旋钮同一条轴，当前档及以下不透明度 0.9、以上 0.4。
-2b. **能量层与星尘（2.4.5 起对齐参考插件的「满档通电」）**：`.ct-effort-energy` 是紫色星云，只覆盖已填充那一段（宽度与填充同一个表达式），四段渐变 `#3b1178 → #6d28d9 → #9333ea → #c084fc`，强度由根节点的 `--ct-effort-energy`（0..1）驱动，靠 `opacity` 过渡而不逐帧写样式；里面再放一条 `.ct-effort-energy-sweep` 做扫光。星尘单独一层 `.ct-effort-stars`（不跟星云一起淡入，否则 high 档的星被星云的 0.5 透明度压没了）：22 颗 3px 圆点，横向整轨 `translate3d(-100%)` 扫过，`animation-duration` 与负 `animation-delay` **内联写在元素上**（写进样式表时负相位在真宿主里不生效）；位置全部由下标算出、不用随机数——相位取黄金比低差异序列，高度取带最小间隔约束的哈希排列，亮度 `--ct-effort-b` 取 0.5–1。能量曲线按位置而不是档位名：`pct ≤ 1/3` 为 0、`pct = 2/3`（四档模型的 high）为 0.5、满档为 1；`energy ≤ 0.001` 时 `data-energy='0'` 把动画设成 `animation-play-state: paused`，22 个隐形元素不白烧 GPU；`data-motion='off'` 同样暂停。
+2b. **能量层与星尘（2.4.5 起对齐参考插件的「满档通电」）**：`.ct-effort-energy` 是紫色星云，只覆盖已填充那一段（宽度与填充同一个表达式），四段渐变 `#3b1178 → #6d28d9 → #9333ea → #c084fc`，强度由根节点的 `--ct-effort-energy`（0..1）驱动，靠 `opacity` 过渡而不逐帧写样式；里面再放一条 `.ct-effort-energy-sweep` 做扫光。星尘单独一层 `.ct-effort-stars`（不跟星云一起淡入，否则 high 档的星被星云的 0.5 透明度压没了）：22 颗 3px 圆点，横向整轨 `translate3d(-100%)` 扫过，`animation-duration` 与负 `animation-delay` **内联写在元素上**（写进样式表时负相位在真宿主里不生效）；位置全部由下标算出、不用随机数——相位取黄金比低差异序列，高度取带最小间隔约束的哈希排列，亮度 `--ct-effort-b` 取 0.5–1。能量曲线按位置而不是档位名：`pct ≤ 1/3` 为 0、`pct = 2/3`（四档模型的 high）为 0.5、满档为 1；`energy ≤ 0.001` 时 `data-energy='0'` 把动画设成 `animation-play-state: paused`，22 个隐形元素不白烧 GPU；`data-motion='off'` 用同一份暂停列表（星尘与扫光**都**要停，只停星尘的话扫光会继续跑）。
 3. **旋钮与能量态**：旋钮是白色圆钮（`#fff` + `0 1px 5px rgba(0,0,0,.34)` 与半像素描边），不是切面宝石；填充固定用 `--dsw-alias-state-business-primary`（宿主强调色），能量强度驱动轨道外发光 `0 0 calc(--ct-effort-energy × 16px)` 与旋钮外发光。档位与颜色不再用位置色阶，颜色语义只剩「普通 / 通电」。**不要**给它加贴图或外链资源。
 4. **颜色只来自 token**：轨道底色用 `--dsw-alias-border-l1`，填充用 `--dsw-alias-state-business-primary`（缺省回落 `#4d93f8`），满档的紫色泛光写进 `--ct-effort-glow`。不写死某一档的颜色。
 5. **交互**：拖动（pointer capture）时只移动旋钮预览，`pointerup` 才提交；键盘 ↑ / ↓ 走一档、Home / End 到两端，每次都直接提交。写入中 `data-busy='true'` 锁住并降到 72% 不透明；失败时 `.ct-effort-error` 写原因（`:empty` 时不占位），旋钮回到宿主确认的档位。
@@ -282,7 +282,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | 克制 | `subtle` | 去掉分页与菜单进场、去掉液面过渡；伙伴照常 |
 | 关闭 | `off` | 再把 `reducedMotion: true` 传给试管与伙伴（物理与帧动画停住） |
 
-  实现上 `subtle` / `off` 只加两条 CSS（`.ct-page[data-motion=…] .ct-content { animation: none }` 与 `.ct-skin[data-motion=…] .ct-vial-liquid { transition: none }`），`off` 额外在 JS 侧传参；新增动效时必须同时检查这三档，不要只写 `prefers-reduced-motion`。
+  实现上 `subtle` / `off` 只加两条 CSS（`.ct-page[data-motion=…] .ct-content { animation: none }` 与 `.ct-skin[data-motion=…] .ct-vial-liquid { transition: none }`），`off` 额外在 JS 侧传参，并把 `.ct-effort-star` 与 `.ct-effort-energy-sweep` 一起 `animation-play-state: paused`；新增动效时必须同时检查这三档，不要只写 `prefers-reduced-motion`。
 
 ## 焦点与可访问性
 

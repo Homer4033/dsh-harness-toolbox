@@ -48,6 +48,20 @@ test('saving normalizes the text, writes exactly one trailing newline and reads 
   }
 })
 
+test('a hand-edited BOM/CRLF file reads back normalized so the editor is not dirty', () => {
+  const home = tempHome()
+  try {
+    writeFileSync(rulesPath(home), '\uFEFFone\r\ntwo\r\n')
+    const rules = readRules(home)
+    assert.equal(rules.exists, true)
+    assert.equal(rules.text, 'one\ntwo\n')
+    assert.equal(rules.chars, rules.text.length)
+    assert.equal(rules.lines, 2)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
 test('an empty save writes an empty file instead of a lone newline', () => {
   const home = tempHome()
   try {

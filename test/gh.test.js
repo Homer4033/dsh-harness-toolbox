@@ -8,6 +8,7 @@ import {
   beginGithubLogin,
   cancelGithubLogin,
   downloadWithResume,
+  extractArchive,
   findBinary,
   ghAsset,
   ghBinDir,
@@ -18,6 +19,7 @@ import {
   listRepos,
   parseGhAuthJson,
   parseGhAuthStatus,
+  parseDeviceCode,
   parseRepoList,
   prependGhPath,
   resolveGh,
@@ -155,6 +157,70 @@ test('downloadWithResume writes the full body and reports progress', async () =>
     assert.equal(result.received, body.length)
     assert.equal(result.total, body.length)
     assert.equal(progress.at(-1).received, body.length)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('a body shorter than its content-length is retried instead of kept', async () => {
+  const home = tempHome()
+  try {
+    const target = join(home, 'download', 'gh.zip.part')
+    let attempts = 0
+    const fetchImpl = async () => {
+      attempts += 1
+      return {
+        status: 200,
+        headers: new Headers({ 'content-length': '100' }),
+        // The body stops after ten bytes, like a chunked answer cut short.
+        body: streamOf('0123456789'),
+      }
+    }
+    await assert.rejects(
+      downloadWithResume({ url: 'https://example.test/gh.zip', partPath: target, fetchImpl, retries: 1, retryDelayMs: 0 }),
+      /download ended at 10 of 100 bytes/,
+    )
+    assert.equal(attempts, 2, 'the short read is retried once')
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('the zip fallback declares its PowerShell parameters', async () => {
+  const home = tempHome()
+  try {
+    const archive = join(home, 'gh.zip')
+    const dest = join(home, 'out')
+    const calls = []
+    const run = async (command, args, options) => {
+      calls.push({ command, args, options })
+      return command === 'tar'
+        ? { code: 1, stdout: '', stderr: 'tar: not a zip' }
+        : { code: 0, stdout: '', stderr: '' }
+    }
+    await extractArchive(archive, dest, 'zip', 'win32', run)
+    assert.equal(calls.length, 2)
+    assert.equal(calls[1].command, 'powershell.exe')
+    const script = calls[1].args[calls[1].args.indexOf('-Command') + 1]
+    // `-Command 'verb $args[0]'` receives nothing, so the parameters have to be
+    // declared on a script block and bound from the trailing arguments.
+    assert.match(script, /& \{ param\(\$a, \$b\) Expand-Archive -LiteralPath \$a -DestinationPath \$b -Force \}/)
+    assert.deepEqual(calls[1].args.slice(-2), [archive, dest])
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('a failed zip fallback reports both extractors', async () => {
+  const home = tempHome()
+  try {
+    const run = async (command) => (command === 'tar'
+      ? { code: 1, stdout: '', stderr: 'tar failed' }
+      : { code: 1, stdout: '', stderr: 'powershell failed' })
+    await assert.rejects(
+      extractArchive(join(home, 'x.zip'), join(home, 'out'), 'zip', 'win32', run),
+      /powershell failed \| tar failed/,
+    )
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
@@ -371,6 +437,16 @@ test('the JSON auth state carries scopes for the active account', () => {
   assert.deepEqual(parseGhAuthJson(stringScopes), { authenticated: true, account: 'x', scopes: ['gist', 'read:org'] })
   assert.deepEqual(parseGhAuthJson('not json'), { authenticated: false, account: null, scopes: [] })
   assert.deepEqual(parseGhAuthJson(JSON.stringify({ hosts: {} })), { authenticated: false, account: null, scopes: [] })
+})
+
+test('the device code is pulled out of the gh login output', () => {
+  assert.equal(
+    parseDeviceCode('! First copy your one-time code: ABCD-1234\nPress Enter to open github.com in your browser...'),
+    'ABCD-1234',
+  )
+  assert.equal(parseDeviceCode('one-time code: abcd-9999'), 'ABCD-9999', 'the code is uppercased')
+  assert.equal(parseDeviceCode(''), '')
+  assert.equal(parseDeviceCode('waiting for authentication'), '', 'no code yet means an empty answer')
 })
 
 test('login cannot start without an installed gh and cancel is harmless', () => {

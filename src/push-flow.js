@@ -20,7 +20,10 @@ import { detectProxy, pushRepo, repoSnapshot, scanSecrets } from './publish.js'
  */
 export function sessionTarget(settings, sessionId) {
   const repos = settings && settings.sessionRepos ? settings.sessionRepos : null
-  const name = repos && sessionId ? repos[sessionId] : ''
+  // Own keys only: an inherited `constructor` / `toString` must not become a
+  // remote URL.
+  if (!repos || !sessionId || !Object.hasOwn(repos, sessionId)) return ''
+  const name = repos[sessionId]
   return name ? `https://github.com/${name}.git` : ''
 }
 
