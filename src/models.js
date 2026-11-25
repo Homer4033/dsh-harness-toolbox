@@ -55,33 +55,25 @@ export function modelSpec(id) {
 }
 
 /**
- * Where a model file can be fetched from, in order.
+ * Where a model file can be fetched from, in order. Each endpoint carries its own
+ * revision: Hugging Face serves `/resolve/main/`, ModelScope serves
+ * `/models/<repo>/resolve/master/`.
  *
  * `huggingface.co` is blocked on many networks (mainland China answers
- * `fetch failed` / `ENOTFOUND`), which is exactly what the first release shipped
- * and what users hit. `hf-mirror.com` speaks the same `/<repo>/resolve/main/<path>`
- * URL scheme and the same `Range` semantics, so it goes first and the upstream
- * host stays as the fallback for networks where the mirror is the slow one.
- * Override with `DSH_HF_ENDPOINT` (e.g. a corporate mirror) — it is tried first.
+ * `fetch failed` / `ENOTFOUND`), which is what the first release shipped and what
+ * users hit. `hf-mirror.com` speaks the upstream URL scheme and works, but large
+ * files are served through `cas-bridge.xethub.hf.co` and measured at ~150KB/s
+ * here — a 16GB download that would take a full day. ModelScope (which carries
+ * the official Black Forest Labs mirror of this repo, file-for-file and
+ * byte-for-byte) answered at ~38MB/s on the same machine, so it goes first and
+ * the two Hugging Face hosts stay behind it. Override with `DSH_HF_ENDPOINT`
+ * (e.g. a corporate mirror) — it is tried first as an upstream-shaped host.
  */
-export const MODEL_ENDPOINTS = ['https://hf-mirror.com', 'https://huggingface.co']
-
-function modelEndpoints() {
-  const override = String(process.env.DSH_HF_ENDPOINT || '').trim().replace(/\/+$/, '')
-  if (!/^https?:\/\/[^/]+/i.test(override)) return MODEL_ENDPOINTS
-  return [override, ...MODEL_ENDPOINTS.filter((endpoint) => endpoint !== override)]
-}
-
-export function modelFileUrl(id, path, endpoint = modelEndpoints()[0]) {
-  const spec = modelSpec(id)
-  if (!spec) throw new Error(`unknown model: ${id}`)
-  return `${endpoint}/${spec.repo}/resolve/main/${path}`
-}
-
-/** Every URL a file can come from, in the order they are tried. */
-export function modelFileUrls(id, path) {
-  return modelEndpoints().map((endpoint) => modelFileUrl(id, path, endpoint))
-}
+export const MODEL_ENDPOINTS = [
+  { host: 'modelscope.cn', base: 'https://modelscope.cn/models', revision: 'master' },
+  { host: 'hf-mirror.com', base: 'https://hf-mirror.com', revision: 'main' },
+  { host: 'huggingface.co', base: 'https://huggingface.co', revision: 'main' },
+]
 
 function hostOf(url) {
   try {
@@ -89,6 +81,29 @@ function hostOf(url) {
   } catch {
     return url
   }
+}
+
+function modelEndpoints() {
+  const override = String(process.env.DSH_HF_ENDPOINT || '').trim().replace(/\/+$/, '')
+  if (!/^https?:\/\/[^/]+/i.test(override)) return MODEL_ENDPOINTS
+  return [
+    { host: hostOf(override), base: override, revision: 'main' },
+    ...MODEL_ENDPOINTS.filter((endpoint) => endpoint.base !== override),
+  ]
+}
+
+/** `endpoint` is an endpoint object, or a bare base URL (upstream-shaped). */
+export function modelFileUrl(id, path, endpoint = modelEndpoints()[0]) {
+  const spec = modelSpec(id)
+  if (!spec) throw new Error(`unknown model: ${id}`)
+  const base = typeof endpoint === 'string' ? endpoint : endpoint.base
+  const revision = typeof endpoint === 'string' ? 'main' : endpoint.revision || 'main'
+  return `${base}/${spec.repo}/resolve/${revision}/${path}`
+}
+
+/** Every URL a file can come from, in the order they are tried. */
+export function modelFileUrls(id, path) {
+  return modelEndpoints().map((endpoint) => modelFileUrl(id, path, endpoint))
 }
 
 /**

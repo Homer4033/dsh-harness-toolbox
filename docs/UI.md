@@ -205,7 +205,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - **授权范围** `.ct-scopes`：GitHub 页在账号行下面单独一行显示 `gh auth status` 报出的 token scope（`repo · read:org · workflow`），12px `label-tertiary`，`overflow-wrap: anywhere`（scope 是一个长串标识符，不能把卡片撑宽）。缺 `repo` 时另起一条 `role="alert"` 状态行说明只能读不能推；scope 由 `gh` 报出，插件不读、不存 token 本身。
 - **空状态写在卡片里，不写进导航**：还没注册工作区时，规则页的工作区卡片仍然渲染，标题行下面用一条 `.ct-note`（`role="status"`）写「目前无工作区」，不渲染选择器与文本域，保存按钮常显、置灰、`title` 与这条说明一致；还没读到时写「正在读取…」（不要拿「无工作区」冒充加载态）。任何页面都不得因为数据为空而整页消失。
 - **工作区卡片只编辑补充规则**：文本域里是插件自己写入的那个受管块（`<!-- compression-tiers:workspace-rules:start -->` … `:end -->`），保存时插到该工作区 `AGENTS.md` 的**开头**，没有文件就创建，块下面的正文原样保留。磁盘上那份文件本来就有的正文**不进面板**——它不属于插件，读接口也只返回受管块的内容。
-- **本地模型行（2.5.0）**：`components` 页在六套组件行下面接一段 `.ct-models`（`<h4>` 小节标题 + 若干 `.ct-model` 行）。每一行与组件行同一套形状：名称与版本 → 状态行（`未安装 / 下了一部分 / 已安装`，复用 `downloadControl()` 的标签键）→ 进度 → 目录或错误 → 同一行两个常显按钮（下载在左、重新检测在右），状态没读到时整行仍在、置灰。不要为它另做一套按钮样式、不要写死 Hugging Face 路径或文件清单（唯一来源是 `src/models.js` 的 `MODELS`）。
+- **本地模型行（2.5.0）**：`components` 页在六套组件行下面接一段 `.ct-models`（`<h4>` 小节标题 + 若干 `.ct-model` 行）。每一行与组件行同一套形状：名称与版本 → 状态行（`未安装 / 下了一部分 / 已安装`，复用 `downloadControl()` 的标签键）→ 进度 → 目录或错误 → 同一行两个常显按钮（下载在左、重新检测在右），状态没读到时整行仍在、置灰。不要为它另做一套按钮样式、不要写死 Hugging Face / ModelScope 路径、文件清单或下载端点（唯一来源是 `src/models.js` 的 `MODELS` 与 `MODEL_ENDPOINTS`）。
 - 链接一律 `target="_blank" rel="noreferrer noopener"`；正文里不出现裸 URL 文本以外的装饰。
 - 空的状态行/说明行用 `:empty` 收起（`display: none`），面板底部不留空白。
 

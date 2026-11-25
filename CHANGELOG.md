@@ -2,6 +2,14 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.6.1 — 2026-11-25
+
+- **本地模型下载改走 ModelScope，`hf-mirror.com` 退到第二**（用户实测 2.6.0 面板里 FLUX.2 [klein] 4B「下不动」，问「可以登录 huggingface.co 来下吗」）：登录不解决，也没法解决——`huggingface.co` 在这台机器上 TCP 都连不上（`curl` 21 秒超时），而这个模型在 Hugging Face 上本来就是 Apache-2.0、免登录的，没有可登录的东西。真正的问题是速度：`hf-mirror.com` 能把请求转给 `cas-bridge.xethub.hf.co`，但实测只有约 150 KB/s，7.75 GB 的 transformer 要 14 小时以上。`MODEL_ENDPOINTS` 现在先试 ModelScope 上 BFL 的官方镜像仓库（18 个文件与上游同路径同字节，逐个核对过），同一台机器实测约 38 MB/s；`hf-mirror.com` 与 `huggingface.co` 留在后面兜底。
+- **端点结构从字符串改成 `{ host, base, revision }`**：ModelScope 的路径是 `/models/<repo>/resolve/master/<path>`，上游两家是 `/<repo>/resolve/main/<path>`，`modelFileUrl()` 按端点自己的 revision 拼；`DSH_HF_ENDPOINT` 仍按上游形状排在首选，`modelFileUrls()` 的返回值与 `.part` 续传语义不变。
+- 测试 255 → **256**：端点顺序与新 URL 形状（`resolve/master` vs `resolve/main`）、三家主机依次回落、`DSH_HF_ENDPOINT` 覆盖。
+- 真实下载验证：`D:\Components\models\flux2-klein-4b` 的 18 个文件从 ModelScope 落盘，14.88 GiB 用了 456 秒（约 33 MiB/s，全程没有停住），`modelStatus` 报 installed（18/18、15,980,131,745 字节）。
+- README §5 与限制、AGENTS.md 事实来源与验证要求、docs/UI.md、locale 描述同步；版本 2.6.1。
+
 ## 2.6.0 — 2026-11-25
 
 - **组件页新增 ComfyUI 与官方 ComfyUI MCP 两棵源码树**（用户：「组件添加ComfyUI+MVC」，确认 MVC = ComfyUI-MCP、范围 = 只下载解压）：`src/components.js` 新增 `comfyui`（钉 `Comfy-Org/ComfyUI` 的 tag `v0.46.0`）与 `comfy-mcp`（钉 commit `6c43880`，它没有 release，分支名不能当钉）。两者都是 GitHub 的 `/archive/<ref>.zip`，资产键用 `any`（同一份归档不分平台），装到 `<下载根>/comfyui` 与 `<下载根>/comfy-mcp`。

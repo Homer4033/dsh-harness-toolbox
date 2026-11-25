@@ -32,10 +32,16 @@ test('the pinned pipeline is FLUX.2 [klein] 4B, distilled, ungated and Apache-2.
   assert.equal(spec.files.some((file) => file.path === 'flux-2-klein-4b.safetensors'), false)
   assert.equal(spec.files.some((file) => file.path.endsWith('.jpg')), false)
   assert.equal(modelTotalBytes('flux2-klein-4b'), 15980131745)
-  // huggingface.co is unreachable on the networks this plugin ships to, so the
-  // path-compatible mirror is tried first and upstream stays as the fallback.
-  assert.deepEqual(MODEL_ENDPOINTS, ['https://hf-mirror.com', 'https://huggingface.co'])
+  // huggingface.co is unreachable on the networks this plugin ships to, and
+  // hf-mirror.com works but serves large files through a ~150KB/s CDN hop, so
+  // the domestic ModelScope mirror of the same repo goes first.
+  assert.deepEqual(MODEL_ENDPOINTS, [
+    { host: 'modelscope.cn', base: 'https://modelscope.cn/models', revision: 'master' },
+    { host: 'hf-mirror.com', base: 'https://hf-mirror.com', revision: 'main' },
+    { host: 'huggingface.co', base: 'https://huggingface.co', revision: 'main' },
+  ])
   assert.deepEqual(modelFileUrls('flux2-klein-4b', 'vae/config.json'), [
+    'https://modelscope.cn/models/black-forest-labs/FLUX.2-klein-4B/resolve/master/vae/config.json',
     'https://hf-mirror.com/black-forest-labs/FLUX.2-klein-4B/resolve/main/vae/config.json',
     'https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/resolve/main/vae/config.json',
   ])
@@ -93,7 +99,7 @@ test('a model download resumes from the .part file and renames complete files in
   const ranges = []
   const bodies = { 'model/a.txt': '0123456789', 'model/b.bin': 'abcdef' }
   const fetchImpl = (url, options) => {
-    const path = String(url).split('/resolve/main/')[1]
+    const path = String(url).split('/resolve/')[1].split('/').slice(1).join('/')
     const body = bodies[path]
     const range = options && options.headers ? options.headers.Range : undefined
     ranges.push({ path, range: range || null })
@@ -140,21 +146,22 @@ test('a blocked host falls back to the next endpoint and names every host on fai
   const fetchImpl = (url) => {
     const host = new URL(String(url)).host
     hits.push(host)
-    if (host === 'hf-mirror.com') return Promise.resolve({ ok: false, status: 404, headers: new Headers(), body: null })
+    if (host !== 'huggingface.co') return Promise.resolve({ ok: false, status: 404, headers: new Headers(), body: null })
     return Promise.resolve({ ok: true, status: 200, headers: new Headers({ 'content-length': '3' }), body: streamOf('abc') })
   }
   try {
     await startModelDownload(root, 'flux2-klein-4b', { fetchImpl, files: [{ path: 'only.txt', size: 3 }] })
     assert.equal(readFileSync(join(modelDir(root, 'flux2-klein-4b'), 'only.txt'), 'utf8'), 'abc')
-    assert.deepEqual(hits, ['hf-mirror.com', 'huggingface.co'])
+    assert.deepEqual(hits, ['modelscope.cn', 'hf-mirror.com', 'huggingface.co'])
 
-    // Both hosts blocked: "fetch failed" alone sent users looking in the wrong
+    // Every host blocked: "fetch failed" alone sent users looking in the wrong
     // place, so the message says which hosts were tried and why each failed.
     const blocked = () => Promise.reject(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } }))
     await assert.rejects(
       startModelDownload(root, 'flux2-klein-4b', { fetchImpl: blocked, files: [{ path: 'two.txt', size: 3 }], retries: 0 }),
       (error) => {
         assert.equal(error.status, 502)
+        assert.match(error.message, /modelscope\.cn: fetch failed \(ENOTFOUND\)/)
         assert.match(error.message, /hf-mirror\.com: fetch failed \(ENOTFOUND\)/)
         assert.match(error.message, /huggingface\.co: fetch failed \(ENOTFOUND\)/)
         return true
@@ -162,6 +169,22 @@ test('a blocked host falls back to the next endpoint and names every host on fai
     )
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('DSH_HF_ENDPOINT is tried first as an upstream-shaped host', () => {
+  const previous = process.env.DSH_HF_ENDPOINT
+  process.env.DSH_HF_ENDPOINT = 'https://mirror.example.com/'
+  try {
+    assert.deepEqual(modelFileUrls('flux2-klein-4b', 'vae/config.json'), [
+      'https://mirror.example.com/black-forest-labs/FLUX.2-klein-4B/resolve/main/vae/config.json',
+      'https://modelscope.cn/models/black-forest-labs/FLUX.2-klein-4B/resolve/master/vae/config.json',
+      'https://hf-mirror.com/black-forest-labs/FLUX.2-klein-4B/resolve/main/vae/config.json',
+      'https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/resolve/main/vae/config.json',
+    ])
+  } finally {
+    if (previous === undefined) delete process.env.DSH_HF_ENDPOINT
+    else process.env.DSH_HF_ENDPOINT = previous
   }
 })
 
