@@ -445,7 +445,8 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
     const keys = Object.keys(dictionaries.dicts[locale])
     for (const key of [
       'title', 'sectionLabel', 'levelGentle', 'currentLabel', 'rulesTitle', 'rulesSave', 'rulesMissing',
-      'workspaceRulesTitle', 'workspaceSelectLabel', 'workspaceRulesPlaceholder',
+      'workspaceRulesTitle', 'workspaceSelectLabel', 'workspaceRulesLabel',
+      'workspaceRulesPlaceholder',
       'workspaceRulesMissing', 'workspaceRulesLoadFailed', 'workspaceRulesSaveFailed',
       'workspaceRulesSaved',
       'componentsTitle', 'componentsLoadFailed', 'componentsActionFailed',
@@ -456,7 +457,7 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'downloadRunning', 'downloadDone', 'downloadUnsupported',
       'stateMissing', 'statePartial', 'stateFailed', 'stateSystem',
       'repoSelectLabel', 'repoNone', 'repoTitle',
-      'navAria', 'navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navAppearance', 'navGithub',
+      'navAria', 'navLevels', 'navRules', 'navComponents', 'navAppearance', 'navGithub',
       'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian',
       'paletteCrystal', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff',
       'mascotsLabel', 'mascotsOn', 'mascotsOff', 'appearanceApplied', 'appearanceFailed',
@@ -472,6 +473,9 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
     for (const key of ['navLicense', 'licenseTitle', 'licenseOwn', 'licenseComponentsTitle', 'licenseNotice']) {
       assert.equal(keys.includes(key), false, `${locale} still carries ${key}`)
     }
+    // The workspace page merged into the rules page; its own rail label must
+    // not come back.
+    assert.equal(keys.includes('navWorkspace'), false, `${locale} still carries navWorkspace`)
     // The settings page carries controls, state and errors only; teaching copy
     // lives in AGENTS.md, so these keys must stay gone.
     for (const key of ['intro', 'smallWindow', 'summaryMax', 'summaryGentle', 'rulesIntro', 'ghIntro', 'toolsIntro', 'ghToolNote', 'ghLoginNote']) {
@@ -521,7 +525,7 @@ test('the tiers page renders five tier buttons and the current tier', () => {
 test('the rules page shows the saved text and enables saving an edit', () => {
   const saved = rulesState('Answer in Chinese.\n')
   const nodes = renderSection('rules', { rules: saved, rulesText: 'Answer in Chinese.\nBe brief.\n' })
-  assert.deepEqual(nodes.filter((node) => node.type === 'h3').map((node) => textOf(node)), ['rulesTitle'])
+  assert.deepEqual(nodes.filter((node) => node.type === 'h3').map((node) => textOf(node)), ['rulesTitle', 'workspaceRulesTitle'])
   const save = buttonOf(nodes, 'rulesSave')
   assert.ok(save)
   assert.equal(save.props.disabled, false)
@@ -950,7 +954,7 @@ const workspaceOne = {
   chars: 15,
 }
 
-test('the workspace rules block edits one registered workspace', () => {
+test('the rules page carries both the global editor and one registered workspace', () => {
   const second = {
     id: 'w2',
     title: '红利量化',
@@ -960,13 +964,13 @@ test('the workspace rules block edits one registered workspace', () => {
     text: '',
     chars: 0,
   }
-  const nodes = renderSection('workspace', {
+  const nodes = renderSection('rules', {
     workspaceRules: workspaceRulesPayload([workspaceOne, second]),
     workspaceId: 'w1',
     workspaceText: 'Keep it short.\n',
   })
   const headings = nodes.filter((node) => node.type === 'h3').map((node) => textOf(node))
-  assert.deepEqual(headings, ['workspaceRulesTitle'])
+  assert.deepEqual(headings, ['rulesTitle', 'workspaceRulesTitle'])
   const picker = pickerOf(nodes)
   assert.ok(picker, 'the block has a workspace picker')
   assert.equal(picker.props.value, 'w1')
@@ -975,17 +979,43 @@ test('the workspace rules block edits one registered workspace', () => {
   assert.deepEqual(picker.props.items.map((item) => item.label), ['压缩上下文', '红利量化'])
   // The native select is gone: its OS-painted popup cannot be themed.
   assert.equal(nodes.some((node) => node.type === 'select'), false, 'no native select')
-  // One textarea: the selected workspace's rules (the global one is on its own page).
+  // Two editors on this page: the global rules file and the supplement that is
+  // injected at the top of the selected workspace's AGENTS.md.
   const textareas = nodes.filter((node) => node.type === 'textarea')
-  assert.equal(textareas.length, 1)
-  assert.equal(textareas[0].props.value, 'Keep it short.\n')
-  assert.equal(textareas[0].props.disabled, false)
+  assert.equal(textareas.length, 2)
+  assert.equal(textareas[1].props.value, 'Keep it short.\n')
+  assert.equal(textareas[1].props.disabled, false)
+  assert.equal(textareas[1].props.placeholder, 'workspaceRulesPlaceholder')
+  assert.match(deepText({ props: { children: nodes } }), /workspaceRulesLabel/)
   const save = buttonOf(nodes, 'workspaceRulesSave')
   assert.ok(save, 'the block has one save button')
   assert.equal(save.props.disabled, true, 'an unchanged draft cannot be saved')
   const mentionsFile = nodes.some((node) => Array.isArray(node.props.children)
     && node.props.children.some((child) => typeof child === 'string' && child.includes(workspaceOne.file)))
   assert.ok(mentionsFile, 'the block shows the rules file it edits')
+})
+
+test('the workspace editor never echoes an AGENTS.md the panel did not write', () => {
+  const foreign = {
+    id: 'w3',
+    title: '外部规则',
+    path: 'D:/DSH插件/外部规则',
+    file: 'D:/DSH插件/外部规则/AGENTS.md',
+    // The file exists and carries its own contract, but no fenced supplement.
+    exists: true,
+    text: '',
+    chars: 0,
+  }
+  const nodes = renderSection('rules', {
+    workspaceRules: workspaceRulesPayload([foreign]),
+    workspaceId: 'w3',
+    workspaceText: '',
+  })
+  const textareas = nodes.filter((node) => node.type === 'textarea')
+  assert.equal(textareas[1].props.value, '', 'the existing file body is not loaded into the editor')
+  assert.equal(buttonOf(nodes, 'workspaceRulesSave').props.disabled, true)
+  // The file exists, so the "saving creates it" note stays away.
+  assert.equal(deepText({ props: { children: nodes } }).includes('workspaceRulesMissing'), false)
 })
 
 test('a workspace with no rules file says so, and editing enables saving', () => {
@@ -998,7 +1028,7 @@ test('a workspace with no rules file says so, and editing enables saving', () =>
     text: '',
     chars: 0,
   }
-  const nodes = renderSection('workspace', {
+  const nodes = renderSection('rules', {
     workspaceRules: workspaceRulesPayload([second]),
     workspaceId: 'w2',
     workspaceText: 'Only touch src/.\n',
@@ -1007,28 +1037,29 @@ test('a workspace with no rules file says so, and editing enables saving', () =>
   assert.ok(deepText({ props: { children: nodes } }).includes('workspaceRulesMissing'))
 })
 
-test('the workspace page stays in the rail and says there is no workspace yet', () => {
-  const nodes = renderSection('workspace', { workspaceRules: workspaceRulesPayload([]) })
+test('the workspace block stays on the rules page and says there is no workspace yet', () => {
+  const nodes = renderSection('rules', { workspaceRules: workspaceRulesPayload([]) })
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  // Six pages, always: an empty registry is a state, not a missing page.
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'appearance', 'github'])
+  // Five pages, always: an empty registry is a state, not a missing page.
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'appearance', 'github'])
   const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
   assert.match(deepText(content), /workspaceRulesTitle/)
   assert.match(deepText(content), /workspaceNone/)
-  // Nothing to pick or type, and the save button still renders - disabled and
-  // explaining why, exactly like every other action button.
+  // Nothing to pick, and no workspace editor: the global one is still there.
   assert.equal(pickerOf(nodes), null, 'no picker without a registry')
-  assert.equal(nodes.filter((node) => node.type === 'textarea').length, 0)
+  const pickers = nodes.filter((node) => node.type === 'textarea'
+    && node.props.placeholder === 'workspaceRulesPlaceholder')
+  assert.equal(pickers.length, 0)
   const save = buttonOf(nodes, 'workspaceRulesSave')
   assert.ok(save, 'the save button stays rendered')
   assert.equal(save.props.disabled, true)
   assert.equal(save.props.title, 'workspaceNone')
 })
 
-test('a workspace page that has not loaded says it is loading, not that the registry is empty', () => {
-  const nodes = renderSection('workspace', { workspaceRules: null })
+test('a workspace block that has not loaded says it is loading, not that the registry is empty', () => {
+  const nodes = renderSection('rules', { workspaceRules: null })
   const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
-  assert.match(deepText(content), /levelsTitle|workspaceRulesTitle/)
+  assert.match(deepText(content), /rulesTitle|workspaceRulesTitle/)
   assert.ok(deepText({ props: { children: nodes } }).includes('loading'))
   assert.equal(deepText({ props: { children: nodes } }).includes('workspaceNone'), false)
   assert.equal(buttonOf(nodes, 'workspaceRulesSave').props.disabled, true)
@@ -1042,8 +1073,8 @@ test('the panel is a shell: one navigation rail and one page at a time', () => {
   assert.equal(nav.type, 'nav')
   assert.equal(nav.props['aria-label'], 'navAria')
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'appearance', 'github'])
-  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navAppearance', 'navGithub'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'appearance', 'github'])
+  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navAppearance', 'navGithub'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1, 'exactly one page is current')
   assert.equal(current[0].props['data-section'], 'components')
@@ -1071,7 +1102,7 @@ test('the workspace picker is a self-drawn listbox, not a native select', () => 
     chars: 0,
   }
   const overrides = {
-    section: 'workspace',
+    section: 'rules',
     workspaceRules: workspaceRulesPayload([workspaceOne, second]),
     workspaceId: 'w1',
     workspaceText: 'Keep it short.\n',
@@ -1114,11 +1145,10 @@ test('the workspace picker is a self-drawn listbox, not a native select', () => 
   assert.equal(idle.props.disabled, true)
 })
 
-test('each page renders only its own card', () => {
+test('each page renders only its own cards', () => {
   const cases = [
     ['levels', {}, ['levelsTitle']],
-    ['rules', {}, ['rulesTitle']],
-    ['workspace', { workspaceRules: workspaceRulesPayload([workspaceOne]), workspaceId: 'w1' }, ['workspaceRulesTitle']],
+    ['rules', {}, ['rulesTitle', 'workspaceRulesTitle']],
     ['components', { components: componentsPayload([]) }, ['componentsTitle']],
     ['appearance', {}, ['appearanceTitle']],
     ['github', {}, ['ghAuthTitle']],
@@ -1222,6 +1252,17 @@ test('the art backdrop is one static linear gradient instead of a repainted canv
   const css = String(styles[0].textContent)
   assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-region='chat'\] \{\n  background-image:\n    linear-gradient\(to top,/)
   assert.match(css, /background-repeat: no-repeat/)
+  // The composer belongs to the host again: its seat keeps the opaque fade band
+  // that clips the transcript above the card, and the card keeps the host fill.
+  // 2.4.2 made both translucent so the old glow reached the window edge, which
+  // also let transcript text show through the card.
+  assert.equal(/\[data-composer-seat\]/.test(css), false, 'the seat mask stays with the host')
+  const cardRules = css.match(/[^}]*\[data-composer-card\][^{]*\{[^}]*\}/g) || []
+  assert.ok(cardRules.length > 0, 'the card still gets the art sheen')
+  for (const rule of cardRules) {
+    assert.equal(/background-color/.test(rule), false, 'the card keeps the host fill')
+    assert.equal(/!important/.test(rule), false, 'the composer needs no override')
+  }
   // The horizon renderer is gone: no canvas host, no fallback blobs, no keyframes,
   // and no controller left exposed for anyone to restart.
   assert.equal(/ct-aura/.test(css), false, 'the aura layer is gone')
@@ -1252,10 +1293,10 @@ test('the composer stats line moves into the vial', () => {
   assert.equal(JSON.stringify(usage(null, null)), JSON.stringify({ total: null, cacheHit: null, speed: null, turns: null, steps: null }))
 })
 
-test('a six-page rail keeps appearance in the navigation', () => {
+test('a five-page rail keeps appearance in the navigation', () => {
   const nodes = renderSection('appearance')
   const items = nodes.filter((node) => hasClass(node, 'ct-nav-item'))
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'appearance', 'github'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'appearance', 'github'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1)
   assert.equal(current[0].props['data-section'], 'appearance')

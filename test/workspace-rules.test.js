@@ -6,10 +6,15 @@ import { isAbsolute, join } from 'node:path'
 import { MAX_RULES_CHARS } from '../src/rules.js'
 import {
   MAX_WORKSPACES,
+  WORKSPACE_BLOCK_END,
+  WORKSPACE_BLOCK_START,
+  composeWorkspaceFile,
+  extractWorkspaceBlock,
   findWorkspace,
   listWorkspaces,
   readWorkspaceRules,
   saveWorkspaceRules,
+  stripWorkspaceBlock,
   workspaceRegistryPath,
   workspaceRulesPath,
   workspacesPayload,
@@ -94,7 +99,7 @@ test('the registry is bounded so a bad file cannot flood the panel', () => {
   }
 })
 
-test('workspace rules read with the BOM stripped and default to an empty file', () => {
+test('a workspace reads only its fenced supplement, never the rest of the file', () => {
   const home = tempHome()
   const root = tempHome()
   try {
@@ -109,17 +114,40 @@ test('workspace rules read with the BOM stripped and default to an empty file', 
       text: '',
       chars: 0,
     })
-    writeFileSync(join(dir, 'AGENTS.md'), '\uFEFFread me\r\n')
+    // A file the panel never wrote is somebody else's contract: the editor
+    // reads as empty instead of echoing the whole file back.
+    writeFileSync(join(dir, 'AGENTS.md'), '\uFEFF# Space\r\n\r\nread me\r\n')
+    const foreign = readWorkspaceRules(workspace)
+    assert.equal(foreign.exists, true)
+    assert.equal(foreign.text, '')
+    // The supplement comes back without BOM, CRLF or the fence itself.
+    writeFileSync(
+      join(dir, 'AGENTS.md'),
+      `\uFEFF${WORKSPACE_BLOCK_START}\r\nkeep it\r\n${WORKSPACE_BLOCK_END}\r\n\r\nrest\r\n`,
+    )
     const read = readWorkspaceRules(workspace)
-    assert.equal(read.exists, true)
-    assert.equal(read.text, 'read me\r\n')
+    assert.equal(read.text, 'keep it')
+    assert.equal(read.chars, 'keep it'.length)
   } finally {
     rmSync(home, { recursive: true, force: true })
     rmSync(root, { recursive: true, force: true })
   }
 })
 
-test('saving a registered workspace normalizes the text and reports the file', () => {
+test('the fenced block round-trips: extract, strip and compose agree', () => {
+  const block = `${WORKSPACE_BLOCK_START}\nsupplement line\n${WORKSPACE_BLOCK_END}`
+  assert.equal(extractWorkspaceBlock(`${block}\n\nrest`), 'supplement line')
+  assert.equal(stripWorkspaceBlock(`${block}\n\nrest`), 'rest')
+  assert.equal(extractWorkspaceBlock('no fence here'), '')
+  assert.equal(stripWorkspaceBlock('no fence here'), 'no fence here')
+  // compose puts the fence on top of whatever the file already carried.
+  assert.equal(composeWorkspaceFile('\uFEFF# Space\r\n\r\nmine\r\n', 'supplement line'), `${block}\n\n# Space\n\nmine\n`)
+  // An empty supplement drops the fence but keeps the file's own text.
+  assert.equal(composeWorkspaceFile(`${block}\n\n# Space\n`, ''), '# Space\n')
+  assert.equal(composeWorkspaceFile('', ''), '')
+})
+
+test('saving a workspace puts the supplement at the top and keeps the rest', () => {
   const home = tempHome()
   const root = tempHome()
   try {
@@ -129,13 +157,50 @@ test('saving a registered workspace normalizes the text and reports the file', (
     assert.equal(saved.id, 'w1')
     assert.equal(saved.file, join(dir, 'AGENTS.md'))
     assert.equal(saved.exists, true)
-    assert.equal(saved.text, 'one\ntwo  \n')
-    assert.equal(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), 'one\ntwo  \n')
+    assert.equal(saved.text, 'one\ntwo  ')
+    assert.equal(
+      readFileSync(join(dir, 'AGENTS.md'), 'utf8'),
+      `${WORKSPACE_BLOCK_START}\none\ntwo  \n${WORKSPACE_BLOCK_END}\n`,
+    )
     // The write is atomic: no temp file survives beside the rules.
     assert.deepEqual(readdirSync(dir), ['AGENTS.md'])
-    // An empty save clears the file rather than leaving a lone newline.
+    // A second save replaces the block instead of appending a second one, and
+    // the workspace's own text below the fence is untouched.
+    writeFileSync(
+      join(dir, 'AGENTS.md'),
+      `${WORKSPACE_BLOCK_START}\nold\n${WORKSPACE_BLOCK_END}\n\n# Space\n\nmine\n`,
+    )
+    const again = saveWorkspaceRules(home, 'w1', 'new\n')
+    assert.equal(again.text, 'new')
+    assert.equal(
+      readFileSync(join(dir, 'AGENTS.md'), 'utf8'),
+      `${WORKSPACE_BLOCK_START}\nnew\n${WORKSPACE_BLOCK_END}\n\n# Space\n\nmine\n`,
+    )
+    // An empty save clears the supplement and leaves the file's own text.
     assert.equal(saveWorkspaceRules(home, 'w1', '').text, '')
-    assert.equal(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), '')
+    assert.equal(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), '# Space\n\nmine\n')
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a workspace without AGENTS.md gets one created on save', () => {
+  const home = tempHome()
+  const root = tempHome()
+  try {
+    const dir = workspaceDir(root, 'space')
+    writeRegistry(home, ['w1'], { w1: { path: dir, title: 'Space' } })
+    // Clearing an empty editor creates nothing: no empty contract is left behind.
+    assert.equal(saveWorkspaceRules(home, 'w1', '').exists, false)
+    assert.deepEqual(readdirSync(dir), [])
+    const saved = saveWorkspaceRules(home, 'w1', 'first rule')
+    assert.equal(saved.exists, true)
+    assert.equal(saved.text, 'first rule')
+    assert.equal(
+      readFileSync(join(dir, 'AGENTS.md'), 'utf8'),
+      `${WORKSPACE_BLOCK_START}\nfirst rule\n${WORKSPACE_BLOCK_END}\n`,
+    )
   } finally {
     rmSync(home, { recursive: true, force: true })
     rmSync(root, { recursive: true, force: true })
@@ -178,7 +243,7 @@ test('an oversized draft is rejected with 413 and leaves the file alone', () => 
   }
 })
 
-test('the payload reports every registered workspace with its text', () => {
+test('the payload reports every registered workspace with its supplement', () => {
   const home = tempHome()
   const root = tempHome()
   try {
@@ -188,12 +253,17 @@ test('the payload reports every registered workspace with its text', () => {
       w1: { path: alpha, title: 'Alpha' },
       w2: { path: beta, title: 'Beta' },
     })
-    writeFileSync(join(alpha, 'AGENTS.md'), 'alpha rules\n')
+    writeFileSync(
+      join(alpha, 'AGENTS.md'),
+      `${WORKSPACE_BLOCK_START}\nalpha supplement\n${WORKSPACE_BLOCK_END}\n\n# Alpha\n\nthe rest\n`,
+    )
     const payload = workspacesPayload(home)
     assert.equal(payload.ok, true)
     assert.equal(payload.maxChars, MAX_RULES_CHARS)
     assert.deepEqual(payload.workspaces.map((item) => item.id), ['w1', 'w2'])
-    assert.equal(payload.workspaces[0].text, 'alpha rules\n')
+    // The payload carries the supplement only: the rest never leaves the disk.
+    assert.equal(payload.workspaces[0].text, 'alpha supplement')
+    assert.equal(payload.workspaces[0].chars, 'alpha supplement'.length)
     assert.equal(payload.workspaces[0].exists, true)
     assert.equal(payload.workspaces[0].file, join(alpha, 'AGENTS.md'))
     assert.equal(payload.workspaces[1].exists, false)

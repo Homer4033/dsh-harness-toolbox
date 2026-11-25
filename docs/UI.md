@@ -8,7 +8,7 @@
 - [表面与颜色](#表面与颜色)
 - [配色皮肤](#配色皮肤)
 - [主题美术（宿主表面）](#主题美术宿主表面)
-- [地平线辉光（美术层的动效）](#地平线辉光美术层的动效)
+- [对话区底光](#对话区底光)
 - [间距、圆角与控件高度](#间距圆角与控件高度)
 - [排版](#排版)
 - [布局](#布局)
@@ -106,24 +106,22 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 1. **只认语义属性**：`[data-conversation-region='chat']`（对话区画布）、`[data-conversation-scroll]`（滚动条）、`[data-message-bubble]`（用户气泡）、`[data-composer-card]`（输入卡）、对话区里的 `hr` / `blockquote`。这些是 DSH 自己写在 `src/client/chat/*` 里的属性，不是哈希类名；任何一条选择器命中不到就自然不生效。
 2. **开关只有两个 body 属性**：`data-ct-palette` 与 `data-ct-art`，由 `applyOptics()` 写入（`host` 或开关关闭时 `data-ct-art='off'`）。样式表里每条美术规则都必须以 `body[data-ct-art='on']` 开头——**禁止**写裸 `body` / `:root` 的背景，否则跟随宿主的用户也会被改观。
-3. **画的就是这三层**：对话区一层 accent 径向泛光（底部 20% → 66% 透明）+ 右上角 chart-tools 冷光 + 顶部 4% 的竖向提亮；用户气泡 16px 圆角、`10px 15px` 内边距、深色加 `linear-gradient(rgba(255,255,255,.022), transparent 55%)` 与 `inset 0 1px 0 rgba(255,255,255,.058)` + `0 6px 20px -10px rgba(0,0,0,.44)`，浅色换成 `inset 0 1px 0 #fff` + `0 4px 16px -10px rgba(15,23,42,.10)`；输入卡一层 3% 顶部光泽（浅色 60%）与更深的落影。
+3. **画的就是这三层**：对话区底光（底部一条 accent → 冷色的静态线性渐变，见下一节）+ 用户气泡 16px 圆角、`10px 15px` 内边距、深色加 `linear-gradient(rgba(255,255,255,.022), transparent 55%)` 与 `inset 0 1px 0 rgba(255,255,255,.058)` + `0 6px 20px -10px rgba(0,0,0,.44)`，浅色换成 `inset 0 1px 0 #fff` + `0 4px 16px -10px rgba(15,23,42,.10)`；输入卡一层 3% 顶部光泽（浅色 60%）与更深的落影。
 4. **引用块与分隔线**：`blockquote` 左侧 1.5px accent→冷紫渐变竖条（`::before`，上下各留 2px）+ accent 4% 的横向淡染；`hr` 是 84% 宽度的发丝渐变，不占额外高度。
-5. **排版只放宽行距**：对话区 `p` / `li` 的 `line-height` 1.72、`letter-spacing` .005em（上游给中日韩正文的同一条处理），字号、字重、颜色一律不动。\n5b. **让辉光到底**：DSH 的 `[data-composer-seat]` 会给底部 36px 铺一条到 `--dsw-alias-bg-base` 的遮罩，正好把辉光截在输入卡上方。美术层打开时这条遮罩让位（`background: none`），改成输入卡自己半透明（`bg-layer-3` 76%）——辉光才能一直到底。
-6. **美术层自身不加 CSS keyframes**：静态部分全是渐变；唯一的动效是下面那节 canvas 地平线辉光，`data-motion` 同时决定它的速度与强度。
-7. **不抄的部分**：壁纸、Omni 检视台、思考转译、配额遥测都不在本插件范围内。
+5. **排版只放宽行距**：对话区 `p` / `li` 的 `line-height` 1.72、`letter-spacing` .005em（上游给中日韩正文的同一条处理），字号、字重、颜色一律不动。
+6. **输入卡归宿主自己**：`[data-composer-card]` 只加光泽与落影，**不**改它的底色，也**不**动 `[data-composer-seat]`。宿主用这条 seat 遮罩把滚出去的正文裁在输入卡上方；2.4.2 为了旧辉光「到底」把遮罩关掉、卡片改 76% 半透明，结果正文透过卡片，2.4.8 全部撤回。
+7. **美术层自身不加 CSS keyframes**：静态部分全是渐变，没有任何逐帧动画；`data-motion` 只影响试管与旋钮的过渡。
+8. **不抄的部分**：壁纸、Omni 检视台、思考转译、配额遥测都不在本插件范围内。
 
-### 地平线辉光（美术层的动效）
+### 对话区底光
 
-2.4.0 起美术层有了唯一一处动效：上游 `ripple-core.js` 的 2D 地平线渲染器（`conv-aura.js` 只负责状态机）。DSH 侧只移植渲染器，帧由自己的控制器调度。
+2.4.6 起美术层的背景只有一条静态渐变，2.4.0–2.4.5 那套 canvas 地平线渲染器（`horizon-glow.js`）已连同控制器一起删除，**不得**加回，也不得再引入任何背景动画。
 
-1. **挂在哪里**：`[data-conversation-region='chat']` 的第一个子节点 `.ct-aura-host`（`aria-hidden`、不接点击），里面一张 canvas；绝对定位贴底、高度 40%。`[data-conversation-scroll]` 同时被提到 `z-index: 1`，所以辉光画在**对话区底色之上、正文之下**，不会盖住文字，也不参与排版。
-2. **什么时候有**：只在美术层开启时挂载（「光学外观」打开，与配色无关）；`art: false` 时整块移除，宿主表面一点不动。vendor 脚本也是那时才取（`?v=<PLUGIN_VERSION>` 同源）。
-3. **画什么**：上游的逐像素辉光——底部 horizon 带、横向两个正弦波叠加的 curtain、`valueNoise` 的 jitter、halftone 点阵、深色用钴蓝→青、浅色用宝蓝水彩。渲染 `reach` 用 0.85（上游默认 0.47 是给没有输入卡遮挡的画布用的；DSH 输入卡压住底部约 150px，0.47 在真实窗口里只剩一条几乎看不见的边），强度 0.95。
-4. **动多久**：`rAF` 上限 ~30fps（与上游一致），画布按 `min(devicePixelRatio, 1.5) × 0.72` 出像素。
-5. **三档动效**：`full` 原速；`subtle` 速度 ×0.45、强度 0.55；`off` 只画一帧静态图、不再排帧；未知值回落 `full`。档位同时写到 `<body>` 的 `data-ct-motion` 上，CSS 侧（兜底层）按它降速/停用。文档隐藏（`document.hidden`）时不排帧。
-6. **兜底层**：canvas 之下还有一层 `.ct-aura-fallback`——两个缓慢漂移的径向色块（GPU 合成的 `transform` 动画，26s 交替）。它在 canvas 报告首帧（`data-ct-aura-ready='1'`）后淡出；如果渲染器取不到或起不来，它就是这一层，**不留一块死黑**。
-7. **重建**：React 换掉对话区节点时，控制器每 1.2s 复核一次，节点没了就重新挂（不靠哈希类名、不派发 `resize`）。
-8. **为什么不直接写 CSS keyframes**：上游的动效是逐像素噪声与 halftone，CSS 渐变做出来只是平移色块；所以主层是 canvas，CSS 只做兜底。
+1. **挂在哪里**：`body[data-ct-art='on'] [data-conversation-region='chat']` 上的 `background-image`，绝对不生成节点、不接点击、不参与排版；`position: relative` 只为让这层落在对话区自己的坐标系里。
+2. **画什么**：`linear-gradient(to top, accent 16% → chart-tools 9% @26% → transparent @54%)`，`background-repeat: no-repeat`、`background-position: bottom`——底部一条向上淡出的冷光。
+3. **为什么是静态的**：逐帧重绘的 canvas 在 4 核机器上就是切页与滚动时那点卡顿的来源，而同一张图用 CSS 渐变表达时浏览器只需要合成一次。用户看到的「动的带子」也一并消失。
+4. **和输入卡的关系**：渐变铺满整个对话区，但底部被宿主的 seat 遮罩与输入卡盖住——这正是「正文在输入卡上方就被裁住」的效果，不要为了多看一截底光去动 composer 的遮罩或透明度。
+5. **宿主统计字并进试管**：美术层打开时 `body[data-ct-art='on'] [data-composer-stat] { display: none !important }` 隐藏宿主自己的 usage / activity 药丸，同样的读数改由试管浮窗底部的 `.ct-vial-usage` 一段呈现（`vialUsage()` 读官方 `tokenUsage` / `sessionStats` 投影，缺投影整行不渲染）。
 
 ## 间距、圆角与控件高度
 
@@ -182,7 +180,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 ## 分页导航
 
-1. 六个分页固定顺序：档位（`levels`）、规则（`rules`）、工作区（`workspace`）、组件（`components`）、外观（`appearance`）、GitHub（`github`），由 `SECTIONS` 常量统一给出。**六个分页始终都在导航里**：某个页面没有数据（例如还没注册工作区）时页面照常打开、在页内说明状态，不能因为没数据就把页面或导航项拿掉——分页是固定的地图，不是可选清单。
+1. 五个分页固定顺序：档位（`levels`）、规则（`rules`）、组件（`components`）、外观（`appearance`）、GitHub（`github`），由 `SECTIONS` 常量统一给出。**五个分页始终都在导航里**：某个页面没有数据时页面照常打开、在页内说明状态，不能因为没数据就把页面或导航项拿掉——分页是固定的地图，不是可选清单。2.4.8 起全局规则与工作区规则合并在同一页（`rules` 一张卡放全局 `AGENTS.md`，下一张卡放所选工作区的补充规则），独立的「工作区」分页删除。
 2. 导航栏 `.ct-nav`：`position: sticky; top: 0`，玻璃底（`--ct-glass-rail`）+ 20px 圆角 + 内高光；品牌行是 14px 的 accent 图标 + 11px 大写文字。**`top` 只能是 0**：正值会把导航栏相对滚动口重新定位，静止状态就往下一段，导航栏顶部与右侧第一张卡片对不齐（1400×792 实测 `top: 18px` 时档位页差 13px、规则页差 18px，用户看到的就是「点击规则的时候页面有小小的位移」）。`top: 0` 下静止时两列都在 `padding-top` 的 22px 处（实测差值 0），滚动时导航栏也不再跳动。改回正值前先读这一条。
 3. 导航项 `.ct-nav-item`：34px 高、12px 圆角、15px 图标 + 13px 文字、`justify-content: flex-start`；默认透明底 + 透明描边。
 4. 当前页用 `aria-current="page"` 标记，样式是 accent 16% 淡染 + 40% accent 描边 + `inset 2px 0 0` 左竖条 + 22px 柔光；图标转 accent。**不要**用右侧箭头或加粗字号来区分。
@@ -200,7 +198,8 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 样式：`border: 1px solid var(--ct-glass-edge)`、`border-radius: 20px`、`background: var(--ct-glass-fill)` + `--ct-glass-sheen`、`padding: 16px 18px`、内部 `gap: 12px`，配 `--ct-glass-shadow` 与 `--ct-glass-inner`。
 
 - **授权范围** `.ct-scopes`：GitHub 页在账号行下面单独一行显示 `gh auth status` 报出的 token scope（`repo · read:org · workflow`），12px `label-tertiary`，`overflow-wrap: anywhere`（scope 是一个长串标识符，不能把卡片撑宽）。缺 `repo` 时另起一条 `role="alert"` 状态行说明只能读不能推；scope 由 `gh` 报出，插件不读、不存 token 本身。
-- **空状态写在卡片里，不写进导航**：工作区页在没有注册工作区时仍然打开，标题行下面用一条 `.ct-note`（`role="status"`）写「目前无工作区」，不渲染选择器与文本域，保存按钮常显、置灰、`title` 与这条说明一致；还没读到时写「正在读取…」（不要拿「无工作区」冒充加载态）。任何页面都不得因为数据为空而整页消失。
+- **空状态写在卡片里，不写进导航**：还没注册工作区时，规则页的工作区卡片仍然渲染，标题行下面用一条 `.ct-note`（`role="status"`）写「目前无工作区」，不渲染选择器与文本域，保存按钮常显、置灰、`title` 与这条说明一致；还没读到时写「正在读取…」（不要拿「无工作区」冒充加载态）。任何页面都不得因为数据为空而整页消失。
+- **工作区卡片只编辑补充规则**：文本域里是插件自己写入的那个受管块（`<!-- compression-tiers:workspace-rules:start -->` … `:end -->`），保存时插到该工作区 `AGENTS.md` 的**开头**，没有文件就创建，块下面的正文原样保留。磁盘上那份文件本来就有的正文**不进面板**——它不属于插件，读接口也只返回受管块的内容。
 - 链接一律 `target="_blank" rel="noreferrer noopener"`；正文里不出现裸 URL 文本以外的装饰。
 - 空的状态行/说明行用 `:empty` 收起（`display: none`），面板底部不留空白。
 
@@ -352,5 +351,9 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - [ ] 输入框上方那一行按 `@container` 决定伙伴显隐，窗口窄但卡宽时也不会互相压住。
 - [ ] 动效三档都试过：`subtle` 只关进场与液面过渡，`off` 还把 `reducedMotion` 传给了试管与伙伴。
 - [ ] 空状态行不占位。
-- [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、授权范围行、外观页、试管、伙伴与自绘下拉；`test/vendor.test.js` 覆盖移植模块与 GPL 文件）。
+- [ ] 规则页是两张卡：上面全局 `AGENTS.md`，下面所选工作区的补充规则；两张卡各有一个文本域与一个保存按钮。
+- [ ] 工作区文本域里只有受管块的内容，保存后插在 `AGENTS.md` 开头，文件原有的正文原样留在块下面。
+- [ ] 输入卡归宿主：没有改 `[data-composer-card]` 的底色，也没有动 `[data-composer-seat]` 的遮罩，正文在卡上方就被裁住。
+- [ ] 对话区背景只有一条静态 `linear-gradient`，样式表里没有 canvas、没有背景关键帧。
+- [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、授权范围行、规则页两张卡、外观页、试管、伙伴与自绘下拉；`test/workspace-rules.test.js` 覆盖受管块的读写；`test/vendor.test.js` 覆盖移植模块与 GPL 文件）。
 - [ ] 视觉效果无法在真实窗口确认时，交付说明写「渲染未验证」。

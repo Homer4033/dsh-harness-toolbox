@@ -12,10 +12,10 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.4.7-0f172a?style=flat-square" alt="Version 2.4.7" />
+  <img src="https://img.shields.io/badge/Version-2.4.8-0f172a?style=flat-square" alt="Version 2.4.8" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-219%20passing-16a34a?style=flat-square" alt="219 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-222%20passing-16a34a?style=flat-square" alt="222 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -55,7 +55,7 @@
 - **桌面上的像素伙伴**：小紫猫、Clawd 与三只迷你蟹蹲在试管左边，点一下会跳；动效可降到「克制」或直接关掉，也可以把伙伴整个收起。默认开启。
 - **两套配色，换的是整个界面，跟着 DSH 走**：深空黑曜偏靛蓝，白昼冷晶偏冰青；每套都带亮、暗两份 token，DSH 切深色就用深色那份、切浅色就用浅色那份，皮肤不会把宿主的外观偏好掰到另一边。另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。选中一套时，侧栏、消息气泡、输入框、菜单、卡片与代码块一起换，不只是插件自己的面板。
 - **主题美术也一起搬**：光换 token 宿主表面还是平的，所以选上配色后还会画一层美术——对话区底部 accent 泛光、16px 圆角的烟熏用户气泡、引用块左侧 accent 竖条、84% 宽的发丝分隔线、6px 细滚动条、输入卡顶部光泽；「跟随宿主」下一点不动，外观页还能单独关掉这层。\n- **背景会动**：2.4.0 起对话区底部那层辉光来自上游 `ripple-core.js` 的 2D 地平线渲染器（canvas 逐像素画的波与 halftone 点阵，约 30fps），不是一张静态渐变图；外观页的动效三档同时决定它的速度与强度。
-- **规则只有一份**：全局规则写 `<DSH home>/AGENTS.md`，工作区规则写各工作区根目录的 `AGENTS.md`；插件不复制、不缓存，智能体没有改写它们的工具，只能由人在面板里保存。
+- **规则只有一份**：全局规则写 `<DSH home>/AGENTS.md`，工作区规则写各工作区根目录的 `AGENTS.md`（插件只占其中开头一个受管块，文件其余部分是工作区自己的）；插件不复制、不缓存，智能体没有改写它们的工具，只能由人在面板里保存。
 - **四套组件一个根目录**：GitHub CLI、git、ffmpeg / ffprobe、Python 都能检测系统 PATH 副本或下载托管版，断点续传、自检后原子替换、失败回滚；整个根目录可在面板里迁移。
 - **发布只有一个入口**：`github_push` 依次做网络体检 → 密钥扫描 → 60 秒超时推送 → 失败分类；输入框上方的「仓库」胶囊决定当前会话推到哪里，胶囊在空会话里也在。
 - **轻、守规矩**：面板只用官方主题 token、不引入 Host 的 Client 包；托管副本只插本进程 PATH，不写系统环境变量；移植的两份 UMD 模块走同源脚本路由，按需加载。
@@ -91,10 +91,10 @@
 只换 token 的话，宿主表面还是平的。选上一套配色后，插件还会把上游 `style.css` 里能用**语义锚点**表达的那层美术画上去：对话区底部一层 accent 径向泛光（右上角再叠一点冷紫）、用户气泡换成 16px 圆角的烟熏表面（顶部 2.2% 光泽 + 1px 描边 + 内侧高光 + 深落影）、引用块左侧 1.5px 的 accent→冷紫竖条、`hr` 收成 84% 宽的发丝渐变、滚动条收成 6px 细条、输入卡顶部一层 3% 光泽。对话正文的行距放宽到 1.72，中西文长句不再挤在一起。
 
 <p align="center">
-  <img src="docs/screenshots/art.png" width="100%" alt="深空黑曜下的对话区泛光、烟熏用户气泡、引用块竖条与输入卡光泽" />
+  <img src="docs/screenshots/art.png" width="100%" alt="深空黑曜下的对话区底光、烟熏用户气泡、引用块竖条与输入卡光泽" />
 </p>
 
-这层美术挂在 `<body>` 的属性上（`data-ct-palette` / `data-ct-art` / `data-ct-motion`），由外观页「光学外观」开关控制；配色只决定用哪套 token 来画——选「跟随宿主」时美术就用 DSH 自己的颜色画，不再整层消失。所有选择器只用 DSH 自己的语义属性（`[data-conversation-region]`、`[data-message-bubble]`、`[data-composer-card]`、`[data-conversation-scroll]`），不碰哈希类名，命中不到就自然不生效。上游的背景极光本身是 canvas 着色器，2.3.0 只重画了静态部分；2.4.0 把渲染器也搬来了，见下面那节。
+这层美术挂在 `<body>` 的属性上（`data-ct-palette` / `data-ct-art` / `data-ct-motion`），由外观页「光学外观」开关控制；配色只决定用哪套 token 来画——选「跟随宿主」时美术就用 DSH 自己的颜色画，不再整层消失。所有选择器只用 DSH 自己的语义属性（`[data-conversation-region]`、`[data-message-bubble]`、`[data-composer-card]`、`[data-conversation-scroll]`），不碰哈希类名，命中不到就自然不生效。上游的背景极光本身是 canvas 着色器，2.3.0 只重画了静态部分，2.4.6 起连背景本身也只剩一条线性渐变（见下一节）。
 
 ### 3. 静态渐变：一层不动的底光
 
@@ -104,7 +104,7 @@
   <img src="docs/screenshots/background.png" width="100%" alt="对话区底部的静态线性渐变（离线舞台渲染）" />
 </p>
 
-它跟静态美术共用一个开关：跟随宿主时用宿主的颜色画，关掉「光学外观」就整层移除。**同一层还顺手把宿主那行浅色统计字（`[data-composer-stat]`：轮/步、tok/s、总 token、缓存命中）藏起来**，同样的读数挪进试管浮窗的「本会话用量」一段——聊天区底部因此只剩输入卡本身。
+它跟静态美术共用一个开关：跟随宿主时用宿主的颜色画，关掉「光学外观」就整层移除。**同一层还顺手把宿主那行浅色统计字（`[data-composer-stat]`：轮/步、tok/s、总 token、缓存命中）藏起来**，同样的读数挪进试管浮窗的「本会话用量」一段——聊天区底部因此只剩输入卡本身。输入卡与它下面那条遮罩仍然归宿主：卡片保持不透明，正文滚到卡上方就被裁住，不会从卡里透出来。
 
 ### 4. 光学细节：上下文试管
 
@@ -134,17 +134,17 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 挂载是 fail-open 的：宿主没有 `modelDirectories` 服务、当前模型没有 `reasoning.efforts`、只有一档、菜单没开、或者写入被拒（比如会话正被写者占用），都退回「什么都不加」，并把失败原因写在滑块下方，旋钮回到宿主确认的那一档。锚点只用语义属性（`aria-haspopup="menu"` + `aria-controls` 找菜单、`role="menuitem"` 的行配上行首标签文字认出「推理等级」、`[data-composer-card]` 判归属），不认 DSH 的哈希类名。会话目录是按需重取的——`directoryFor()` 在会话作用域就绪前会抛错，所以拿不到时按退避重试，宿主换掉目录实例时跟着重订阅；菜单前面多出别的选择器行时按标签认行、不按位置认，认不出就不加，注入后也不派发 `resize`（部分宿主用它兜底关菜单）。
 
-### 7. 面板：液体玻璃外壳 + 六个分页
+### 7. 面板：液体玻璃外壳 + 五个分页
 
 <p align="center">
   <img src="docs/screenshots/panel.png" width="100%" alt="压缩分档面板：左侧分页导航与外观页卡片" />
 </p>
 
-面板在左侧栏，一次只显示一页，顺序固定为 **档位 / 规则 / 工作区 / 组件 / 外观 / GitHub**；没有注册工作区时工作区页照样打开，只是写「目前无工作区」。玻璃配方、表面层级、间距与下拉规范写在 [docs/UI.md](docs/UI.md)，改控件先改规范。
+面板在左侧栏，一次只显示一页，顺序固定为 **档位 / 规则 / 组件 / 外观 / GitHub**。规则页上面一张卡编辑全局规则，下面一张卡编辑所选工作区的补充规则；没有注册工作区时那张卡照样渲染，只是写「目前无工作区」。玻璃配方、表面层级、间距与下拉规范写在 [docs/UI.md](docs/UI.md)，改控件先改规范。
 
 ### 8. 更多能力
 
-- **规则面板**：全局与工作区两个编辑器，保存即原子写入（去 BOM、CRLF→LF、单个结尾换行），单次上限 100,000 字符，超出直接 413 而不是截断；系统提示只带最新 2,000 字符摘要。
+- **规则面板**：全局规则整份写入 `<DSH home>/AGENTS.md`；工作区规则只写插件自己的受管块，保存时插到该工作区 `AGENTS.md` 的**开头**（没有文件就创建），块下面原有的正文原样保留，面板也不显示这份文件的内容。两处写入都原子、去 BOM、CRLF→LF、保留单个结尾换行，单次上限 100,000 字符，超出直接 413 而不是截断；系统提示只带最新 2,000 字符摘要。
 - **组件管理**：四行统一形状——名称与版本 → 状态行 → 进度 → 路径或错误 → 同一行「下载 / 重新检测」，状态没读到时整行仍在、按钮置灰。
 - **GitHub 登录与体检**：`gh auth login --web` 的设备码流程，面板只显示账号与 token 的授权范围（scopes），插件不读、不存凭据；代理探测覆盖直连 / 代理 / 代理不通 / 全断四种结论。
 - **会话仓库胶囊**：默认上拉，上方不足 200px 才翻成向下；↑ / ↓ / Home / End / Enter / Esc 全键盘可用。
@@ -158,7 +158,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.4.7`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.4.8`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -188,13 +188,12 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 ## 使用
 
-### 面板的六个分页
+### 面板的五个分页
 
 | 分页 | 做什么 | 唯一事实来源 |
 | :--- | :--- | :--- |
 | **档位** | 五个按钮，点一下写入所有已挂载的预设压缩引擎 | `src/levels.js` 的 `COMPRESSION` |
-| **规则** | 编辑、保存全局系统提示规则 | `<DSH home>/AGENTS.md` |
-| **工作区** | 选一个已注册工作区，编辑它根目录的规则 | `<DSH home>/storages/workspace.json` + 各工作区 `AGENTS.md` |
+| **规则** | 全局规则整份编辑；下半张卡编辑所选工作区的补充规则（插到它 `AGENTS.md` 开头） | `<DSH home>/AGENTS.md`、`<DSH home>/storages/workspace.json` + 各工作区 `AGENTS.md` |
 | **组件** | 四套组件的状态、下载、重新检测与下载根目录 | `src/components.js` 的 `COMPONENTS` |
 | **外观** | 配色、动效、像素伙伴开关 | `settings.json` 的 `appearance` |
 | **GitHub** | 账号、token scope、设备码登录、网络体检 | `gh` 自己的存储（插件不读凭据） |
@@ -266,10 +265,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.4.7`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.4.8`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）与 `dual-mascot-rig.js`（约 231 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这两个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.4.7` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。2.4.6 撤掉地平线渲染器后，白名单从三个名字收成两个，`horizon-glow.js` 不再随包发布。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）与 `dual-mascot-rig.js`（约 231 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这两个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.4.8` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。2.4.6 撤掉地平线渲染器后，白名单从三个名字收成两个，`horizon-glow.js` 不再随包发布。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」，不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
@@ -281,7 +280,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍。PATH 前插只影响本进程，且去重。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 219 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、规则与工作区规则、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名（含 2.4.6 起「渲染器已下线、白名单只剩两个」）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 222 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块）、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名（含 2.4.6 起「渲染器已下线、白名单只剩两个」）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 
@@ -349,7 +348,7 @@ dsh-harness-toolbox/
 ├── THIRD_PARTY_NOTICES.md        # 上游及其吸收的 MIT 项目的完整声明
 ├── icon.svg                      # 面板图标
 ├── index.js                      # Host 入口：四个工具、系统提示、面板路由、reconciler、vendor 路由
-├── client.js                     # 客户端：侧栏面板（六个分页）、输入框 dock、试管、像素伙伴、自绘弹层
+├── client.js                     # 客户端：侧栏面板（五个分页）、输入框 dock、试管、像素伙伴、自绘弹层
 ├── vendor/obsidian-prism/        # 移植的两份 UMD 模块（vial-core.js / dual-mascot-rig.js）
 ├── src/
 │   ├── levels.js                 # 五档参数与阈值公式（唯一来源）
@@ -358,7 +357,7 @@ dsh-harness-toolbox/
 │   ├── manual-compact.js         # 主动压缩队列（真人输入优先）
 │   ├── store.js                  # 状态读写（原子，含 appearance）
 │   ├── rules.js                  # 全局规则：路径、校验、原子写入、摘要
-│   ├── workspace-rules.js        # 工作区规则：注册表读取、校验、原子写入
+│   ├── workspace-rules.js        # 工作区规则：注册表读取、受管块注入、原子写入
 │   ├── gh.js                     # GitHub CLI：托管下载、PATH、设备码登录、仓库列表
 │   ├── ffmpeg.js                 # ffmpeg / ffprobe 托管下载与 PATH
 │   ├── components.js             # git / Python 托管下载与 PATH

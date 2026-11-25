@@ -1,3 +1,16 @@
+# 变更记录
+
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。
+
+## 2.4.8 — 2026-11-25
+
+- **全局规则与工作区规则合成一页**（用户说「全局规则和工作区规则用同一页面」）：`SECTIONS` 从六页收成五页——档位 / 规则 / 组件 / 外观 / GitHub，规则页上面一张卡是全局 `AGENTS.md`，下面一张卡是所选工作区的规则；`navWorkspace` 文案键一并删除，导航里不再有独立的「工作区」入口。原来「工作区页在清单为空时仍留在导航里、写『目前无工作区』」的约束，改为「工作区卡片仍渲染在规则页里、写『目前无工作区』」。
+- **工作区规则改为「注入 AGENTS.md 开头」**（用户说「工作区规则不要显示的 AGENTS.md 内容，注入在 AGENTS.md 开头，没有 AGENTS.md 则创建一个」）：面板不再把工作区 `AGENTS.md` 的正文灌进文本域，文本域里只剩插件自己的受管块——保存时把 `<!-- compression-tiers:workspace-rules:start -->` … `<!-- compression-tiers:workspace-rules:end -->` 插到文件**开头**，块下面原有的正文逐字保留；没有文件就创建。`GET /api/workspace-rules` 只返回受管块内容（`readWorkspaceRules` 先剥围栏），所以别人的那份契约永远不进面板。清空编辑器再保存只去掉围栏、保留文件其余正文，且不会给没有文件的工作区创建空文件。字段标签改为「补充规则（置于 AGENTS.md 开头）」，新增 `workspaceRulesLabel` 键。
+- **正文不再透过输入卡**（用户说「文字透过了对话框，应该是在对话栏上方就裁减了才对」）：2.4.2 / 2.4.4 为了旧辉光「到底」关掉了 `[data-composer-seat]` 的底遮罩、把输入卡改成 76% 半透明（`!important`），正文滚到卡下面时会从半透明卡片里透出来。底光在 2.4.6 已改成静态渐变，这两条覆盖随之删除：遮罩回到宿主手里、卡片保持不透明，正文在输入卡上方就被裁住；卡片上的顶光泽与落影保留。
+- 测试 219 → **222** 条：`test/workspace-rules.test.js` 重写为受管块的四件事（只读受管块、块前置且正文保留、再次保存替换旧块、空保存不建空文件 / 不清正文），`test/client.test.js` 改成「规则页两张卡 + 五个分页 + 工作区只显示补充规则」，并新增「输入卡不得有底色覆盖、样式表不得出现 `[data-composer-seat]`」的断言。
+- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.8`；[docs/UI.md](docs/UI.md) 的「地平线辉光」一节改写为「对话区底光」、分页从六页改五页、工作区卡片语义重写，README 的分页表与规则段同步。
+- **渲染未验证**：规则页两张卡的配色与高度、正文在输入卡上方被裁住的效果都要装上看。
+
 ## 2.4.7 — 2026-11-25
 
 - **中文显示名改为「压缩分档与综合工作台」**（英文 `Compression tiers & workbench`）：用户说「『压缩分档与工具箱 · dsh-harness-toolbox』github 中文名落后了，现在是个综合工作台了」。功能早就不止「压缩分档」——档位、全局与工作区规则、四套托管组件、两套配色与美术层、会话仓库发布，也早就不止「工具箱」。这次只改**显示名**：`locale/zh.json` 与 `locale/en.json` 的 `meta.title`、`client.js` 两个 `DICTIONARIES` 的 `title`、README 的 H1 与三处 `alt`；包名 `dsh-harness-toolbox`、加载器 id、槽位 id、状态目录 `<DSH home>/compression-tiers`、四个工具名**全都不动**，已装用户不用迁移。
@@ -14,9 +27,6 @@
 - 测试仍 219 条（两处用例改写：静态渐变 + 无 aura 控制器；`vialUsage` 读数与 null 回落；vendor 用例改成「渲染器已下线、白名单只有两个」）。
 - 截图：新增 `docs/screenshots/background.png`，删除 `aura.png` / `aura-hero.png`。
 - **渲染未验证**：截图来自离线舞台，真实窗口里底光与「统计字消失后输入卡上方更干净」的观感要装上看。
-# 变更记录
-
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。
 
 ## 2.4.5 — 2026-11-25
 

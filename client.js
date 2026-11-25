@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.7'
+    const PLUGIN_VERSION = '2.4.8'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -428,7 +428,6 @@ window.__ModuleLoader__.load({
     const SECTIONS = [
       { id: 'levels', navLabel: 'navLevels', icon: 'M3 4.5h10M3 8h7M3 11.5h4' },
       { id: 'rules', navLabel: 'navRules', icon: 'M4 2.5h5.5L12.5 5.5v8H4zM9.5 2.5v3h3M6 8h4M6 10.5h3' },
-      { id: 'workspace', navLabel: 'navWorkspace', icon: 'M2.5 5.5h4l1.2 1.5h5.8v5.5h-11z' },
       { id: 'components', navLabel: 'navComponents', icon: 'M6 2.5h4v3H6zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z' },
       { id: 'appearance', navLabel: 'navAppearance', icon: 'M8 2.5a5.5 5.5 0 1 0 5.5 5.5c0-1.2-.4-2.3-1-3.2-.5.9-1.4 1.5-2.4 1.5-1.5 0-2.7-1.2-2.7-2.7 0-.4.1-.8.2-1.1zM8 13.5a4 4 0 0 1 0-8' },
       { id: 'github', navLabel: 'navGithub', icon: 'M8 2.5a5.5 5.5 0 0 0-1.7 10.7c.3.1.4-.1.4-.3v-1c-1.5.3-1.9-.7-1.9-.7-.2-.6-.6-.8-.6-.8-.5-.3 0-.3 0-.3.5 0 .8.5.8.5.5.9 1.3.6 1.6.5 0-.4.2-.6.3-.7-1.2-.1-2.5-.6-2.5-2.7 0-.6.2-1.1.5-1.5-.1-.1-.2-.7 0-1.4 0 0 .5-.2 1.5.5a5 5 0 0 1 2.8 0c1-.7 1.5-.5 1.5-.5.3.7.1 1.3.1 1.4.3.4.5.9.5 1.5 0 2.1-1.3 2.6-2.5 2.7.2.2.4.5.4 1v1.5c0 .2.1.4.4.3A5.5 5.5 0 0 0 8 2.5z' },
@@ -442,7 +441,6 @@ window.__ModuleLoader__.load({
         navAria: '面板分页',
         navLevels: '档位',
         navRules: '规则',
-        navWorkspace: '工作区',
         navComponents: '组件',
         navAppearance: '外观',
         navGithub: 'GitHub',
@@ -520,6 +518,7 @@ window.__ModuleLoader__.load({
         workspaceRulesTitle: '工作区规则',
         workspaceNone: '目前无工作区',
         workspaceSelectLabel: '工作区',
+        workspaceRulesLabel: '补充规则（置于 AGENTS.md 开头）',
         workspaceRulesPlaceholder: '例如：本工作区只改 src/；提交前跑测试。',
         workspaceRulesMissing: '不存在，保存后创建。',
         workspaceRulesLoadFailed: '读取失败：',
@@ -599,7 +598,6 @@ window.__ModuleLoader__.load({
         navAria: 'Panel sections',
         navLevels: 'Tiers',
         navRules: 'Rules',
-        navWorkspace: 'Workspace',
         navComponents: 'Components',
         navAppearance: 'Appearance',
         navGithub: 'GitHub',
@@ -677,6 +675,7 @@ window.__ModuleLoader__.load({
         workspaceRulesTitle: 'Workspace rules',
         workspaceNone: 'No workspace registered yet',
         workspaceSelectLabel: 'Workspace',
+        workspaceRulesLabel: 'Supplemental rules (placed at the top of AGENTS.md)',
         workspaceRulesPlaceholder: 'For example: this workspace only touches src/; run the tests before committing.',
         workspaceRulesMissing: 'missing; saving creates it.',
         workspaceRulesLoadFailed: 'Could not read: ',
@@ -1727,26 +1726,18 @@ body[data-ct-art='on'][data-ds-dark-theme] [data-composer-card] {
   background-image: linear-gradient(rgba(255, 255, 255, 0.03) 0%, transparent 58%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 30px -18px rgba(0, 0, 0, 0.5);
 }
-/* The composer seat paints an opaque fade band over the last 36px so transcript
-   text can scroll out under the card. With the art layer on, that band is what
-   cut the glow off before the window edge, so it drops out and the card itself
-   takes the fade (a translucent card over the horizon). */
-body[data-ct-art='on'] [data-composer-seat] {
-  /* DSH paints this mask from a 3-class selector (root + data-phase + seat),
-     which beats an attribute-only selector — hence the !important: without it
-     the fade band still cuts the horizon at the card. */
-  background: none !important;
-}
-body[data-ct-art='on'] [data-composer-card] {
-  background-color: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 76%, transparent) !important;
-}
+/* The composer keeps every surface the host gives it. Its seat paints an opaque
+   fade band that clips the transcript as it scrolls out from under the card, and
+   the card itself stays opaque. 2.4.2 made both translucent so the old horizon
+   glow could reach the window edge; that also let transcript text show through
+   the card, so 2.4.6 replaced the glow with a static gradient and this rule set
+   went back to the host. The card still gets the art's own sheen and shadow. */
 body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
   background-image: linear-gradient(rgba(255, 255, 255, 0.6) 0%, transparent 60%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 6px 20px -16px rgba(15, 23, 42, 0.28);
 }
-/* The moving part of the art: one canvas in the chat region. It sits above the
-   column background and below the transcript (z-index 0 under scroll z-index
-   1), never takes a click, and only exists while the art layer is on. */
+/* The art layer sits behind the transcript: one background on the chat region,
+   below the scroll column, never taking a click. */
 body[data-ct-art='on'] [data-conversation-region='chat'] {
   position: relative;
 }
@@ -2336,10 +2327,10 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
 }
-.ct-vial-rows {
-  display: grid;
-  gap: 5px;
-  margin: 0;
+.ct-vial-rows {
+  display: grid;
+  gap: 5px;
+  margin: 0;
 }
 /* The host's composer stats line is hidden by the art layer; these rows carry
    the same readings inside the vial, separated from the context numbers. */
@@ -4299,8 +4290,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [ghMessage, setGhMessage] = React.useState('')
       const [ghBusy, setGhBusy] = React.useState(false)
       const [network, setNetwork] = React.useState(null)
-      // Workspace rules: one `AGENTS.md` per registered workspace. The registry
-      // is the allow list, and an empty list hides the whole block.
+      // Workspace rules: a fenced supplement the panel prepends to each
+      // registered workspace's `AGENTS.md`. The registry is the allow list, and
+      // the block lives on the rules page next to the global editor.
       const [workspaceRules, setWorkspaceRules] = React.useState(null)
       const [workspaceId, setWorkspaceId] = React.useState('')
       const [workspaceText, setWorkspaceText] = React.useState('')
@@ -5073,8 +5065,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         ghMessage ? h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, ghMessage) : null)
 
       // Workspace rules: the registry names the only workspaces this block may
-      // touch. The page is always in the rail; an empty registry says so instead
-      // of leaving the reader without a page (1.10.2).
+      // touch. The card sits on the rules page below the global editor; an empty
+      // registry says so instead of leaving the reader without an editor.
       const workspaceList = workspaceRules && Array.isArray(workspaceRules.workspaces)
         ? workspaceRules.workspaces
         : []
@@ -5107,7 +5099,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
                 onChange: pickWorkspace,
               })),
             h('label', { className: 'ct-field', key: 'text' },
-              h('span', null, t('rulesLabel') + ' · ' + workspaceText.length + ' ' + t('rulesChars')),
+              h('span', null, t('workspaceRulesLabel') + ' · ' + workspaceText.length + ' ' + t('rulesChars')),
               h('textarea', {
                 className: 'ct-textarea',
                 rows: 8,
@@ -5247,10 +5239,11 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
             : null)
         : null
 
+      // The rules page carries both editors: the global file and the supplement
+      // each registered workspace gets at the top of its own AGENTS.md.
       const pages = {
         levels: [panel, meta],
-        rules: [rulesPanel],
-        workspace: [workspacePanel],
+        rules: [rulesPanel, workspacePanel],
         components: [componentsPanel],
         appearance: [appearancePanel],
         github: [ghAuthPanel],
