@@ -51,13 +51,10 @@ export function defaultAppearance() {
     // service — always in the host's own light/dark mode.
     palette: 'host',
     motion: 'full',
-    // Pixel companions above the composer. Opt-out, not opt-in: the 2.0.0
-    // appearance page shows the switch next to the palettes.
-    mascots: true,
     // The theme art (background wash, user bubble, hairlines, scrollbars) that
-    // upstream paints through its stylesheet. Only meaningful together with a
-    // palette: `host` never paints it, and `false` strips it back to flat
-    // tokens while keeping the palette.
+    // upstream paints through its stylesheet. `host` still paints it — the art
+    // layer is its own switch — and `false` strips it back to flat tokens while
+    // keeping the palette.
     art: true,
   }
 }
@@ -77,7 +74,6 @@ export function normalizeAppearance(value) {
   return {
     palette,
     motion: APPEARANCE_MOTIONS.includes(next.motion) ? next.motion : base.motion,
-    mascots: next.mascots === false ? false : true,
     art: next.art === false ? false : true,
   }
 }
@@ -91,8 +87,8 @@ export function defaultSettings() {
     // Session id → `owner/name` of the online repository that session publishes
     // to. Bound from the session header; the file is the only place it lives.
     sessionRepos: {},
-    // Palette, motion tier and the pixel companions. Cosmetic only: the
-    // compaction engines never read it.
+    // Palette, motion tier and the art switch. Cosmetic only: the compaction
+    // engines never read it.
     appearance: defaultAppearance(),
     // Shared download root for the managed gh and ffmpeg installs. Empty means
     // `<DSH home>/compression-tiers`, which is where earlier versions put them.

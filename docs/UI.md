@@ -1,6 +1,6 @@
 # 面板 UI 规范（dsh-harness-toolbox）
 
-> 本文件约束本插件**自己画**的那部分界面：左侧栏「压缩分档」面板（液体玻璃外壳 + 左侧分页导航）、输入框上方那一行（上下文试管、像素伙伴与仓库胶囊）、外观页的两套皮肤、注入官方模型菜单的推理滑块，以及全部自绘弹层。宿主主题与官方组件（侧边栏、输入框、标题栏）本身不在范围内，也不要试图改它们。
+> 本文件约束本插件**自己画**的那部分界面：左侧栏「压缩分档」面板（液体玻璃外壳 + 左侧分页导航）、输入框上方那一行（上下文试管与仓库胶囊）、「模型和组件」页的组件行与本地模型行、外观页的两套皮肤、注入官方模型菜单的推理滑块，以及全部自绘弹层。宿主主题与官方组件（侧边栏、输入框、标题栏）本身不在范围内，也不要试图改它们。
 
 ## 目录
 
@@ -109,7 +109,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 3. **画的就是这三层**：对话区底光（底部一条 accent → 冷色的静态线性渐变，见下一节）+ 用户气泡 16px 圆角、`10px 15px` 内边距、深色加 `linear-gradient(rgba(255,255,255,.022), transparent 55%)` 与 `inset 0 1px 0 rgba(255,255,255,.058)` + `0 6px 20px -10px rgba(0,0,0,.44)`，浅色换成 `inset 0 1px 0 #fff` + `0 4px 16px -10px rgba(15,23,42,.10)`；输入卡一层 3% 顶部光泽（浅色 60%）与更深的落影。
 4. **引用块与分隔线**：`blockquote` 左侧 1.5px accent→冷紫渐变竖条（`::before`，上下各留 2px）+ accent 4% 的横向淡染；`hr` 是 84% 宽度的发丝渐变，不占额外高度。
 5. **排版只放宽行距**：对话区 `p` / `li` 的 `line-height` 1.72、`letter-spacing` .005em（上游给中日韩正文的同一条处理），字号、字重、颜色一律不动。
-6. **输入卡归宿主自己**：`[data-composer-card]` 只加光泽与落影，**不**改它的底色；`[data-composer-seat]` 的遮罩（把滚出去的正文裁在输入卡上方）一律保留，2.4.2 为了旧辉光「到底」把遮罩关掉、卡片改 76% 半透明，结果正文透过卡片，2.4.8 全部撤回。2.4.9 唯一允许碰 seat 的是**底光的那一层背景**：它叠在遮罩之上、并且照抄遮罩，见下一节第 4 条——遮罩本身与 seat 的其它属性一概不动。
+6. **输入卡归宿主自己**：`[data-composer-card]` 只加光泽与落影，**不**改它的底色；`[data-composer-seat]` 的遮罩（把滚出去的正文裁在输入卡上方）一律保留，2.4.2 为了旧辉光「到底」把遮罩关掉、卡片改 76% 半透明，结果正文透过卡片，2.4.8 全部撤回。2.4.9 试着让 seat 自己重画一遍底光，但 seat 是 sticky + `z-index` 的层叠上下文，重画的那条和对话区渐变的下沿接不上（2.5.0 修的「断层」）。现在唯一允许碰 seat 的是 seat 上的 `::before` 伪元素（2.5.0）：`position: absolute; inset: 0; z-index: -1`，画的就是同一条渐变，见下一节第 4 条——遮罩本身与 seat 的其它属性一概不动。
 7. **美术层自身不加 CSS keyframes**：静态部分全是渐变，没有任何逐帧动画；`data-motion` 只影响试管与旋钮的过渡。
 8. **不抄的部分**：壁纸、Omni 检视台、思考转译、配额遥测都不在本插件范围内。
 
@@ -120,12 +120,14 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 1. **挂在哪里**：`body[data-ct-art='on'] [data-conversation-region='chat']` 上的 `background-image`，绝对不生成节点、不接点击、不参与排版；`position: relative` 只为让这层落在对话区自己的坐标系里。
 2. **画什么**：`linear-gradient(to top, accent 16% → chart-tools 9% @26% → transparent @54%)`，`background-repeat: no-repeat`、`background-position: bottom`——底部一条向上淡出的冷光。
 3. **为什么是静态的**：逐帧重绘的 canvas 在 4 核机器上就是切页与滚动时那点卡顿的来源，而同一张图用 CSS 渐变表达时浏览器只需要合成一次。用户看到的「动的带子」也一并消失。
-4. **和输入卡的关系**：渐变铺满整个对话区，底部被宿主的 seat 遮罩与输入卡盖住——这正是「正文在输入卡上方就被裁住」的效果，不要为了多看一截底光去动 composer 的遮罩或透明度。**2.4.9 补上被遮罩吃掉的那一截**：seat 自己的遮罩从透明渐变到 `bg-base`（36px），底光因此停在 seat 顶边（用户报的「渐变被切掉了」）。修法是**在 seat 上再画一遍底光**，叠在遮罩之上：
-   - 选择器 `body[data-ct-art='on'] [data-conversation-region='chat'][data-content-phase='active'] [data-conversation-region='composer']`，特指度 (0,4,1) 压过宿主的 (0,3,0)，不用 `!important`；只认 active 相位——hero / settling 没有这条遮罩，也就不需要这一层。
-   - `background-image` 两层：第一层是 `to top` 的 accent 16%（0px）→ chart-tools 11%（`calc(100% - 36px)`）→ transparent（100%），第二层**照抄宿主的遮罩**（`to bottom` 的 `bg-base` 0% → `bg-base` 36px）。整条 `background-image` 会被替换，所以遮罩必须一起写回来。
-   - 为什么最后 36px 淡出：遮罩在这 36px 里从 0 升到不透明，底光按同样斜率升上来（`a × 深度 / 36px`），两层相加正好等于原渐变，接缝处没有台阶；36px 以下遮罩是全不透明的，底光用 11%（seat 高 150–260px 时那片区域的真实值约 10–12%），窗口底边回到 16%。
-   - 只改 `background-image`：卡片底色、seat 的遮罩、透明度和其它属性都不动，正文照样在卡上方被裁住。离线舞台（无遮罩的同一渐变作基准）实测整列像素差 ≤3/255，行间最大跳变 3/255；2.4.8 的对照在 36px 内从 25 掉到 10 然后全平。
+4. **和输入卡的关系**：渐变铺满整个对话区，底部被宿主的 seat 遮罩与输入卡盖住——这正是「正文在输入卡上方就被裁住」的效果，不要为了多看一截底光去动 composer 的遮罩或透明度。**2.4.9 补上被遮罩吃掉的那一截，2.5.0 修掉接缝**：seat 自己的遮罩从透明渐变到 `bg-base`（36px），底光因此停在 seat 顶边（用户报的「渐变被切掉了」）。2.4.9 让 seat 自己重画一遍 `background-image`，可 seat 是 sticky + `z-index` 的层叠上下文，重画的那条只覆盖 seat 那一条，和对话区渐变的下沿接不上——用户看到的「断层」就是这条缝。2.5.0 把那条规则整条删掉，改成 seat 上的 `::before`：
+   - 选择器 `body[data-ct-art='on'] [data-conversation-region='chat'][data-content-phase='active'] [data-conversation-region='composer']::before`；只认 active 相位——hero / settling 没有这条遮罩，也就不需要这一层。
+   - `content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none`。seat 本身是 sticky + `z-index: 9` 的层叠上下文，负 z 的伪元素落在 seat 背景**之上**、输入卡**之下**，所以既盖住遮罩、又不会跑到卡上面。
+   - 底图就是**同一条**渐变（`to top`、`background-repeat: no-repeat`、`background-position: bottom`），`background-size: 100% var(--ct-glow-height, 100%)`；再用 `mask-image: linear-gradient(180deg, transparent 0px, #000 36px)` 按遮罩斜率淡出顶边，接缝处没有台阶。
+   - `--ct-glow-height` 由脚本实测：`measureGlow()` 取 `[data-conversation-region='chat'].clientHeight` 写进 seat 的行内样式，`watchGlow()` 用 `ResizeObserver` + `window resize` + 每次 dock 挂载重算，宿主换掉节点时重新绑定。**不得**用固定像素高度顶替测量。
+   - seat 的 `background-image`、卡片底色、遮罩、透明度一概不动，正文照样在卡上方被裁住。
 5. **宿主统计字并进试管**：美术层打开时 `body[data-ct-art='on'] [data-composer-stat] { display: none !important }` 隐藏宿主自己的 usage / activity 药丸，同样的读数改由试管浮窗底部的 `.ct-vial-usage` 一段呈现（`vialUsage()` 读官方 `tokenUsage` / `sessionStats` 投影，缺投影整行不渲染）。
+6. **宿主上下文环一并隐藏（2.5.0，无开关）**：输入框底栏那颗 `○ 5%` 是宿主自己的 `ContextMeter`（`[data-composer-dock]` 里一个 `aria-haspopup='dialog'` 的按钮，只有哈希类名可用），和试管里的占用重复。只加一条 `body[data-ct-art='on'] [data-composer-dock] button[aria-haspopup='dialog'] { display: none !important }`；关掉「光学外观」宿主自己回来。**不要**给它加开关、不要改它的 DOM 或文案，也不要顺手改 `[data-composer-dock]` 的布局。
 
 ## 间距、圆角与控件高度
 
@@ -156,7 +158,6 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | 26px | 输入框上方的仓库胶囊、试管触发器 |
 | 30px | 面板动作按钮 |
 | 34px | 导航项、下拉触发器、弹层选项、动效分段按钮 |
-| 84px | 像素伙伴舞台（220 × 84） |
 
 ## 排版
 
@@ -184,7 +185,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 ## 分页导航
 
-1. 五个分页固定顺序：档位（`levels`）、规则（`rules`）、组件（`components`）、外观（`appearance`）、GitHub（`github`），由 `SECTIONS` 常量统一给出。**五个分页始终都在导航里**：某个页面没有数据时页面照常打开、在页内说明状态，不能因为没数据就把页面或导航项拿掉——分页是固定的地图，不是可选清单。2.4.8 起全局规则与工作区规则合并在同一页（`rules` 一张卡放全局 `AGENTS.md`，下一张卡放所选工作区的补充规则），独立的「工作区」分页删除。
+1. 五个分页固定顺序：档位（`levels`）、规则（`rules`）、模型和组件（`components`）、外观（`appearance`）、GitHub（`github`），由 `SECTIONS` 常量统一给出。**五个分页始终都在导航里**：某个页面没有数据时页面照常打开、在页内说明状态，不能因为没数据就把页面或导航项拿掉——分页是固定的地图，不是可选清单。2.4.8 起全局规则与工作区规则合并在同一页（`rules` 一张卡放全局 `AGENTS.md`，下一张卡放所选工作区的补充规则），独立的「工作区」分页删除；2.5.0 起「组件」页改名「模型和组件」，页尾多一段本地模型（见「卡片」里的模型行）。
 2. 导航栏 `.ct-nav`：`position: sticky; top: 0`，玻璃底（`--ct-glass-rail`）+ 20px 圆角 + 内高光；品牌行是 14px 的 accent 图标 + 11px 大写文字。**`top` 只能是 0**：正值会把导航栏相对滚动口重新定位，静止状态就往下一段，导航栏顶部与右侧第一张卡片对不齐（1400×792 实测 `top: 18px` 时档位页差 13px、规则页差 18px，用户看到的就是「点击规则的时候页面有小小的位移」）。`top: 0` 下静止时两列都在 `padding-top` 的 22px 处（实测差值 0），滚动时导航栏也不再跳动。改回正值前先读这一条。
 3. 导航项 `.ct-nav-item`：34px 高、12px 圆角、15px 图标 + 13px 文字、`justify-content: flex-start`；默认透明底 + 透明描边。
 4. 当前页用 `aria-current="page"` 标记，样式是 accent 16% 淡染 + 40% accent 描边 + `inset 2px 0 0` 左竖条 + 22px 柔光；图标转 accent。**不要**用右侧箭头或加粗字号来区分。
@@ -204,6 +205,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - **授权范围** `.ct-scopes`：GitHub 页在账号行下面单独一行显示 `gh auth status` 报出的 token scope（`repo · read:org · workflow`），12px `label-tertiary`，`overflow-wrap: anywhere`（scope 是一个长串标识符，不能把卡片撑宽）。缺 `repo` 时另起一条 `role="alert"` 状态行说明只能读不能推；scope 由 `gh` 报出，插件不读、不存 token 本身。
 - **空状态写在卡片里，不写进导航**：还没注册工作区时，规则页的工作区卡片仍然渲染，标题行下面用一条 `.ct-note`（`role="status"`）写「目前无工作区」，不渲染选择器与文本域，保存按钮常显、置灰、`title` 与这条说明一致；还没读到时写「正在读取…」（不要拿「无工作区」冒充加载态）。任何页面都不得因为数据为空而整页消失。
 - **工作区卡片只编辑补充规则**：文本域里是插件自己写入的那个受管块（`<!-- compression-tiers:workspace-rules:start -->` … `:end -->`），保存时插到该工作区 `AGENTS.md` 的**开头**，没有文件就创建，块下面的正文原样保留。磁盘上那份文件本来就有的正文**不进面板**——它不属于插件，读接口也只返回受管块的内容。
+- **本地模型行（2.5.0）**：`components` 页在四套组件行下面接一段 `.ct-models`（`<h4>` 小节标题 + 若干 `.ct-model` 行）。每一行与组件行同一套形状：名称与版本 → 状态行（`未安装 / 下了一部分 / 已安装`，复用 `downloadControl()` 的标签键）→ 进度 → 目录或错误 → 同一行两个常显按钮（下载在左、重新检测在右），状态没读到时整行仍在、置灰。不要为它另做一套按钮样式、不要写死 Hugging Face 路径或文件清单（唯一来源是 `src/models.js` 的 `MODELS`）。
 - 链接一律 `target="_blank" rel="noreferrer noopener"`；正文里不出现裸 URL 文本以外的装饰。
 - 空的状态行/说明行用 `:empty` 收起（`display: none`），面板底部不留空白。
 
@@ -221,28 +223,25 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 ## 外观页
 
-一张卡片三段：配色（3 个色板）→ 动效（3 个分段按钮）→ 像素伙伴（1 个开关）。
+一张卡片：配色（3 个色板）→ 动效（3 个分段按钮）→ 光学外观（1 个开关，2.4.2 起常显可点）。2.5.0 删除像素伙伴后不再有「伙伴」开关，卡片里也不要再加第三组控件。
 
 1. **配色用色板，不用下拉**：`.ct-swatches` 是 3 列栅格（`@container (max-width: 640px)` 时 2 列），每个选项是 `role="radio"` + `aria-checked` 的按钮；顶部 `.ct-swatch-band` 是一条 22px 的三段渐变色带（深色端 / 浅色端 / accent），下面 12px 名称。两套配色都跟随宿主深浅，所以色带同时露出深色端与浅色端；色带只用作预览，颜色写死在各 `data-choice` 里——它展示的**不是**当前主题的 token。
 2. **动效用分段按钮**：`.ct-segment` 34px 高，`role="radiogroup"` 包住三个 `role="radio"`；选中态 accent 16% 淡染 + 50% 描边。
-3. **像素伙伴用开关式动作按钮**：`actionButton()` 渲染，`aria-pressed` 表示状态，开启时加 `ct-btn--primary`；标签随状态在「已开启 / 已关闭」之间切换，不用复选框、不用开关滑块。
-4. **写入是乐观的**：点选立刻改本地状态并发 `POST /compression-tiers/api/settings`；失败回滚到上一个值，并在卡片底部的 `.ct-status`（`role="status"`）写一条失败提示。请求进行中三个控件一起 `disabled`，避免连点打架。成功响应同时推给设置快照的订阅者（`rememberSettings()` → `subscribeSettings()`），所以输入框上方那一行不必等切会话重挂载就会跟着换配色 / 动效 / 伙伴开关；外观引导读取失败时**不**用默认值涂抹，而是按 1.5s × 次数退避重试（首次失败有旧快照才回退）。
+3. **光学外观用开关式动作按钮**：`actionButton()` 渲染，`aria-pressed` 表示状态，开启时加 `ct-btn--primary`；标签随状态在「已开启 / 已关闭」之间切换，不用复选框、不用开关滑块。它开关的是整层主题美术（底光、气泡、分隔线、输入卡光泽）与宿主统计字 / 上下文环的隐藏，**不是**配色——跟随宿主时它也照样开启、照样可点。
+4. **写入是乐观的**：点选立刻改本地状态并发 `POST /compression-tiers/api/settings`；失败回滚到上一个值，并在卡片底部的 `.ct-status`（`role="status"`）写一条失败提示。请求进行中三个控件一起 `disabled`，避免连点打架。成功响应同时推给设置快照的订阅者（`rememberSettings()` → `subscribeSettings()`），所以输入框上方那一行不必等切会话重挂载就会跟着换配色 / 动效；外观引导读取失败时**不**用默认值涂抹，而是按 1.5s × 次数退避重试（首次失败有旧快照才回退）。
 5. 颜色与动效同时作用于面板页根、输入框上方那一行与 portal 出去的菜单——皮肤靠 `data-palette` / `data-motion` 三个根节点各自带上属性，不要指望继承。
 
 ## 输入框上方那一行
 
-`.ct-repo-dock` 渲染在 `conversation.input.dock`（输入框正上方的整宽槽），一行两块：
+`.ct-repo-dock` 渲染在 `conversation.input.dock`（输入框正上方的整宽槽），一行只有工具区：
 
 | 块 | 类名 | 规则 |
 | --- | --- | --- |
-| 像素伙伴 | `.ct-dock-mascots` | `flex: 0 0 220px`、`height: 84px`；窄于 620px（容器查询）时 `display: none` |
 | 工具区 | `.ct-dock-tools` | `flex: 1 1 auto` + `justify-content: flex-end` + `margin-left: auto`，内放试管触发器、状态小字（`.ct-repo-note`）与仓库胶囊 |
 
 - 行宽按输入卡几何收窄并居中（见上一节「胶囊必须正对输入卡」），`box-sizing: border-box`。
-- **容器查询的容器是 `.ct-repo-dock`**（`container-type: inline-size`），伙伴的显隐按**这一行**的宽度判断，不按窗口宽度——窗口宽但输入卡窄时，伙伴会压到胶囊上。
-- 关掉像素伙伴（外观页）时 `.ct-dock-mascots` 整块不渲染，工具区仍然 `margin-left: auto` 右对齐；不要为了让行不塌而渲染一个空占位。
-- 伙伴是 canvas 像素画，容器 `.ct-mascot-stage` 固定 220 × 84；canvas 用 `image-rendering: pixelated`，定位是 `position: absolute; left/bottom: 0`，宿主样式不得改写 `ag-v2-*` 的几何（那是移植模块自己的坐标系）。模块加载失败时 `data-state='failed'` 把舞台收起，不留空白框。
-- **伙伴不得抢焦点、不得拦截输入**：canvas 是 `pointer-events: none`，只有外层 actor 接受点击（`cursor: grab`，拖动时 `grabbing`），点击只是 `poke()` 一下，不写设置。
+- **2.5.0 按用户要求整块删除像素伙伴**：没有左段、没有 `.ct-dock-mascots` / `.ct-mascot-stage`、没有 `@container (max-width: 620px)` 的收伙伴规则，`.ct-repo-dock` 也不带 `container-type`。不要为了「以后可关」把舞台或开关加回来（产品决定，写进 [AGENTS.md](../AGENTS.md) 第 23 条）。
+- 这一行只有试管触发器、状态小字与胶囊三样东西；窄了就让胶囊自己缩，不要新增占位块把行撑宽。
 
 ## 推理滑块（注入官方模型菜单）
 
@@ -278,9 +277,9 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 | 档位 | `data-motion` | 表现 |
 | --- | --- | --- |
-| 完整 | `full` | 全部：分页/菜单进场、液面过渡、伙伴动画 |
-| 克制 | `subtle` | 去掉分页与菜单进场、去掉液面过渡；伙伴照常 |
-| 关闭 | `off` | 再把 `reducedMotion: true` 传给试管与伙伴（物理与帧动画停住） |
+| 完整 | `full` | 全部：分页/菜单进场、液面过渡、能量层扫光与星尘 |
+| 克制 | `subtle` | 去掉分页与菜单进场、去掉液面过渡；推理滑块的能量层照常 |
+| 关闭 | `off` | 再把 `reducedMotion: true` 传给试管（物理停住），并把星尘与扫光一起暂停 |
 
   实现上 `subtle` / `off` 只加两条 CSS（`.ct-page[data-motion=…] .ct-content { animation: none }` 与 `.ct-skin[data-motion=…] .ct-vial-liquid { transition: none }`），`off` 额外在 JS 侧传参，并把 `.ct-effort-star` 与 `.ct-effort-energy-sweep` 一起 `animation-play-state: paused`；新增动效时必须同时检查这三档，不要只写 `prefers-reduced-motion`。
 
@@ -301,7 +300,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - ❌ 用负 margin 贴到输入卡边缘。
 - ❌ 把整页内容重新拼成一条长滚动，或恢复 `.ct-page-inner` / `.ct-columns` 两栏栅格。
 - ❌ 用 `overflow-x` 横滚的导航条（窄面板必须换行）。
-- ❌ 为了多看一截底光去关掉 seat 遮罩、把输入卡改半透明，或在 seat 上重画背景时把遮罩那一层漏掉（底光会换成一整块不透明的 `bg-base`）。
+- ❌ 让 seat 自己重画底光（2.4.9 那套两层 `background-image`：seat 是层叠上下文，重画的那条和对话区渐变接不上），或为了多看一截底光去关掉 seat 遮罩、把输入卡改半透明——底座上的底光只能走 `::before`（负 z + 实测高度 + 顶边 mask）。
 - ❌ 用实色或第二层遮罩冒充底光（`background-color` 一旦写上去，正文就会被盖住或被透出来）。
 - ❌ 给同一个面板换第二套卡片圆角或第二套玻璃配方。
 - ❌ 给 `.ct-nav` 写正的 `sticky` `top`（导航栏会离第一张卡片一个偏移），或在分页进场里加位移/缩放。
@@ -310,7 +309,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - ❌ 往官方模型菜单里塞一个拨动后不影响推理等级的装饰控件，或用哈希类名认锚点（只能用语义属性，认不出就不注入）。
 - ❌ 让 `client.js` import 移植模块（它们是 UMD，只能走同源 `<script src="/compression-tiers/vendor/…">`）。
 - ❌ 用条件渲染隐藏试管触发器（投影缺失时也要渲染，显示「—」并禁用）。
-- ❌ 在输入框上方那一行用 `@media` 判断伙伴显隐（要按行宽，用容器查询）。
+- ❌ 恢复像素伙伴或给输入框上方那一行重新引入容器查询（2.5.0 已整块删除，见 [AGENTS.md](../AGENTS.md) 第 23 条）。
 
 ## 落地映射
 
@@ -330,7 +329,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | `.ct-swatches` / `.ct-swatch` / `.ct-swatch-band` | 外观页配色栅格 / 单个色板（`role=radio`）/ 三段色带 |
 | `.ct-segments` / `.ct-segment` | 外观页动效分段组 / 单个分段按钮 |
 | `.ct-repo-dock` / `.ct-repo-pill` / `.ct-repo-note` | 输入框上方那一行（收窄到输入卡并居中、容器查询的容器）/ 仓库胶囊 / 状态小字 |
-| `.ct-dock-mascots` / `.ct-dock-tools` / `.ct-mascot-stage` | 像素伙伴槽 / 右侧工具区 / 伙伴舞台（220 × 84） |
+| `.ct-models` / `.ct-model` | 「模型和组件」页的本地模型段 / 单行模型（复用 `.ct-component` 的进度与动作行） |
 | `.ct-vial` / `.ct-vial-popover` / `.ct-vial-canvas` | 试管触发器 / 浮窗 / 物理画布（96 × 220） |
 | `.ct-vial-rows` / `.ct-vial-bar` / `.ct-vial-legend` | 浮窗数字行 / 三段构成条 / 图例 |
 | `.ct-effort` / `.ct-effort-track` / `.ct-effort-gem` | 注入官方模型菜单的推理轨道 / `role="slider"` 的轨道 / 那颗白色圆钮（2.4.1 起不是切面宝石） |
@@ -351,16 +350,18 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - [ ] 键盘：↑ / ↓ / Home / End / Enter / Esc 与外部点击都能走通。
 - [ ] 仓库胶囊右缘与输入卡右缘对齐（`min()` + `margin: 0 auto`，没有负 margin）。
 - [ ] 两套皮肤的 token 只写在 `.ct-skin[data-palette='…']` 上，每套都有浅色段与 `body[data-ds-dark-theme]` 深色段；「跟随宿主」是空集。
-- [ ] 外观页三组控件都能改、失败会回滚；伙伴开关是 `aria-pressed` 的按钮，不是复选框。
+- [ ] 外观页三组控件（配色 / 动效 / 光学外观）都能改、失败会回滚；「光学外观」是 `aria-pressed` 的按钮，不是复选框；卡片里**没有**「伙伴」开关。
+- [ ] 「模型和组件」页有四套组件行 + 一行本地模型：两个按钮常显、状态未到时置灰，进度与状态行复用同一套类名。
 - [ ] 试管触发器任何时候都在（投影缺失显示「—」），浮窗里有数字、构成条与图例。
 - [ ] 推理滑块只出现在官方「推理等级」行下面：行按标签认（两行兜底），多于两行又没有标签命中就不加；锚点是语义属性，`role="slider"` 带 min/max/now/valuetext；写不进去就回滚并写原因；注入后不派发 `resize`；会话目录每次重取、丢了节点会重建。
-- [ ] 输入框上方那一行按 `@container` 决定伙伴显隐，窗口窄但卡宽时也不会互相压住。
-- [ ] 动效三档都试过：`subtle` 只关进场与液面过渡，`off` 还把 `reducedMotion` 传给了试管与伙伴。
+- [ ] 输入框上方那一行只有工具区（试管触发器 + 状态小字 + 胶囊），没有伙伴槽、没有 `container-type`、没有 `@container` 收伙伴的规则。
+- [ ] 动效三档都试过：`subtle` 只关进场与液面过渡，`off` 还把 `reducedMotion` 传给了试管、并暂停了星尘与扫光。
 - [ ] 空状态行不占位。
 - [ ] 规则页是两张卡：上面全局 `AGENTS.md`，下面所选工作区的补充规则；两张卡各有一个文本域与一个保存按钮。
 - [ ] 工作区文本域里只有受管块的内容，保存后插在 `AGENTS.md` 开头，文件原有的正文原样留在块下面。
-- [ ] 输入卡归宿主：没有改 `[data-composer-card]` 的底色，seat 的遮罩与其它属性也没动；seat 上只多一层底光背景（叠在遮罩之上、并照抄遮罩），正文在卡上方就被裁住。
-- [ ] 底光跨过 seat 顶边是连续的：离线舞台里与「没有遮罩」的基准比，整列像素差 ≤3/255，没有台阶。
+- [ ] 输入卡归宿主：没有改 `[data-composer-card]` 的底色，seat 的遮罩、`background-image` 与其它属性也没动；seat 上只多一层 `::before` 底光（负 z、实测高度、顶边 mask），正文在卡上方就被裁住。
+- [ ] 宿主那颗 `○ 5%`（`[data-composer-dock]` 里 `aria-haspopup='dialog'` 的按钮）在美术层打开时不显示，关掉「光学外观」后自己回来；没有为它新增开关。
+- [ ] 底光跨过 seat 顶边是连续的：确认没有再让 seat 自己重画 `background-image`，`--ct-glow-height` 是实测值而不是写死的像素。
 - [ ] 对话区背景只有一条静态 `linear-gradient`，样式表里没有 canvas、没有背景关键帧。
-- [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、授权范围行、规则页两张卡、外观页、试管、伙伴与自绘下拉；`test/workspace-rules.test.js` 覆盖受管块的读写；`test/vendor.test.js` 覆盖移植模块与 GPL 文件）。
+- [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、授权范围行、规则页两张卡、外观页、试管、模型行与自绘下拉；`test/workspace-rules.test.js` 覆盖受管块的读写；`test/vendor.test.js` 覆盖移植模块与 GPL 文件）。
 - [ ] 视觉效果无法在真实窗口确认时，交付说明写「渲染未验证」。

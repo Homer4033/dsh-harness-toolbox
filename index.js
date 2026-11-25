@@ -12,6 +12,7 @@ import { networkReport, detectProxy } from './src/publish.js'
 import { ffmpegDownloadRunning, ffmpegStatus, prependFfmpegPath, startFfmpegDownload } from './src/ffmpeg.js'
 import { COMPONENT_IDS, componentBinDirs, componentDownloadRunning, componentStatus, prependComponentPath, startComponentDownload } from './src/components.js'
 import { COMPONENT_ORDER, componentRows } from './src/component-rows.js'
+import { MODEL_IDS, modelDownloadRunning, modelsStatus, startModelDownload } from './src/models.js'
 import { migrateTools, parseToolsPath, resolveToolsPath, toolsStatus } from './src/tools-path.js'
 import { pushFlow, pushReportText, resolvePushCwd, sessionTarget } from './src/push-flow.js'
 import { dirname, join } from 'node:path'
@@ -43,7 +44,7 @@ const PLUGIN_ROOT = dirname(fileURLToPath(import.meta.url))
  * client loads them same-origin and reads their `window.__ag*` globals. Only
  * these three names are served; nothing else below `vendor/` is reachable.
  */
-const VENDOR_SCRIPTS = new Set(['vial-core.js', 'dual-mascot-rig.js'])
+const VENDOR_SCRIPTS = new Set(['vial-core.js'])
 const vendorCache = new Map()
 
 function vendorScript(name) {
@@ -66,7 +67,7 @@ function toolsRoot() {
 
 /** Whether any managed install is in flight (migration refuses to move one). */
 function toolsRunning(root = toolsRoot()) {
-  const running = { gh: ghDownloadRunning(root), ffmpeg: ffmpegDownloadRunning(root) }
+  const running = { gh: ghDownloadRunning(root), ffmpeg: ffmpegDownloadRunning(root), models: modelDownloadRunning(root) }
   for (const id of COMPONENT_IDS) running[id] = componentDownloadRunning(root, id)
   return running
 }
@@ -550,10 +551,6 @@ export function apply(ctx) {
                 sendJson(res, 400, { error: `unknown motion tier: ${String(patch.motion)}; pass one of ${APPEARANCE_MOTIONS.join(', ')}` })
                 return
               }
-              if (patch.mascots !== undefined && typeof patch.mascots !== 'boolean') {
-                sendJson(res, 400, { error: 'mascots must be a boolean' })
-                return
-              }
               if (patch.art !== undefined && typeof patch.art !== 'boolean') {
                 sendJson(res, 400, { error: 'art must be a boolean' })
                 return
@@ -913,6 +910,48 @@ export function apply(ctx) {
         sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
       }
     }, 'components route')
+
+    // Local models: one pinned pipeline (FLUX.2 [klein] 4B, 4-step distilled)
+    // below `<root>/models`, fetched with the same Range-resume downloader the
+    // components use. The job runs in the background — 16GB must not hold the
+    // request open — and the panel polls this route for progress.
+    register('/compression-tiers/api/models', async (req, res) => {
+      if (guard(child, req, res)) return
+      try {
+        const root = toolsRoot()
+        if (req.method === 'GET') {
+          sendJson(res, 200, { ok: true, ...modelsStatus(root) })
+          return
+        }
+        if (req.method === 'POST') {
+          const body = await readBody(req)
+          const action = typeof body.action === 'string' ? body.action : ''
+          const id = typeof body.id === 'string' ? body.id : ''
+          if (action !== 'download' && action !== 'probe') {
+            sendJson(res, 400, { error: 'unknown action: download or probe' })
+            return
+          }
+          if (!MODEL_IDS.includes(id)) {
+            sendJson(res, 400, { error: `unknown model: ${id}` })
+            return
+          }
+          if (action === 'probe') {
+            sendJson(res, 200, { ok: true, ...modelsStatus(root) })
+            return
+          }
+          if (modelDownloadRunning(root)) {
+            sendJson(res, 409, { error: 'a model is already downloading' })
+            return
+          }
+          startModelDownload(root, id).catch(() => {})
+          sendJson(res, 202, { ok: true, ...modelsStatus(root) })
+          return
+        }
+        sendJson(res, 405, { error: 'GET or POST' })
+      } catch (error) {
+        sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
+      }
+    }, 'models route')
 
   })
 

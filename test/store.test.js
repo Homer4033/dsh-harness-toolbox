@@ -178,8 +178,8 @@ test('session repository bindings keep the last 200 entries', () => {
   assert.deepEqual(normalizeSessionRepos(['owner/repo']), {})
 })
 
-test('appearance defaults to the host theme, full motion and companions on', () => {
-  assert.deepEqual(defaultAppearance(), { palette: 'host', motion: 'full', mascots: true, art: true })
+test('appearance defaults to the host theme, full motion and the art layer on', () => {
+  assert.deepEqual(defaultAppearance(), { palette: 'host', motion: 'full', art: true })
   assert.deepEqual(normalizeAppearance(undefined), defaultAppearance())
   assert.deepEqual(normalizeAppearance(null), defaultAppearance())
   assert.deepEqual(normalizeAppearance('warm'), defaultAppearance())
@@ -195,10 +195,9 @@ test('the retired warm palettes migrate instead of vanishing on upgrade', () => 
   assert.equal(normalizeAppearance({ palette: 'warm' }).palette, 'obsidian')
   assert.equal(normalizeAppearance({ palette: 'alabaster' }).palette, 'crystal')
   // The migration keeps the rest of the appearance untouched.
-  assert.deepEqual(normalizeAppearance({ palette: 'warm', motion: 'off', mascots: false }), {
+  assert.deepEqual(normalizeAppearance({ palette: 'warm', motion: 'off' }), {
     palette: 'obsidian',
     motion: 'off',
-    mascots: false,
     art: true,
   })
   // A value nobody shipped still falls back to the default.
@@ -206,15 +205,18 @@ test('the retired warm palettes migrate instead of vanishing on upgrade', () => 
 })
 
 test('appearance drops unknown palettes and keeps explicit booleans', () => {
-  assert.deepEqual(normalizeAppearance({ palette: 'obsidian', motion: 'subtle', mascots: false, art: false }), {
+  assert.deepEqual(normalizeAppearance({ palette: 'obsidian', motion: 'subtle', art: false }), {
     palette: 'obsidian',
     motion: 'subtle',
-    mascots: false,
     art: false,
   })
-  assert.deepEqual(normalizeAppearance({ palette: 'neon', motion: 'warp', mascots: 'yes' }), defaultAppearance())
-  assert.equal(normalizeAppearance({ mascots: 0 }).mascots, true, 'only false disables the companions')
+  assert.deepEqual(normalizeAppearance({ palette: 'neon', motion: 'warp' }), defaultAppearance())
   assert.equal(normalizeAppearance({ art: 0 }).art, true, 'only false disables the art layer')
+  // 2.5.0 removed the pixel companions: a 2.0–2.4 file still carrying the flag
+  // is read without it instead of failing or resurrecting the field.
+  const old = normalizeAppearance({ palette: 'crystal', mascots: false })
+  assert.equal('mascots' in old, false, 'the companions flag is dropped')
+  assert.equal(old.palette, 'crystal')
 })
 
 test('appearance is persisted, merged and tolerated when an old file lacks it', () => {
@@ -224,13 +226,13 @@ test('appearance is persisted, merged and tolerated when an old file lacks it', 
     writeJson(paths.settings, { level: 'max', modelRoutes: [] })
     assert.deepEqual(readSettings(home).settings.appearance, defaultAppearance())
     const saved = writeSettings(home, {
-      settings: { appearance: { palette: 'crystal', motion: 'off', mascots: false } },
+      settings: { appearance: { palette: 'crystal', motion: 'off' } },
     })
-    assert.deepEqual(saved.settings.appearance, { palette: 'crystal', motion: 'off', mascots: false, art: true })
+    assert.deepEqual(saved.settings.appearance, { palette: 'crystal', motion: 'off', art: true })
     assert.equal(saved.settings.level, 'max')
     // A later partial write keeps the other appearance fields.
     const merged = writeSettings(home, { settings: { appearance: { ...saved.settings.appearance, motion: 'full' } } })
-    assert.deepEqual(merged.settings.appearance, { palette: 'crystal', motion: 'full', mascots: false, art: true })
+    assert.deepEqual(merged.settings.appearance, { palette: 'crystal', motion: 'full', art: true })
     assert.equal(readSettings(home).settings.appearance.palette, 'crystal')
   } finally {
     rmSync(home, { recursive: true, force: true })

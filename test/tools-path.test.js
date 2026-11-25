@@ -69,12 +69,15 @@ test('toolsStatus names every component directory and the running jobs', () => {
       assert.equal(item.path, join(defaultToolsPath(home), item.id))
       assert.equal(item.exists, false)
     }
-    assert.deepEqual(empty.running, { gh: false, git: false, ffmpeg: false, python: false })
+    assert.deepEqual(empty.running, { gh: false, git: false, ffmpeg: false, python: false, models: false })
+    // Models share the root but get their own folder and never a PATH entry.
+    assert.equal(empty.models.path, join(defaultToolsPath(home), 'models'))
+    assert.equal(empty.models.exists, false)
 
     plantedRoot(defaultToolsPath(home))
     const planted = toolsStatus(home, {}, { running: { ffmpeg: true } })
     for (const item of planted.components) assert.equal(item.exists, true, `${item.id} exists`)
-    assert.deepEqual(planted.running, { gh: false, git: false, ffmpeg: true, python: false })
+    assert.deepEqual(planted.running, { gh: false, git: false, ffmpeg: true, python: false, models: false })
   } finally {
     rmSync(home, { recursive: true, force: true })
   }

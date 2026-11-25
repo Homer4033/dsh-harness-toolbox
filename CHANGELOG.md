@@ -1,6 +1,16 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
+
+## 2.5.0 — 2026-11-25
+
+- **删掉像素伙伴，输入框上方那一行只剩控件**（用户：「像素伙伴相关功能删除。」）：`MascotStage`、`vendor/obsidian-prism/dual-mascot-rig.js`、`.ct-dock-mascots` / `.ct-mascot-stage` 样式、`appearance.mascots` 字段、外观页的「像素伙伴」开关与 `mascotsLabel` / `mascotsOn` / `mascotsOff` 文案、`@container (max-width: 620px)` 收伙伴规则全部删除；`.ct-repo-dock` 不再需要 `container-type`，改为 `justify-content: flex-end`，`.ct-dock-tools` 仍然右对齐。旧 `settings.json` 里残留的 `mascots` 字段被读侧忽略（不报错、不复活）。`VENDOR_SCRIPTS` 只剩 `vial-core.js`，`NOTICE` 的衍生文件清单同步；`test/vendor.test.js` 断言两个文件都不再随包发布。
+- **宿主底栏的上下文环（○ 5%）在美术层打开时隐藏**（用户指的就是 DSH 自己那个 `ContextMeter`）：`body[data-ct-art='on'] [data-composer-dock] button[aria-haspopup='dialog'] { display: none !important }`，读数与三段构成改由试管浮窗承担（和 2.4.6 隐藏 `[data-composer-stat]` 同一套思路）；关掉「光学外观」宿主的控件回来。不加开关（用户：「不需要开启按钮。」）。
+- **底光接缝修平**（用户问「这个渐变是不是有断层？」）：2.4.9 在底座上重画渐变时用的是**底座自身高度**的百分比停靠点（底边 accent 16% → 距顶 36px 处 chart-tools 11% → 顶边透明），和上方那条 accent 渐变在接缝处颜色、坡度都对不上，输入框上方那行的顶边会看到一条淡色带。现在不再替换底座的 `background-image`（宿主的遮罩原样保留），改成在 `[data-conversation-region='composer']::before` 上重画**同一条渐变**：`background-size: 100% var(--ct-glow-height, 100%)` 按对话区高度取尺度，再用 `mask-image: linear-gradient(180deg, transparent 0px, #000 36px)` 按宿主遮罩同样的 36px 淡入，两层相消；`--ct-glow-height` 由客户端量对话区 `clientHeight` 写入（`ResizeObserver` + `resize` + 每次会话挂载重测）。截图逐行实测：接缝处单行变化 ≤1/255。
+- **「组件」页改名「模型和组件」，新增本地模型下载**（用户：「『组件』改成『模型和组件』，添加本地模型下载 FLUX.2 [klein] 4B 蒸馏 4 步，本地模型单独放一个文件夹。」）：导航与标题改为「模型和组件 / Models & components」。新增 `src/models.js`：钉住 `black-forest-labs/FLUX.2-klein-4B`（蒸馏 4 步、guidance 1.0、Apache-2.0、免登录免同意），只取 diffusers 最小集 18 个文件（transformer 7.75GB + Qwen3-4B 文本编码器两片 8.04GB + VAE 168MB + scheduler / tokenizer），**不**取仓库里重复的单文件 transformer 与预览图；每个文件的大小按 Hugging Face tree API 的 LFS 字节数钉死，下载走 2.4.10 的 Range 续传与短读重试，只有完整文件才 `rename` 到目标路径。模型放在下载根下**单独的 `models/` 目录**（`<root>/models/<id>`），四套组件仍在 `<root>/<id>`；`migrateTools` 现在把 `models` 一起搬并按同一个预检/回滚规则处理，任一下载（含模型）进行中返回 409。新路由 `GET/POST /compression-tiers/api/models`（GET 状态、POST `download` / `probe`，16GB 的任务在后台跑、面板轮询），面板在同一页多一段「本地模型」行：名称 + 状态 + 总量（15.98 GB）+ 进度条 + 当前文件 + 目录 + 下载 / 重新检测两个常显按钮。
+- 测试 238 → **245** 条：新增 `test/models.test.js`（钉住的仓库/许可/文件集/总字节/URL、missing / partial / installed 三态与不虚报字节、`.part` 续传与改名、单飞 409、未知 id 404）；`test/tools-path.test.js` 覆盖 `models` 目录与 `running.models`；`test/client.test.js` 覆盖模型行的四种状态与按钮常显、改名后的文案、旧 `mascots` 字段仍能渲染 dock。
+- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.5.0`；AGENTS.md（范围、事实来源、第 14 / 23 条、验证要求与变更记录）、README、[docs/UI.md](docs/UI.md)、`locale/*.json`、`NOTICE`、`package.json` 的 `files` / keywords 同步。
+- **渲染未验证**：模型行、宿主上下文环的隐藏、底光接缝与试管在真宿主里的观感要装上看；`docs/screenshots/` 仍是 2.4.x 的产物（含已删除的像素伙伴），下次截图时再重出。
 
 ## 2.4.10 — 2026-11-25
 

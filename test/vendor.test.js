@@ -37,43 +37,33 @@ function loadUmd(name, extra = {}) {
   return sandbox.module.exports
 }
 
-test('the vendored optical modules carry provenance headers and still expose their API', () => {
-  for (const name of ['vial-core.js', 'dual-mascot-rig.js']) {
-    const path = join(vendorDir, name)
-    assert.ok(existsSync(path), `${name} is shipped`)
-    const source = readFileSync(path, 'utf8')
-    assert.match(source, /Vendored from Obsidian Prism 1\.0\.8-beta\.1/)
-    assert.match(source, /GPL-3\.0-only/)
-    assert.match(source, /2026-11-25/)
-  }
+test('the vendored optical module carries a provenance header and still exposes its API', () => {
+  const path = join(vendorDir, 'vial-core.js')
+  assert.ok(existsSync(path), 'vial-core.js is shipped')
+  const source = readFileSync(path, 'utf8')
+  assert.match(source, /Vendored from Obsidian Prism 1\.0\.8-beta\.1/)
+  assert.match(source, /GPL-3\.0-only/)
+  assert.match(source, /2026-11-25/)
   const vial = loadUmd('vial-core.js')
   assert.equal(typeof vial.createWaterVialPhysics, 'function')
   assert.equal(typeof vial.mountPhysicalWaterVial, 'function')
   assert.equal(vial.WAVE_NODES, 24)
   assert.equal(typeof vial.createWaterVialPhysics({ fill: 0.4 }).step, 'function')
-
-  const rig = loadUmd('dual-mascot-rig.js')
-  assert.equal(typeof rig.mountDualMascotStage, 'function')
-  // Cross-realm objects: compare the serialized value, not the prototype.
-  assert.equal(JSON.stringify(rig.parseMascotSpec('minis')), JSON.stringify({ c: 1, k: 1, d: 0, w: 0, minis: true }))
-  assert.equal(rig.encodeMascotSpec({ c: 1, k: 1, minis: true }), 'minis')
-  assert.equal(rig.isValidMascotValue('off'), true)
-  assert.equal(rig.isValidMascotValue('not-a-spec'), false)
-  assert.equal(typeof rig.mascotArt.drawMainActor, 'function')
-  assert.equal(existsSync(join(vendorDir, 'motion-engine.js')), false, 'the unused motion module is not shipped')
 })
 
-test('the horizon renderer is gone: the art backdrop is pure CSS now', () => {
+test('the animated renderer and the pixel companions are gone', () => {
   assert.equal(existsSync(join(vendorDir, 'horizon-glow.js')), false, 'the animated renderer is not shipped')
+  assert.equal(existsSync(join(vendorDir, 'dual-mascot-rig.js')), false, '2.5.0 removed the companions rig')
+  assert.equal(existsSync(join(vendorDir, 'motion-engine.js')), false, 'the unused motion module is not shipped')
   const client = readFileSync(join(root, 'client.js'), 'utf8')
   assert.doesNotMatch(client, /__agHorizonGlow/)
   assert.doesNotMatch(client, /horizon-glow\.js/)
-  // The two optical modules that remain still carry their provenance headers.
-  for (const name of ['vial-core.js', 'dual-mascot-rig.js']) {
-    const source = readFileSync(join(vendorDir, name), 'utf8')
-    assert.match(source, /https:\/\/github\.com\/RMvdesi\/obsidian-prism/)
-    assert.match(source, /GPL-3\.0-only/)
-  }
+  assert.doesNotMatch(client, /__agDualMascotRig/)
+  assert.doesNotMatch(client, /dual-mascot-rig\.js/)
+  assert.doesNotMatch(client, /MascotStage/)
+  assert.doesNotMatch(client, /ct-dock-mascots/)
+  // The one module that remains still carries its provenance header.
+  assert.match(readFileSync(join(vendorDir, 'vial-core.js'), 'utf8'), /https:\/\/github\.com\/RMvdesi\/obsidian-prism/)
 })
 
 
@@ -92,12 +82,10 @@ test('license, notice and third-party notices are the GPL set upstream requires'
   assert.match(third, /wp3171216237\/dsh-TUI/)
 })
 
-test('the vendor route serves exactly the two shipped scripts', () => {
+test('the vendor route serves exactly the one shipped script', () => {
   const source = readFileSync(join(root, 'index.js'), 'utf8')
-  assert.match(source, /new Set\(\['vial-core\.js', 'dual-mascot-rig\.js'\]\)/)
-  for (const name of ['vial-core.js', 'dual-mascot-rig.js']) {
-    assert.ok(source.includes(`/compression-tiers/vendor/`), 'vendor routes are registered')
-  }
+  assert.match(source, /new Set\(\['vial-core\.js'\]\)/)
+  assert.ok(source.includes('/compression-tiers/vendor/'), 'vendor routes are registered')
   assert.match(source, /text\/javascript; charset=utf-8/)
   assert.match(source, /vendorScript\(name\)/)
 })

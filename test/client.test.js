@@ -149,7 +149,7 @@ const settingsState = {
   })),
   engines: 2,
   lastCompact: null,
-  appearance: { palette: 'host', motion: 'full', mascots: true },
+  appearance: { palette: 'host', motion: 'full', art: true },
   paths: { settings: 'C:/dsh/compression-tiers/settings.json' },
 }
 
@@ -174,6 +174,7 @@ const HOOK_ORDER = [
   'state', 'message', 'busy',
   'rules', 'rulesText', 'rulesMessage', 'rulesBusy',
   'components', 'componentsMessage', 'componentsBusy',
+  'models', 'modelsMessage', 'modelsBusy',
   'pathDraft', 'pathBusy',
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
@@ -192,6 +193,9 @@ const BASE_PAGE = {
   components: null,
   componentsMessage: '',
   componentsBusy: false,
+  models: null,
+  modelsMessage: '',
+  modelsBusy: false,
   pathDraft: null,
   pathBusy: false,
   login: null,
@@ -365,8 +369,11 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.match(styles[0].textContent, /\.ct-repo-pill \{/)
   const dockCss = String(styles[0].textContent).match(/\.ct-repo-dock \{[^}]*\}/)
   assert.ok(dockCss, 'the dock row keeps its own rule')
-  assert.match(dockCss[0], /justify-content: space-between/)
-  assert.match(dockCss[0], /container-type: inline-size/)
+  // 2.5.0 removed the companions: the row only holds the tools and is aligned
+  // to the card's right edge, with no container query left behind.
+  assert.match(dockCss[0], /justify-content: flex-end/)
+  assert.doesNotMatch(dockCss[0], /container-type: inline-size/)
+  assert.doesNotMatch(String(styles[0].textContent), /ct-dock-mascots/)
   assert.match(dockCss[0], /--dsh-composer-side-clearance/)
   // The dock row is capped to the composer card and centered: a full-width row
   // parked the pill at the window edge, far right of the input card.
@@ -460,7 +467,7 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'navAria', 'navLevels', 'navRules', 'navComponents', 'navAppearance', 'navGithub',
       'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian',
       'paletteCrystal', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff',
-      'mascotsLabel', 'mascotsOn', 'mascotsOff', 'appearanceApplied', 'appearanceFailed',
+      'appearanceApplied', 'appearanceFailed',
       'artLabel', 'artOn', 'artOff',
       'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
       'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
@@ -563,9 +570,11 @@ test('the component panel renders one row per managed component', () => {
   const names = nodes
     .filter((node) => String(node.props.className || '') === 'ct-component-name')
     .map((node) => textOf(node))
-  assert.deepEqual(names, ['GitHub CLI', 'git', 'ffmpeg / ffprobe', 'Python'])
+  // The page is 模型和组件 now: the four PATH components, then the local model.
+  assert.deepEqual(names, ['GitHub CLI', 'git', 'ffmpeg / ffprobe', 'Python', 'FLUX.2 [klein] 4B'])
   const blocks = nodes.filter((node) => String(node.props.className || '') === 'ct-component')
   assert.equal(blocks.length, 4)
+  assert.equal(nodes.filter((node) => Boolean(node.props['data-model'])).length, 1, 'one local model row')
   assert.match(deepText(blocks[0]), /downloadDone · v2\.76\.2/)
   assert.match(deepText(blocks[0]), /gh\\?\.exe|gh\.exe/)
   // The ffmpeg row still lists both binaries and where they came from.
@@ -1167,7 +1176,60 @@ test('each page renders only its own cards', () => {
   assert.equal(renderSection('rules').filter((node) => node.type === 'input').length, 0)
 })
 
-test('the appearance page paints the two palettes, motion tiers and companions', () => {
+test('the local model row keeps its buttons and reports bytes, progress and state', () => {
+  const model = {
+    id: 'flux2-klein-4b',
+    name: 'FLUX.2 [klein] 4B',
+    detail: '4-step distilled · guidance 1.0 · Apache-2.0',
+    state: 'missing',
+    installed: false,
+    running: false,
+    dir: 'C:/dsh/compression-tiers/models/flux2-klein-4b',
+    bytes: 0,
+    total: 15980131745,
+    percent: 0,
+    files: 0,
+    fileCount: 18,
+    error: null,
+  }
+  const payload = { ok: true, path: 'C:/dsh/compression-tiers/models', models: [model], running: false }
+  const nodes = renderSection('components', { models: payload })
+  const row = nodes.find((node) => node.props['data-model'] === 'flux2-klein-4b')
+  assert.ok(row, 'the model row renders under the component rows')
+  const text = deepText(row)
+  assert.match(text, /FLUX\.2 \[klein\] 4B/)
+  assert.match(text, /15\.98 GB/)
+  assert.match(text, /4-step distilled/)
+  // Missing is downloadable; the probe button is always there.
+  assert.equal(buttonOf(nodes, 'model:flux2-klein-4b').props.disabled, false)
+  assert.ok(buttonOf(nodes, 'modelProbe:flux2-klein-4b'))
+  // Installed rows keep the disabled download button instead of dropping it.
+  const installed = renderSection('components', {
+    models: { ...payload, models: [{ ...model, state: 'installed', installed: true, percent: 100 }] },
+  })
+  assert.equal(buttonOf(installed, 'model:flux2-klein-4b').props.disabled, true)
+  // No payload yet: the row still renders, disabled, with the loading state.
+  const loading = buttonOf(renderSection('components', {}), 'model:flux2-klein-4b')
+  assert.ok(loading, 'the row waits for its status instead of vanishing')
+  assert.equal(loading.props.disabled, true)
+  // A running download shows the bar and the file being fetched.
+  const running = renderSection('components', {
+    models: { ...payload, running: true, models: [{ ...model, running: true, state: 'partial', percent: 42, file: 'transformer/diffusion_pytorch_model.safetensors' }] },
+  })
+  const runningRow = running.find((node) => node.props['data-model'] === 'flux2-klein-4b')
+  assert.equal(String(runningRow.props.className), 'ct-component ct-model')
+  assert.match(deepText(runningRow), /modelsFetching/)
+  assert.ok(running.some((node) => String(node.props.className) === 'ct-progress'))
+})
+
+test('the components page is titled 模型和组件 in both languages', () => {
+  assert.match(source, /navComponents: '模型和组件'/)
+  assert.match(source, /componentsTitle: '模型和组件'/)
+  assert.match(source, /navComponents: 'Models & components'/)
+  assert.match(source, /componentsTitle: 'Models & components'/)
+})
+
+test('the appearance page paints the two palettes, the motion tiers and the art switch', () => {
   const nodes = renderSection('appearance')
   const page = nodes.find((node) => hasClass(node, 'ct-page'))
   assert.ok(page, 'the page carries the skin root')
@@ -1180,15 +1242,13 @@ test('the appearance page paints the two palettes, motion tiers and companions',
   const motions = nodes.filter((node) => node.props.role === 'radio' && hasClass(node, 'ct-segment'))
   assert.deepEqual(motions.map((node) => node.props['data-motion-choice']), ['full', 'subtle', 'off'])
   assert.equal(motions[0].props['aria-checked'], 'true')
-  const mascots = buttonOf(nodes, 'appearanceMascots')
-  assert.ok(mascots, 'the companions switch always renders')
-  assert.equal(mascots.props['aria-pressed'], 'true')
-  assert.equal(mascots.props.disabled, false)
-  // The art layer (wash, bubbles, hairlines) has its own switch next to them.
+  // 2.5.0 removed the pixel companions: the page has no switch for them any more.
+  assert.equal(buttonOf(nodes, 'appearanceMascots'), null, 'the companions switch is gone')
+  // The art layer (wash, bubbles, hairlines) has its own switch.
   const art = buttonOf(nodes, 'appearanceArt')
   assert.ok(art, 'the art switch always renders')
   assert.equal(art.props['aria-pressed'], 'true')
-  // The art layer is its own switch now: the host palette still gets it (drawn
+  // The art layer is its own switch: the host palette still gets it (drawn
   // with the host's own tokens), so the button is live instead of greyed out.
   assert.equal(art.props.disabled, false)
   assert.equal(art.props.title, undefined)
@@ -1263,27 +1323,59 @@ test('the art backdrop is one static linear gradient instead of a repainted canv
     assert.equal(/background-color/.test(rule), false, 'the card keeps the host fill')
     assert.equal(/!important/.test(rule), false, 'the composer needs no override')
   }
-  // But the seat's own mask band cuts the gradient at the top of the composer,
-  // so the glow is painted again on the seat, above that band, with its last
-  // 36px fading out exactly where the band fades in. The band is copied into
-  // the second layer because the whole background-image is replaced; nothing
-  // else about the seat is touched, and only the active phase (the only phase
-  // with a band) gets the layer.
+  // The seat's own sticky background is the host mask band that clips the
+  // gradient at the top of the composer. The same gradient is repeated above it
+  // on a ::before layer, sized to the chat region and faded in over exactly the
+  // mask's 36px; 2.4.9 replaced the seat's whole background-image with stops
+  // based on the seat's own height, which bent the glow at that boundary.
   const seatRule = css.match(
-    /body\[data-ct-art='on'\] \[data-conversation-region='chat'\]\[data-content-phase='active'\] \[data-conversation-region='composer'\] \{[^}]*\}/,
+    /body\[data-ct-art='on'\] \[data-conversation-region='chat'\]\[data-content-phase='active'\] \[data-conversation-region='composer'\]::before \{[^}]*\}/,
   )
-  assert.ok(seatRule, 'the seat repaints the glow the mask band would clip')
-  assert.match(seatRule[0], /linear-gradient\(to top,\n      color-mix\(in srgb, var\(--dsw-alias-state-business-primary\) 16%, transparent\) 0px,\n      color-mix\(in srgb, var\(--dsw-alias-chart-tools\) [0-9]+%, transparent\) calc\(100% - 36px\),\n      transparent 100%\)/)
-  assert.match(seatRule[0], /linear-gradient\(180deg,\n      color-mix\(in srgb, var\(--dsw-alias-bg-base\) 0%, transparent\) 0px,\n      var\(--dsw-alias-bg-base\) 36px\)/)
-  assert.equal(/background-color/.test(seatRule[0]), false, 'only the image layers change')
+  assert.ok(seatRule, 'the seat repeats the glow above its mask band')
+  assert.match(seatRule[0], /position: absolute/)
+  assert.match(seatRule[0], /z-index: -1/)
+  // Same stops as the region's own gradient, but the background image is sized
+  // to the region so the percentages land on the same pixel line.
+  assert.match(seatRule[0], /color-mix\(in srgb, var\(--dsw-alias-state-business-primary\) 16%, transparent\) 0%/)
+  assert.match(seatRule[0], /color-mix\(in srgb, var\(--dsw-alias-chart-tools\) 9%, transparent\) 26%/)
+  assert.match(seatRule[0], /transparent 54%\)/)
+  assert.match(seatRule[0], /background-size: 100% var\(--ct-glow-height, 100%\)/)
+  assert.match(seatRule[0], /mask-image: linear-gradient\(180deg, transparent 0px, #000 36px\)/)
+  assert.equal(/background-color/.test(seatRule[0]), false, 'only image, position and mask change')
   assert.equal(/!important/.test(seatRule[0]), false, 'higher specificity is enough')
-  // No other art rule paints the seat: the phase guard is the only gate.
-  const seatRules = css.match(/[^}]*\[data-conversation-region='composer'\][^{]*\{[^}]*\}/g) || []
-  assert.equal(seatRules.length, 1, 'one rule, scoped to the active chat region')
+  // The host's mask is never replaced: no plain composer rule touches its
+  // background any more (that copy is what left the seam).
+  assert.equal(/\[data-conversation-region='composer'\] \{[^}]*background-image/.test(css), false)
+  // The host's own context meter is hidden while the art layer is on, because
+  // the vial carries the same reading; 光学外观 off brings it back.
+  assert.match(
+    css,
+    /body\[data-ct-art='on'\] \[data-composer-dock\] button\[aria-haspopup='dialog'\] \{\n  display: none !important;\n\}/,
+  )
   // The horizon renderer is gone: no canvas host, no fallback blobs, no keyframes,
   // and no controller left exposed for anyone to restart.
   assert.equal(/ct-aura/.test(css), false, 'the aura layer is gone')
   assert.equal(plugin.__test.aura, undefined, 'no aura controller is exposed')
+})
+
+test('the seat copy of the glow is measured against the chat region', () => {
+  const { module, sandbox } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  const vars = {}
+  const seat = { style: { setProperty: (k, v) => { vars[k] = String(v) }, removeProperty: (k) => { delete vars[k] } } }
+  const chat = { clientHeight: 1234, querySelector: () => seat }
+  sandbox.document.querySelector = (selector) => (selector === "[data-conversation-region='chat']" ? chat : null)
+  plugin.__test.glow.watch()
+  assert.equal(vars['--ct-glow-height'], '1234px')
+  // A resize re-measures; an unavailable height drops the variable so the
+  // stylesheet falls back to the seat's own box.
+  chat.clientHeight = 900
+  plugin.__test.glow.measure()
+  assert.equal(vars['--ct-glow-height'], '900px')
+  chat.clientHeight = 0
+  plugin.__test.glow.measure()
+  assert.equal(vars['--ct-glow-height'], undefined)
 })
 
 test('the composer stats line moves into the vial', () => {
@@ -1340,7 +1432,7 @@ function renderVial(options) {
     settings,
   ]
   const vialStates = config.vialStates || [true, false]
-  const react = fakeReact(dockStates.concat(vialStates), config.refs || [null, null, null, true, null, null, null, null, null, null, null, { up: true, left: 100, width: 392, bottom: 400, maxHeight: 360 }, null, null])
+  const react = fakeReact(dockStates.concat(vialStates), config.refs || [null, null, null, true, null, null, null, null, null, null, { up: true, left: 100, width: 392, bottom: 400, maxHeight: 360 }, null, null])
   const { module } = loadClient()
   const registrations = []
   module.factory((specifier) => (specifier === 'react-dom' ? { createPortal: (node) => node } : react)).apply(sectionContext(registrations))
@@ -1351,7 +1443,7 @@ function renderVial(options) {
     useProjection: useProjection,
   }))
   const vial = dockNodes.find((node) => typeof node.type === 'function'
-    && node.props && 'meter' in node.props && typeof node.props.onPoke === 'function')
+    && node.props && 'meter' in node.props && 'breakdown' in node.props)
   assert.ok(vial, 'the dock mounts the context vial')
   return {
     nodes: collect(vial.type(vial.props)),
@@ -1360,32 +1452,32 @@ function renderVial(options) {
   }
 }
 
-test('the dock renders the vial and the pixel companions in one row', () => {
+test('the dock renders the vial and the repository pill in one right-aligned row', () => {
   const { dockNodes, element } = renderVial({ vialStates: [false, false] })
   const dock = dockNodes.find((node) => hasClass(node, 'ct-repo-dock'))
   assert.ok(dock, 'the dock row renders')
   assert.match(String(dock.props.className), /ct-skin/)
   assert.equal(dock.props['data-palette'], 'host')
   assert.equal(dock.props['data-motion'], 'full')
-  const mascots = dockNodes.find((node) => hasClass(node, 'ct-dock-mascots'))
-  assert.ok(mascots, 'the companions sit on the left of the dock')
-  const stage = collect(mascots).find((node) => typeof node.type === 'function'
-    && node.props && 'stageRef' in node.props)
-  assert.ok(stage, 'the stage component is mounted inside the dock')
-  assert.equal(stage.type.name, 'MascotStage')
-  assert.equal(stage.props.motion, 'full')
+  // 2.5.0 removed the companions: nothing is mounted to their left any more.
+  assert.equal(dockNodes.some((node) => hasClass(node, 'ct-dock-mascots')), false)
+  assert.equal(dockNodes.some((node) => hasClass(node, 'ct-mascot-stage')), false)
+  const tools = dockNodes.find((node) => hasClass(node, 'ct-dock-tools'))
+  assert.ok(tools, 'the tools row stays')
   // The vial is a real dialog trigger, not decoration.
   assert.ok(element, 'the dock passes a meter to the vial')
+  assert.ok(dockNodes.some((node) => hasClass(node, 'ct-repo-pill')), 'the repository pill is still there')
 })
 
-test('turning the companions off removes only the stage', () => {
-  const quiet = { ...settingsState, appearance: { palette: 'crystal', motion: 'subtle', mascots: false } }
-  const { dockNodes } = renderVial({ settings: quiet, vialStates: [false, false] })
+test('a pre-2.5 settings payload still carrying the companions flag renders the dock', () => {
+  // The field is gone from the schema, but an old settings.json may name it; it
+  // must be ignored, not fail the read or resurrect the stage.
+  const legacy = { ...settingsState, appearance: { palette: 'crystal', motion: 'subtle', mascots: false } }
+  const { dockNodes } = renderVial({ settings: legacy, vialStates: [false, false] })
   assert.equal(dockNodes.some((node) => hasClass(node, 'ct-dock-mascots')), false)
   const dock = dockNodes.find((node) => hasClass(node, 'ct-repo-dock'))
   assert.equal(dock.props['data-palette'], 'crystal')
   assert.equal(dock.props['data-motion'], 'subtle')
-  // The repository pill is still there: the companions are additive.
   assert.ok(dockNodes.some((node) => hasClass(node, 'ct-repo-pill')))
 })
 
@@ -1456,7 +1548,7 @@ test('the settings snapshot is pushed to subscribers so the dock follows the pan
   const settings = plugin.__test.settings
   const seen = []
   const off = settings.subscribe(function (body) { seen.push(body) })
-  settings.remember({ appearance: { palette: 'crystal', motion: 'off', mascots: false, art: false } })
+  settings.remember({ appearance: { palette: 'crystal', motion: 'off', art: false } })
   assert.equal(seen.length, 1)
   assert.equal(seen[0].appearance.motion, 'off')
   off()
@@ -1477,7 +1569,7 @@ test('the appearance bootstrap retries a failed snapshot instead of painting def
       if (settingsCalls === 1) return Promise.reject(new Error('the route is not up yet'))
       return Promise.resolve({
         ok: true,
-        json: async () => ({ appearance: { palette: 'obsidian', motion: 'subtle', mascots: false, art: false } }),
+        json: async () => ({ appearance: { palette: 'obsidian', motion: 'subtle', art: false } }),
       })
     },
     setTimeout: (fn) => { scheduled.push(fn); return 0 },
@@ -2083,7 +2175,7 @@ test('the bridge waits out a directory the host refuses to hand out yet', async 
 })
 
 test('the dock mounts the effort bridge but renders nothing itself', () => {
-  const nodes = renderDock([{ level: 'standard', appearance: { palette: 'host', motion: 'full', mascots: true } }], { t: (key) => key, sessionId: 'session-1' })
+  const nodes = renderDock([{ level: 'standard', appearance: { palette: 'host', motion: 'full', art: true } }], { t: (key) => key, sessionId: 'session-1' })
   const bridge = nodes.find((node) => typeof node.type === 'function' && node.props && node.props.sessionId === 'session-1')
   assert.ok(bridge, 'the bridge is mounted on the dock row')
   assert.equal(bridge.props.motion, 'full')

@@ -18,6 +18,9 @@ import { isAbsolute, join, normalize, resolve, sep } from 'node:path'
 /** Subdirectories of the root, one per managed component. */
 export const TOOL_DIRS = ['gh', 'git', 'ffmpeg', 'python']
 
+/** Local diffusion models get their own folder, never mixed with the tools. */
+export const MODELS_DIR = 'models'
+
 export function defaultToolsPath(home) {
   return join(home, 'compression-tiers')
 }
@@ -74,7 +77,10 @@ export function toolsStatus(home, settings, { running = {}, platform = process.p
       const dir = join(path, id)
       return { id, path: dir, exists: Boolean(exists(dir)) }
     }),
-    running: Object.fromEntries(TOOL_DIRS.map((id) => [id, running[id] === true])),
+    // Local models share the root but live in their own `models` folder; they
+    // migrate with the components and are reported separately from them.
+    models: { path: join(path, MODELS_DIR), exists: Boolean(exists(join(path, MODELS_DIR))) },
+    running: Object.fromEntries([...TOOL_DIRS, MODELS_DIR].map((id) => [id, running[id] === true])),
   }
 }
 
@@ -98,7 +104,7 @@ export function migrateTools({ home, settings, target, running = {}, platform = 
   const to = parseToolsPath(target)
   const report = { from, to, moved: [], skipped: [], failed: [] }
   if (samePath(from, to, platform)) return report
-  const busy = TOOL_DIRS.filter((id) => running[id] === true)
+  const busy = [...TOOL_DIRS, MODELS_DIR].filter((id) => running[id] === true)
   if (busy.length > 0) {
     const error = new Error(`${busy.join(', ')} is downloading; wait for it to finish, then migrate`)
     error.status = 409
@@ -106,14 +112,14 @@ export function migrateTools({ home, settings, target, running = {}, platform = 
   }
 
   const plan = []
-  for (const name of TOOL_DIRS) {
+  const planItem = (name) => {
     const source = join(from, name)
     const destination = join(to, name)
     const hasSource = Boolean(exists(source))
     const hasDestination = Boolean(exists(destination))
-    if (!hasSource && !hasDestination) continue
+    if (!hasSource && !hasDestination) return
     // Already at the target: a previous run moved it and then failed.
-    if (!hasSource && hasDestination) continue
+    if (!hasSource && hasDestination) return
     if (hasSource && hasDestination) {
       const error = new Error(`${destination} already exists; move or delete it first`)
       error.status = 409
@@ -126,6 +132,10 @@ export function migrateTools({ home, settings, target, running = {}, platform = 
     }
     plan.push({ name, source, destination })
   }
+  for (const name of TOOL_DIRS) planItem(name)
+  // Models are never PATH entries, but they sit under the root and would be
+  // stranded (or silently re-downloaded) if a migration skipped them.
+  planItem(MODELS_DIR)
 
   mkdir(to, { recursive: true })
   for (const item of plan) {

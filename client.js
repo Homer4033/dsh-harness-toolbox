@@ -20,9 +20,10 @@ window.__ModuleLoader__.load({
     const GH_ONLINE_API = '/compression-tiers/api/github/online'
     const GH_BINDING_API = '/compression-tiers/api/github/binding'
     const COMPONENTS_API = '/compression-tiers/api/components'
+    const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.10'
+    const PLUGIN_VERSION = '2.5.0'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -33,7 +34,7 @@ window.__ModuleLoader__.load({
       { id: 'subtle', labelKey: 'motionSubtle' },
       { id: 'off', labelKey: 'motionOff' },
     ]
-    const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', mascots: true, art: true }
+    const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', art: true }
 
     /**
      * Whole-app skins, as opposed to this plugin's own `.ct-skin` surfaces.
@@ -390,19 +391,67 @@ window.__ModuleLoader__.load({
       document.body.setAttribute('data-ct-palette', spec.palette)
       document.body.setAttribute('data-ct-art', art ? 'on' : 'off')
       document.body.setAttribute('data-ct-motion', spec.motion)
+      if (art) watchGlow()
       return { palette: spec.palette, art: art }
+    }
+
+    /**
+     * The seat copy of the glow is sized by the chat region's height, so its
+     * percentage stops land on the same pixel line as the region's own gradient
+     * (see the `::before` rule). The seat shares the region's bottom edge, so
+     * one measured number is enough. The host re-renders sessions without
+     * telling us, so the pair is re-resolved whenever this runs and the region
+     * is observed for resizes instead of assuming a viewport height.
+     */
+    const glowRuntime = { seat: null, chat: null, observer: null, bound: false }
+    function measureGlow() {
+      const seat = glowRuntime.seat
+      if (!seat || !seat.style || typeof seat.style.setProperty !== 'function') return
+      const chat = glowRuntime.chat
+      const height = chat && typeof chat.clientHeight === 'number' && chat.clientHeight > 0
+        ? chat.clientHeight
+        : 0
+      if (height > 0) seat.style.setProperty('--ct-glow-height', height + 'px')
+      else seat.style.removeProperty('--ct-glow-height')
+    }
+    function watchGlow() {
+      const doc = typeof document === 'undefined' ? null : document
+      const chat = doc && typeof doc.querySelector === 'function'
+        ? doc.querySelector("[data-conversation-region='chat']")
+        : null
+      if (!chat || typeof chat.querySelector !== 'function') return
+      const seat = chat.querySelector("[data-conversation-region='composer']")
+      if (!seat) return
+      if (glowRuntime.seat !== seat || glowRuntime.chat !== chat) {
+        if (glowRuntime.observer && typeof glowRuntime.observer.disconnect === 'function') {
+          try { glowRuntime.observer.disconnect() } catch { /* already gone */ }
+        }
+        glowRuntime.observer = null
+        glowRuntime.seat = seat
+        glowRuntime.chat = chat
+        if (typeof ResizeObserver === 'function') {
+          try {
+            glowRuntime.observer = new ResizeObserver(function () { measureGlow() })
+            glowRuntime.observer.observe(chat)
+          } catch { glowRuntime.observer = null }
+        }
+      }
+      measureGlow()
+      if (!glowRuntime.bound && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        glowRuntime.bound = true
+        window.addEventListener('resize', measureGlow)
+      }
     }
 
     /**
      * A palette never moves the host theme: both install every mode, so flipping
      * DSH's light/dark keeps the chosen skin instead of fighting it.
      */
-    // The two UMD modules vendored from Obsidian Prism. A classic <script>
-    // tag keeps client.js from having to carry 300KB or use eval; the vial
-    // only loads when its window opens, the rig when the dock renders.
+    // The UMD module vendored from Obsidian Prism. A classic <script> tag keeps
+    // client.js from having to carry its ~75KB or use eval; it is loaded the
+    // first time the vial window opens.
     const VENDOR_SCRIPTS = {
       vial: { file: 'vial-core.js', global: '__agVialCore', pending: null },
-      mascot: { file: 'dual-mascot-rig.js', global: '__agDualMascotRig', pending: null },
     }
     // Host context budget: the same 65,536-token reserve the official
     // compaction-basic engine applies.
@@ -419,6 +468,13 @@ window.__ModuleLoader__.load({
       { id: 'ffmpeg', name: 'ffmpeg' },
       { id: 'python', name: 'Python' },
     ]
+
+    /**
+     * Local diffusion models. The row list is fixed like the component rows, so
+     * a slow or failed status call still shows the model with a disabled
+     * button; the payload only fills in state, size and progress.
+     */
+    const MODEL_ROWS = [{ id: 'flux2-klein-4b', name: 'FLUX.2 [klein] 4B' }]
 
     /**
      * The panel is a small shell: one navigation rail, one page at a time.
@@ -441,7 +497,7 @@ window.__ModuleLoader__.load({
         navAria: '面板分页',
         navLevels: '档位',
         navRules: '规则',
-        navComponents: '组件',
+        navComponents: '模型和组件',
         navAppearance: '外观',
         navGithub: 'GitHub',
         appearanceTitle: '外观',
@@ -453,9 +509,6 @@ window.__ModuleLoader__.load({
         motionFull: '完整',
         motionSubtle: '克制',
         motionOff: '关闭',
-        mascotsLabel: '像素伙伴',
-        mascotsOn: '已开启',
-        mascotsOff: '已关闭',
         artLabel: '光学外观',
         artOn: '已开启',
         artOff: '已关闭',
@@ -524,9 +577,13 @@ window.__ModuleLoader__.load({
         workspaceRulesLoadFailed: '读取失败：',
         workspaceRulesSaveFailed: '保存失败：',
         workspaceRulesSaved: '已保存。',
-        componentsTitle: '组件管理',
+        componentsTitle: '模型和组件',
         componentsLoadFailed: '读取组件状态失败：',
         componentsActionFailed: '操作失败：',
+        modelsLabel: '本地模型',
+        modelsFetching: '正在下载',
+        modelsLoadFailed: '读取模型状态失败：',
+        modelsActionFailed: '模型下载失败：',
         toolsPathLabel: '下载目录',
         toolsPathCurrent: '当前目录',
         toolsPathSave: '迁移',
@@ -598,7 +655,7 @@ window.__ModuleLoader__.load({
         navAria: 'Panel sections',
         navLevels: 'Tiers',
         navRules: 'Rules',
-        navComponents: 'Components',
+        navComponents: 'Models & components',
         navAppearance: 'Appearance',
         navGithub: 'GitHub',
         appearanceTitle: 'Appearance',
@@ -610,9 +667,6 @@ window.__ModuleLoader__.load({
         motionFull: 'Full',
         motionSubtle: 'Subtle',
         motionOff: 'Off',
-        mascotsLabel: 'Pixel companions',
-        mascotsOn: 'on',
-        mascotsOff: 'off',
         artLabel: 'Optical surfaces',
         artOn: 'on',
         artOff: 'off',
@@ -681,9 +735,13 @@ window.__ModuleLoader__.load({
         workspaceRulesLoadFailed: 'Could not read: ',
         workspaceRulesSaveFailed: 'Could not save: ',
         workspaceRulesSaved: 'Saved.',
-        componentsTitle: 'Components',
+        componentsTitle: 'Models & components',
         componentsLoadFailed: 'Could not read the component state: ',
         componentsActionFailed: 'Action failed: ',
+        modelsLabel: 'Local models',
+        modelsFetching: 'Fetching',
+        modelsLoadFailed: 'Could not read the model state: ',
+        modelsActionFailed: 'Model download failed: ',
         toolsPathLabel: 'Download directory',
         toolsPathCurrent: 'Current directory',
         toolsPathSave: 'Move here',
@@ -1261,6 +1319,25 @@ window.__ModuleLoader__.load({
   padding-top: 0;
   border-top: 0;
 }
+/* Local models: the same row shape as the components, one folder below them. */
+.ct-models {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.ct-models h4 {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ct-models .ct-component:first-of-type {
+  border-top: 0;
+}
+.ct-model .ct-component-name {
+  font-size: 13px;
+}
 .ct-component-head {
   display: flex;
   flex-wrap: wrap;
@@ -1287,11 +1364,10 @@ window.__ModuleLoader__.load({
   margin: 0 auto;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
   min-width: 0;
   padding: 0;
-  container-type: inline-size;
 }
 .ct-repo-group {
   display: inline-flex;
@@ -1748,28 +1824,39 @@ body[data-ct-art='on'] [data-conversation-region='chat'] {
   background-repeat: no-repeat;
   background-position: bottom;
 }
-/* The seat below the transcript paints the host's own mask band — transparent at
-   its top edge, opaque bg-base 36px down — which is what clips the transcript as
-   it scrolls under the composer. It also clips the gradient above, so the glow
-   stops at the top of the seat instead of reaching the window edge. The mask
-   cannot go: without it the transcript shows through the band (2.4.2–2.4.8).
-   So the glow is painted again on the seat itself, above the mask, and its last
-   36px fade to nothing exactly where the mask fades in: with the glow at
-   a × (depth / 36px) the mask's fade and the glow's ramp cancel, and the seam
-   keeps the gradient the region would have drawn there. Below 36px the mask is
-   opaque and the glow carries the region's own alpha (16% at the window edge,
-   ~11% at the top of a 150–260px seat). The mask is copied into the second layer
-   because this replaces the whole background-image, and it is gated on the
-   active phase, the only phase that has a seat mask to mirror. */
-body[data-ct-art='on'] [data-conversation-region='chat'][data-content-phase='active'] [data-conversation-region='composer'] {
+/* The seat's own sticky background paints an opaque band (transparent at its
+   top edge, bg-base 36px down) that clips the region's gradient as the
+   transcript scrolls under the composer. That mask cannot go: without it the
+   transcript shows through the band (2.4.2–2.4.8). So the same gradient is
+   repeated above it on a pseudo-element and faded in over exactly the same
+   36px — the mask at alpha (depth / 36px) and the copy ramping in by the same
+   factor cancel, and the seam keeps the gradient the region would have drawn
+   there. The copy is sized by the chat region's height (--ct-glow-height, set
+   by the client), so both layers describe one line; 2.4.9 re-based the stops on
+   the seat's own height, which bent the glow exactly at the top of the
+   composer (a visible seam). z-index -1 is above the seat's own background and
+   below the composer card: the seat is a stacking context (sticky, z-index 9). */
+body[data-ct-art='on'] [data-conversation-region='chat'][data-content-phase='active'] [data-conversation-region='composer']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     linear-gradient(to top,
-      color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent) 0px,
-      color-mix(in srgb, var(--dsw-alias-chart-tools) 11%, transparent) calc(100% - 36px),
-      transparent 100%),
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--dsw-alias-bg-base) 0%, transparent) 0px,
-      var(--dsw-alias-bg-base) 36px);
+      color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent) 0%,
+      color-mix(in srgb, var(--dsw-alias-chart-tools) 9%, transparent) 26%,
+      transparent 54%);
+  background-repeat: no-repeat;
+  background-position: bottom;
+  background-size: 100% var(--ct-glow-height, 100%);
+  mask-image: linear-gradient(180deg, transparent 0px, #000 36px);
+}
+/* The host's own context meter (ring + percentage in the composer footer) is
+   the same reading the vial carries, so the art layer hides it while it is on;
+   switching 光学外观 off brings the host control back. */
+body[data-ct-art='on'] [data-composer-dock] button[aria-haspopup='dialog'] {
+  display: none !important;
 }
 /* The composer stats line under the composer is the host's own text; the art
    layer hides it and the vial popover carries the same readings. */
@@ -2062,13 +2149,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
   display: none;
 }
 
-/* ---- Composer dock: vial + pixel companions ----------------------------- */
-.ct-dock-mascots {
-  flex: 0 0 220px;
-  width: 220px;
-  height: 84px;
-  min-width: 0;
-}
+/* ---- Composer dock: vial + repository pill ------------------------------ */
 .ct-dock-tools {
   display: flex;
   flex: 1 1 auto;
@@ -2077,76 +2158,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
   gap: 8px;
   min-width: 0;
   margin-left: auto;
-}
-@container (max-width: 620px) {
-  .ct-dock-mascots {
-    display: none;
-  }
-}
-.ct-mascot-stage {
-  position: relative;
-  width: 220px;
-  height: 84px;
-}
-.ct-mascot-stage[data-state='failed'] {
-  display: none;
-}
-.ct-mascot-stage .ag-v2-mascot-actor {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 96px;
-  height: 84px;
-  pointer-events: auto;
-  cursor: grab;
-  touch-action: none;
-  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  outline: none;
-}
-.ct-mascot-stage .ag-v2-mascot-actor::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 5px;
-  width: 44px;
-  height: 8px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.16) 58%, transparent);
-  pointer-events: none;
-  z-index: 0;
-}
-.ct-mascot-stage .ag-v2-mascot-actor[data-dragging='1'] {
-  cursor: grabbing;
-}
-.ct-mascot-stage .ag-v2-mascot-canvas {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 96px;
-  height: 84px;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-.ct-mascot-stage .ag-v2-mini-pile {
-  position: absolute;
-  left: 12px;
-  bottom: 1px;
-  display: none;
-  align-items: flex-end;
-  height: 32px;
-  pointer-events: none;
-  z-index: 20;
-}
-.ct-mascot-stage .ag-v2-mini-crab-canvas {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 40px;
-  height: 32px;
-  image-rendering: pixelated;
-  pointer-events: none;
-  transition: transform 160ms steps(2, end);
 }
 .ct-vial {
   display: inline-flex;
@@ -2553,7 +2564,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       return {
         palette: palette,
         motion: MOTIONS.some(function (item) { return item.id === next.motion }) ? next.motion : DEFAULT_APPEARANCE.motion,
-        mascots: next.mascots === false ? false : DEFAULT_APPEARANCE.mascots,
         art: next.art === false ? false : DEFAULT_APPEARANCE.art,
       }
     }
@@ -2638,6 +2648,16 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         return (scaled >= 100 ? Math.round(scaled) : Math.round(scaled * 10) / 10) + 'K'
       }
       return String(Math.round(number))
+    }
+
+    /** Byte counts for the model rows: 15.98 GB, 168 MB, 44 KB. */
+    function bytesLabel(value) {
+      const number = Number(value)
+      if (!Number.isFinite(number) || number <= 0) return '0 B'
+      if (number >= 1e9) return String(Math.round((number / 1e9) * 100) / 100).replace(/\.0+$/, '') + ' GB'
+      if (number >= 1e6) return Math.round(number / 1e6) + ' MB'
+      if (number >= 1e3) return Math.round(number / 1e3) + ' KB'
+      return Math.round(number) + ' B'
     }
 
     /**
@@ -3009,9 +3029,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         if (!node || typeof node.getBoundingClientRect !== 'function') return
         placement.current = placeMenu(node, { minWidth: 392, extraWidth: 8, maxHeight: 380, align: 'end' })
         setOpen(true)
-        if (typeof props.onPoke === 'function') {
-          try { props.onPoke() } catch { /* the mascot stage is optional */ }
-        }
       }
 
       const percentValue = meter ? Math.min(100, Math.round(meter.percent * 100)) : null
@@ -3154,63 +3171,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           ? ReactDOM.createPortal(popover, document.body)
           : popover,
       ]
-    }
-
-    /**
-     * The vendored pixel companions, mounted into a fixed 220×84 stage. The
-     * stage owns its DOM (three mini crabs plus the cat/clawd pair); React only
-     * provides the host element and disposes the stage on unmount.
-     */
-    function MascotStage(props) {
-      const hostRef = React.useRef(null)
-      const stageRef = React.useRef(null)
-      const [state, setState] = React.useState('loading')
-
-      React.useEffect(function () {
-        let disposed = false
-        loadVendor('mascot').then(function (lib) {
-          if (disposed || !hostRef.current || typeof lib.mountDualMascotStage !== 'function') return
-          const stage = lib.mountDualMascotStage(hostRef.current, {
-            mascot: 'minis',
-            camp: 'gemini',
-            reducedMotion: props.motion === 'off',
-            // Do not write the rainbow easter egg into the host's localStorage.
-            storage: { getItem: function () { return null }, setItem: function () {}, removeItem: function () {} },
-          })
-          if (!stage) {
-            setState('failed')
-            return
-          }
-          stageRef.current = stage
-          if (props.stageRef) props.stageRef.current = stage
-          setState('ready')
-        }).catch(function () {
-          if (!disposed) setState('failed')
-        })
-        return function () {
-          disposed = true
-          const stage = stageRef.current
-          stageRef.current = null
-          if (props.stageRef) props.stageRef.current = null
-          if (stage && typeof stage.dispose === 'function') {
-            try { stage.dispose() } catch { /* the host may already be gone */ }
-          }
-        }
-      }, [])
-
-      React.useEffect(function () {
-        const stage = stageRef.current
-        if (stage && typeof stage.setState === 'function') {
-          stage.setState({ reducedMotion: props.motion === 'off' })
-        }
-      }, [props.motion])
-
-      return h('div', {
-        ref: hostRef,
-        className: 'ct-mascot-stage',
-        'data-state': state,
-        'aria-hidden': 'true',
-      })
     }
 
     /* ---- Reasoning effort slider -------------------------------------------
@@ -3958,13 +3918,12 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [busy, setBusy] = React.useState(false)
       const [open, setOpen] = React.useState(false)
       const [active, setActive] = React.useState(0)
-      // The palette and mascot flag come from the same snapshot the panel uses.
+      // The palette and motion tier come from the same snapshot the panel uses.
       const [settings, setSettings] = React.useState(settingsCache.body)
       const pillRef = React.useRef(null)
       const menuRef = React.useRef(null)
       const placement = React.useRef(null)
       const mounted = React.useRef(true)
-      const mascotRef = React.useRef(null)
       // Official token-meter projections. The dock slot is session-scoped, so
       // these stay live while the conversation runs; older hosts without the
       // hook simply render the vial without a reading.
@@ -3981,6 +3940,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
 
       React.useEffect(function () {
         mounted.current = true
+        // The chat region appears with the session, which can be long after the
+        // appearance layer was applied: re-resolve the glow measurement here.
+        watchGlow()
         const unsubscribe = subscribeSettings(function (body) {
           if (mounted.current) setSettings(body)
         })
@@ -4166,21 +4128,14 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         }, menuChildren), document.body)
         : null
 
-      // The dock row renders in place above the composer: the pixel companions
-      // on the left, then the vial, an optional network note and the repository
-      // pill, all flush with the input card's right edge.
+      // The dock row renders in place above the composer: the vial trigger, an
+      // optional network note and the repository pill, all flush with the input
+      // card's right edge.
       return h('div', {
         className: 'ct-repo-dock ct-skin',
         'data-palette': appearance.palette,
         'data-motion': appearance.motion,
       },
-      appearance.mascots
-        ? h('div', { key: 'mascots', className: 'ct-dock-mascots' },
-            h(MascotStage, {
-              motion: appearance.motion,
-              stageRef: mascotRef,
-            }))
-        : null,
       h('div', { key: 'tools', className: 'ct-dock-tools' },
         h(EffortBridge, {
           key: 'effort',
@@ -4195,10 +4150,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           usage: usage,
           level: level,
           appearance: appearance,
-          onPoke: function () {
-            const stage = mascotRef.current
-            if (stage && typeof stage.poke === 'function') stage.poke('cat')
-          },
         }),
         note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
         h('span', { className: 'ct-repo-group' }, pill, menu)))
@@ -4340,6 +4291,10 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [components, setComponents] = React.useState(null)
       const [componentsMessage, setComponentsMessage] = React.useState('')
       const [componentsBusy, setComponentsBusy] = React.useState(false)
+      // Local models live on the same page but have their own status route.
+      const [models, setModels] = React.useState(null)
+      const [modelsMessage, setModelsMessage] = React.useState('')
+      const [modelsBusy, setModelsBusy] = React.useState(false)
       const [pathDraft, setPathDraft] = React.useState(null)
       const [pathBusy, setPathBusy] = React.useState(false)
       // The gh device-code flow; the gh binary itself is a component row.
@@ -4371,6 +4326,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         load()
         loadRules()
         loadComponents()
+        loadModels()
         loadLogin()
         loadAuth()
         loadNetwork()
@@ -4387,14 +4343,18 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         return function () { window.clearInterval(timer) }
       }, [loggingIn])
 
-      // Any managed install in flight keeps the panel refreshing; the payload
-      // itself reports progress, so no second timer per component is needed.
-      const anyRunning = components && Array.isArray(components.components)
+      // Any managed install (or model download) in flight keeps the panel
+      // refreshing; the payload itself reports progress, so no second timer per
+      // row is needed.
+      const anyRunning = (components && Array.isArray(components.components)
         ? components.components.some(function (row) { return row && row.running === true })
-        : false
+        : false) || Boolean(models && models.running === true)
       React.useEffect(function () {
         if (!anyRunning) return undefined
-        const timer = window.setInterval(function () { loadComponents({ quiet: true }) }, 1200)
+        const timer = window.setInterval(function () {
+          loadComponents({ quiet: true })
+          loadModels({ quiet: true })
+        }, 1200)
         return function () { window.clearInterval(timer) }
       }, [anyRunning])
 
@@ -4666,6 +4626,48 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           })
       }
 
+      /** The local-model rows: pinned files already on disk and live progress. */
+      function loadModels(options) {
+        const quiet = Boolean(options && options.quiet)
+        return fetch(MODELS_API, { credentials: 'same-origin' })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            setModels(body)
+            if (!quiet) setModelsMessage('')
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setModelsMessage(t('modelsLoadFailed') + messageOf(error))
+          })
+      }
+
+      /** Start one model download; the running poll shows its progress. */
+      function downloadModel(id) {
+        if (modelsBusy) return
+        setModelsBusy(true)
+        setModelsMessage('')
+        fetch(MODELS_API, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: id, action: 'download' }),
+        })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            setModels(body)
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setModelsMessage(t('modelsActionFailed') + messageOf(error))
+            loadModels({ quiet: true })
+          })
+          .then(function () {
+            if (mounted.current) setModelsBusy(false)
+          })
+      }
+
       /** Move every managed component to `target` and persist it. */
       function migratePath(target) {
         if (pathBusy) return
@@ -4723,8 +4725,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
 
       /**
        * Appearance writes go through the same settings route. The change is
-       * painted immediately (palette and mascots are local state), then the
-       * saved payload replaces it; a failed save restores the previous value.
+       * painted immediately (the palette is local state), then the saved
+       * payload replaces it; a failed save restores the previous value.
        */
       function applyAppearance(patch) {
         if (appearanceBusy || !state) return
@@ -4941,8 +4943,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const rootInfo = components && components.root ? components.root : null
       const rootPath = rootInfo && rootInfo.path ? String(rootInfo.path) : ''
       const rootDefault = rootInfo && rootInfo.defaultPath ? String(rootInfo.defaultPath) : ''
-      const rootRunning = Boolean(rootInfo && rootInfo.running && COMPONENT_ROWS.some(function (def) {
-        return rootInfo.running[def.id] === true
+      const rootRunning = Boolean(rootInfo && rootInfo.running && ['gh', 'git', 'ffmpeg', 'python', 'models'].some(function (id) {
+        return rootInfo.running[id] === true
       }))
       const rowsById = {}
       if (components && Array.isArray(components.components)) {
@@ -5032,10 +5034,57 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           }),
         ]))
 
+      // ---- local models: one pinned pipeline below <root>/models ----
+      // Models are not PATH entries, so they have their own rows and their own
+      // status route; the bytes come from the pinned sizes, not from a guess.
+      const modelRows = models && Array.isArray(models.models) ? models.models : []
+      const modelNodes = h('div', { className: 'ct-models', 'data-models': true, key: 'models' },
+        h('div', { className: 'ct-rules-head' },
+          h('h4', null, t('modelsLabel')),
+          models && models.path
+            ? h('p', { className: 'ct-note' }, t('pathLabel') + t('sep') + models.path)
+            : null),
+        MODEL_ROWS.map(function (def) {
+          const row = modelRows.filter(function (item) { return item && item.id === def.id })[0] || null
+          const control = downloadControl({
+            loading: !row,
+            unsupported: false,
+            running: Boolean(row && row.running === true),
+            installed: Boolean(row && row.installed === true),
+            partial: Boolean(row && row.state === 'partial'),
+            failed: Boolean(row && row.error),
+            system: false,
+            percent: row ? row.percent : null,
+          })
+          const total = row && Number(row.total) > 0 ? bytesLabel(row.total) : ''
+          const detail = row && row.detail ? ' · ' + row.detail : ''
+          const progress = Boolean(row) && (row.running === true || row.state === 'partial' || Boolean(row.error))
+          return h('div', { className: 'ct-component ct-model', key: def.id, 'data-model': def.id },
+            h('div', { className: 'ct-component-head' },
+              h('strong', { className: 'ct-component-name' }, row && row.name ? row.name : def.name),
+              h('span', { className: 'ct-note' }, control.stateText + (total ? ' · ' + total : '') + detail)),
+            progress ? h('div', { className: 'ct-progress' }, h('span', { style: { width: (row.percent || 0) + '%' } })) : null,
+            row && row.running && row.file ? h('p', { className: 'ct-note' }, t('modelsFetching') + t('sep') + row.file) : null,
+            row && row.dir ? h('p', { className: 'ct-note ct-component-path' }, t('pathLabel') + t('sep') + row.dir) : null,
+            row && row.error ? h('p', { className: 'ct-status', role: 'alert' }, row.error) : null,
+            actionRow([
+              actionButton('model:' + def.id, control.label, {
+                disabled: modelsBusy || control.disabled,
+                onClick: function () { downloadModel(def.id) },
+                primary: true,
+              }),
+              actionButton('modelProbe:' + def.id, t('probe'), {
+                onClick: function () { loadModels() },
+              }),
+            ]))
+        }),
+        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, modelsMessage))
+
       const componentsPanel = h('section', { className: 'ct-panel', key: 'components' },
         h('div', { className: 'ct-rules-head' },
           h('h3', null, t('componentsTitle'))),
         componentNodes,
+        modelNodes,
         pathBlock,
         h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, componentsMessage))
 
@@ -5228,19 +5277,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
               }, t(choice.labelKey))
             }))),
         h('div', { className: 'ct-field' },
-          h('span', null, t('mascotsLabel')),
-          actionRow([
-            h('button', {
-              key: 'mascots',
-              type: 'button',
-              className: 'ct-btn' + (appearance.mascots ? ' ct-btn--primary' : ''),
-              'data-action': 'appearanceMascots',
-              'aria-pressed': appearance.mascots ? 'true' : 'false',
-              disabled: appearanceDisabled,
-              onClick: function () { applyAppearance({ mascots: !appearance.mascots }) },
-            }, appearance.mascots ? t('mascotsOn') : t('mascotsOff')),
-          ])),
-        h('div', { className: 'ct-field' },
           h('span', null, t('artLabel')),
           actionRow([
             h('button', {
@@ -5371,6 +5407,12 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         skinRuntime: skinRuntime,
         normalizeAppearance: normalizeAppearance,
         applyOptics: applyOptics,
+        // The seat copy of the glow is measured in JS; the seam itself is CSS.
+        glow: {
+          watch: watchGlow,
+          measure: measureGlow,
+          runtime: glowRuntime,
+        },
         vialUsage: vialUsage,
         // The shared settings snapshot: the panel writes it, the dock subscribes.
         settings: {
