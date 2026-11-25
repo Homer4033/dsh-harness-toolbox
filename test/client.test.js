@@ -1627,6 +1627,58 @@ test('the bridge finds the official reasoning row by semantic attributes', () =>
   assert.equal(effort.findRow({}), null)
 })
 
+test('the reasoning row is identified by its label, not its position', () => {
+  const { module } = loadClient()
+  const effort = module.factory(() => fakeReact(null)).__test.effort
+  const dom = fakeDom()
+  const card = dom.element('div')
+  card.setAttribute('data-composer-card', '')
+  const trigger = dom.element('button')
+  trigger.setAttribute('aria-haspopup', 'menu')
+  trigger.setAttribute('aria-expanded', 'true')
+  trigger.setAttribute('aria-controls', 'plan-menu')
+  card.appendChild(trigger)
+  dom.body.appendChild(card)
+  const menu = dom.element('div')
+  menu.setAttribute('id', 'plan-menu')
+  dom.document.register('plan-menu', menu)
+
+  /** A menu row with the label span the official markup renders. */
+  function row(label) {
+    const button = dom.element('button')
+    button.setAttribute('role', 'menuitem')
+    const span = dom.element('span')
+    span.textContent = label
+    button.appendChild(span)
+    const value = dom.element('span')
+    value.textContent = 'High'
+    button.appendChild(value)
+    menu.appendChild(button)
+    return button
+  }
+
+  const modelRow = row('模型')
+  // A subscription picker contributes a second row: position alone would put
+  // the rail under Speed and drag the wrong setting.
+  const speedRow = row('Speed')
+  const effortRow = row('推理等级')
+
+  assert.equal(effort.findRow(dom.document).row, effortRow, 'the label wins over the position')
+  assert.ok(modelRow && speedRow)
+
+  // Without the reasoning row the pane is left alone, even though two rows
+  // remain — the second one is Speed, not a reasoning level.
+  menu.removeChild(effortRow)
+  assert.equal(effort.findRow(dom.document), null, 'an unknown second row is not claimed')
+
+  // An unlabelled pane keeps working through the documented two-row layout.
+  const modelButton = menu.childNodes[0]
+  const speedButton = menu.childNodes[1]
+  modelButton.childNodes.length = 0
+  speedButton.childNodes.length = 0
+  assert.ok(effort.findRow(dom.document), 'two unlabelled rows are model + reasoning')
+})
+
 test('the slider writes through the official directory and rolls back a refusal', async () => {
   const { module } = loadClient()
   const plugin = module.factory(() => fakeReact(null))
@@ -1713,6 +1765,89 @@ test('the slider writes through the official directory and rolls back a refusal'
   trigger.setAttribute('aria-expanded', 'false')
   effort.sync()
   assert.equal(menu.querySelectorAll('.ct-effort').length, 0)
+})
+
+test('the bridge waits out a directory the host refuses to hand out yet', async () => {
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+  const { module } = loadClient()
+  const effort = module.factory(() => fakeReact(null)).__test.effort
+  const dom = fakeDom()
+  effort.setDocument(dom.document)
+  effort.setLabels({ ariaLabel: '推理等级', errorPrefix: '切换失败：' })
+
+  const card = dom.element('div')
+  card.setAttribute('data-composer-card', '')
+  const trigger = dom.element('button')
+  trigger.setAttribute('aria-haspopup', 'menu')
+  trigger.setAttribute('aria-expanded', 'true')
+  trigger.setAttribute('aria-controls', 'wait-menu')
+  card.appendChild(trigger)
+  dom.body.appendChild(card)
+  const menu = dom.element('div')
+  menu.setAttribute('id', 'wait-menu')
+  const modelRow = dom.element('button')
+  modelRow.setAttribute('role', 'menuitem')
+  const row = dom.element('button')
+  row.setAttribute('role', 'menuitem')
+  menu.appendChild(modelRow)
+  menu.appendChild(row)
+  dom.body.appendChild(menu)
+  dom.document.register('wait-menu', menu)
+
+  const released = []
+  const directoryOf = (state) => ({
+    store: {
+      getSnapshot: () => state,
+      subscribe() {
+        return () => { released.push(state) }
+      },
+    },
+    select: () => Promise.resolve({ ok: true }),
+    load: () => Promise.resolve(state),
+  })
+  let current = directoryOf(effortSnapshot())
+  let refusals = 2
+  // The first calls throw: that is what `directoryFor()` does until the
+  // session scope exists, and caching the failure would kill the control.
+  const service = {
+    directoryFor() {
+      if (refusals > 0) {
+        refusals -= 1
+        throw new Error('session scope is not ready')
+      }
+      return current
+    },
+  }
+  effort.setService(service)
+
+  const dispose = effort.mount('session-1', { motion: 'full', ariaLabel: '推理等级', errorPrefix: '切换失败：' })
+  effort.sync()
+  assert.equal(menu.querySelectorAll('.ct-effort').length, 0, 'a refused directory injects nothing')
+
+  await wait(420)
+  const attached = menu.querySelectorAll('.ct-effort')
+  assert.equal(attached.length, 1, 'the retry chain attaches once the directory exists')
+  assert.equal(attached[0].querySelector('.ct-effort-track').getAttribute('aria-valuenow'), '2')
+
+  // The host rebuilds the directory on a model-generation change: the bridge
+  // has to re-subscribe instead of holding the dead instance forever.
+  current = directoryOf(effortSnapshot({
+    current: { provider: 'deepseek', model: 'deepseek-v4', reasoningEffort: 'max' },
+  }))
+  effort.sync()
+  assert.equal(released.length, 1, 'the stale subscription is released')
+  assert.equal(menu.querySelectorAll('.ct-effort').length, 1, 'still exactly one rail')
+  assert.equal(menu.querySelector('.ct-effort-track').getAttribute('aria-valuenow'), '3',
+    'the knob follows the rebuilt directory')
+
+  // React drops our node when it swaps panes: the next pass puts it back.
+  menu.removeChild(menu.querySelector('.ct-effort'))
+  effort.sync()
+  assert.equal(menu.querySelectorAll('.ct-effort').length, 1, 'a dropped rail is re-attached')
+
+  dispose()
+  assert.equal(menu.querySelectorAll('.ct-effort').length, 0)
+  assert.equal(effort.bridge.sessionId, '', 'the disposer forgets the session')
 })
 
 test('the dock mounts the effort bridge but renders nothing itself', () => {

@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Version-2.2.0-0f172a?style=flat-square" alt="Version 2.2.0" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-213%20passing-16a34a?style=flat-square" alt="213 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-215%20passing-16a34a?style=flat-square" alt="215 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -111,7 +111,7 @@
 
 DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推理等级」这一行下面注入一条 28px 的轨道，旋钮是一颗切工的紫水晶——切面亮度与色相随档位从左到右（冰蓝 → 紫罗兰）变化。拖动或按 ↑ / ↓ / Home / End 时，写入走的是官方那同一个 `modelDirectories.directoryFor(sessionId).select({ provider, model, reasoningEffort })`，所以官方行上的档位名、触发器的副标题会立刻跟着变——**没有拨动后什么都不影响的装饰控件**。
 
-挂载是 fail-open 的：宿主没有 `modelDirectories` 服务、当前模型没有 `reasoning.efforts`、只有一档、菜单没开、或者写入被拒（比如会话正被写者占用），都退回「什么都不加」，并把失败原因写在滑块下方，旋钮回到宿主确认的那一档。锚点只用语义属性（`aria-haspopup="menu"` + `aria-controls`、`role="menuitem"` 的第 2 行、`[data-composer-card]` 判归属），不认 DSH 的哈希类名。
+挂载是 fail-open 的：宿主没有 `modelDirectories` 服务、当前模型没有 `reasoning.efforts`、只有一档、菜单没开、或者写入被拒（比如会话正被写者占用），都退回「什么都不加」，并把失败原因写在滑块下方，旋钮回到宿主确认的那一档。锚点只用语义属性（`aria-haspopup="menu"` + `aria-controls` 找菜单、`role="menuitem"` 的行配上行首标签文字认出「推理等级」、`[data-composer-card]` 判归属），不认 DSH 的哈希类名。会话目录是按需重取的——`directoryFor()` 在会话作用域就绪前会抛错，所以拿不到时按退避重试，宿主换掉目录实例时跟着重订阅；菜单前面多出别的选择器行时按标签认行、不按位置认，认不出就不加，注入后也不派发 `resize`（部分宿主用它兜底关菜单）。
 
 ### 5. 面板：液体玻璃外壳 + 六个分页
 
@@ -254,12 +254,12 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
 - **配色只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行与 portal 出去的菜单上，这些值不会渗到宿主界面；`host` 是空集，保持官方主题不变。两个配色的本地 token 也按宿主模式分两份：默认块是浅色宿主读到的值，`body[data-ds-dark-theme]`（官方主题 presenter 自己写的属性）下换成深色那份；这里不写 `color-scheme`，`html` 上已经有宿主设的那一份。
 - **皮肤不掰用户的主题**：2.0.0 选深色配色会把宿主外观偏好一并切到深色，2.2.0 去掉了这次写入——配色自带亮暗两份值，用户切官方主题时皮肤跟着走。
-- **推理滑块挂官方那一行，写入走官方那条路**：客户端 `ctx.inject(['modelDirectories'])` 拿到每个会话的模型目录，读 `store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，并用 `store.subscribe()` 跟官方行同步。DOM 桥只用语义属性——`button[aria-haspopup="menu"][aria-expanded="true"]` + `aria-controls` 找菜单、`button[role="menuitem"]` 第 2 行定位、`[data-composer-card]` 判归属——认不出就不注入。切工水晶是本插件自己画的 SVG（4 个切面，亮度与色相按位置从左到右由冰蓝到紫罗兰），`createElementNS` 不可用时退化成圆点旋钮。写失败会在轨道下方写原因并把旋钮退回宿主确认的档位，不谎报成功。
+- **推理滑块挂官方那一行，写入走官方那条路**：客户端 `ctx.inject(['modelDirectories'])` 拿到每个会话的模型目录，读 `store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，并用 `store.subscribe()` 跟官方行同步。DOM 桥只用语义属性——`button[aria-haspopup="menu"][aria-expanded="true"]` + `aria-controls` 找菜单、`button[role="menuitem"]` 配上行首标签认出推理等级行（根面板恰好两行时按官方布局兜底，更多行且无标签命中就不注入）、`[data-composer-card]` 判归属——认不出就不注入；目录按需重取（会话作用域就绪前 `directoryFor()` 会抛错，按 60 / 240 / 540 / 960 / 1500 / 3000ms 退避重试），实例被换掉时退旧订阅、重新订阅。切工水晶是本插件自己画的 SVG（4 个切面，亮度与色相按位置从左到右由冰蓝到紫罗兰），`createElementNS` 不可用时退化成圆点旋钮。写失败会在轨道下方写原因并把旋钮退回宿主确认的档位，不谎报成功。
 - **状态只落一个文件**：`<DSH home>/compression-tiers/settings.json`，所有写入是「临时文件 + rename」；手改坏的 JSON 回落到默认值，不让插件崩。`appearance` 在读写两侧都归一化，未知配色 / 动效值直接回落默认而不是报错。
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍。PATH 前插只影响本进程，且去重。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 213 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、规则与工作区规则、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找 / 写入与回滚、manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 215 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、规则与工作区规则、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 

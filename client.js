@@ -2899,12 +2899,11 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
 
     /* ---- Reasoning effort slider -------------------------------------------
        DSH has a real reasoning level. The official model menu's root pane has
-       two rows — model and reasoning level — and the second one exists only
-       when the current model advertises `reasoning.efforts`. This slider is
-       injected under that row and writes through the same per-session
-       directory the official menu writes through, so the official row shows
-       the new level as soon as the selection settles and the two entry points
-       can never disagree.
+       a model row and a reasoning-level row — the latter only when the current
+       model advertises `reasoning.efforts`. This slider is injected under that
+       row and writes through the same per-session directory the official menu
+       writes through, so the official row shows the new level as soon as the
+       selection settles and the two entry points can never disagree.
 
        Everything here is fail-open: a host without the `modelDirectories`
        service, a session without a directory, a closed menu, a model without
@@ -2914,6 +2913,22 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
     let modelDirectories = null
     const EFFORT_MIN_LEVELS = 2
     const EFFORT_KNOB = 28
+    /* The row is labelled `menu.effort` in the official dictionaries (zh
+       推理等级 / en Effort). Free-tier and subscription pickers can contribute
+       extra rows to the same pane, so the label decides and the two-row layout
+       is only the positional fallback — painting the rail under a Speed row
+       would make the slider write the wrong setting. */
+    const EFFORT_ROW_LABELS = [
+      '推理等级', '推理强度', '強度', '推論の強さ',
+      'Effort', 'Reasoning effort', 'Effort de raisonnement',
+      'Esfuerzo', 'Aufwand', 'Esforço',
+      'Усилие', 'Интенсивность рассуждений',
+    ]
+    /* `directoryFor()` throws while the session scope is not ready yet and the
+       host rebuilds the directory when the model generation changes, so the
+       instance is re-resolved instead of being cached for the session's life. */
+    const EFFORT_RETRY_DELAYS = [60, 240, 540, 960, 1500, 3000]
+    const EFFORT_LOAD_GAP = 400
 
     /** The current model's reasoning levels, or null when there is nothing to slide. */
     function effortStateOf(snapshot) {
@@ -3189,9 +3204,33 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
       }
     }
 
+    /** The label a menu row shows: its first `span`, else its own text. */
+    function effortRowLabel(row) {
+      if (!row) return ''
+      let text = ''
+      if (typeof row.querySelectorAll === 'function') {
+        const spans = row.querySelectorAll('span')
+        const first = spans && spans[0] ? spans[0] : null
+        if (first && typeof first.textContent === 'string') text = first.textContent
+      }
+      if (!text && typeof row.textContent === 'string') text = row.textContent
+      return text.replace(/\s+/g, ' ').trim()
+    }
+
+    /** True when `node` still sits directly after `row` — React may move both. */
+    function effortFollowsRow(node, row) {
+      if (!node || !row || node.parentNode !== row.parentNode) return false
+      if (node.previousSibling !== undefined) return node.previousSibling === row
+      const children = row.parentNode && row.parentNode.childNodes
+      if (!children) return false
+      const at = Array.prototype.indexOf.call(children, row)
+      return at >= 0 && children[at + 1] === node
+    }
+
     /**
      * Find the official reasoning row. Semantic attributes only — DSH's class
-     * names are CSS-module hashes and change between builds.
+     * names are CSS-module hashes and change between builds. The label decides
+     * which row it is; a pane with exactly two rows is the documented layout.
      */
     function findReasoningRow(doc) {
       if (!doc || typeof doc.querySelectorAll !== 'function') return null
@@ -3205,8 +3244,19 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         if (!menu || typeof menu.querySelectorAll !== 'function') continue
         const rows = menu.querySelectorAll('button[role="menuitem"]')
         if (!rows || rows.length < EFFORT_MIN_LEVELS) continue
+        let row = null
+        let labelled = false
+        for (let r = 0; r < rows.length; r += 1) {
+          const text = effortRowLabel(rows[r])
+          if (text) labelled = true
+          if (!row && EFFORT_ROW_LABELS.indexOf(text) >= 0) row = rows[r]
+        }
+        /* Unknown rows stay untouched: an unknown second row may belong to
+           another picker. Unlabelled panes fall back to the documented layout. */
+        if (!row && !labelled && rows.length === 2) row = rows[1]
+        if (!row) continue
         const owned = typeof trigger.closest === 'function' && trigger.closest('[data-composer-card]')
-        candidates.push({ trigger: trigger, menu: menu, row: rows[1], owned: Boolean(owned) })
+        candidates.push({ trigger: trigger, menu: menu, row: row, owned: Boolean(owned) })
       }
       const preferred = candidates.filter(function (item) { return item.owned })
       if (preferred.length > 0) return preferred[0]
@@ -3220,9 +3270,13 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
      */
     const effortBridge = {
       directory: null,
+      sessionId: '',
       observer: null,
       unsubscribe: null,
       frame: 0,
+      retryTimer: 0,
+      retryIndex: 0,
+      loadAt: 0,
       node: null,
       menu: null,
       slider: null,
@@ -3239,6 +3293,71 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
       return typeof document === 'undefined' ? null : document
     }
 
+    /** Ask the directory to fill itself; the store renders its own load state. */
+    function kickEffortLoad(directory) {
+      if (!directory || typeof directory.load !== 'function') return
+      const now = Date.now()
+      if (now - effortBridge.loadAt < EFFORT_LOAD_GAP) return
+      effortBridge.loadAt = now
+      try {
+        Promise.resolve(directory.load()).catch(function () { /* the store carries the error */ })
+      } catch { /* sync throw: same, the store reports it */ }
+    }
+
+    function releaseEffortSubscription() {
+      if (!effortBridge.unsubscribe) return
+      try { effortBridge.unsubscribe() } catch { /* already gone */ }
+      effortBridge.unsubscribe = null
+    }
+
+    /**
+     * The live directory for this session, or null. Re-resolved on every read:
+     * `directoryFor()` throws until the session scope is ready, and the host
+     * swaps the instance out when the model generation changes. A failed
+     * re-resolve keeps the instance we already had — the store subscription
+     * still feeds it, and dropping it would make the rail vanish mid-session.
+     */
+    function resolveEffortDirectory() {
+      if (!modelDirectories || typeof modelDirectories.directoryFor !== 'function' || !effortBridge.sessionId) {
+        return effortBridge.directory || null
+      }
+      let fresh = null
+      try { fresh = modelDirectories.directoryFor(effortBridge.sessionId) } catch { fresh = null }
+      if (!fresh || !fresh.store || typeof fresh.store.getSnapshot !== 'function') return effortBridge.directory || null
+      if (fresh === effortBridge.directory) return fresh
+      releaseEffortSubscription()
+      effortBridge.directory = fresh
+      if (typeof fresh.store.subscribe === 'function') {
+        try {
+          effortBridge.unsubscribe = fresh.store.subscribe(function () { scheduleEffortSync() })
+        } catch {
+          effortBridge.unsubscribe = null
+        }
+      }
+      kickEffortLoad(fresh)
+      scheduleEffortSync()
+      return fresh
+    }
+
+    /** Retry a directory that is not ready yet, a few times, then stop asking. */
+    function scheduleEffortRetry() {
+      if (effortBridge.retryTimer || effortBridge.retryIndex >= EFFORT_RETRY_DELAYS.length) return
+      const delay = EFFORT_RETRY_DELAYS[effortBridge.retryIndex]
+      effortBridge.retryIndex += 1
+      effortBridge.retryTimer = setTimeout(function () {
+        effortBridge.retryTimer = 0
+        if (!effortBridge.sessionId) return
+        if (resolveEffortDirectory()) {
+          effortBridge.retryIndex = 0
+          scheduleEffortSync()
+          return
+        }
+        // Without this the first failed retry would end the self-heal chain and
+        // the control would stay dead for the rest of the session.
+        scheduleEffortRetry()
+      }, delay)
+    }
+
     function detachEffortSlider() {
       if (effortBridge.slider) {
         try { effortBridge.slider.destroy() } catch { /* already gone with the menu */ }
@@ -3253,11 +3372,15 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
       effortBridge.frame = 0
       const doc = effortDoc()
       if (!doc) return
-      const directory = effortBridge.directory
+      const directory = resolveEffortDirectory()
       if (!directory || !directory.store || typeof directory.store.getSnapshot !== 'function') {
         detachEffortSlider()
+        if (effortBridge.sessionId) scheduleEffortRetry()
         return
       }
+      /* An idle store has no levels yet; `load()` shares the catalog the
+         official row uses and answers from cache once it is ready. */
+      kickEffortLoad(directory)
       let snapshot = null
       try { snapshot = directory.store.getSnapshot() } catch { snapshot = null }
       const view = effortStateOf(snapshot)
@@ -3271,7 +3394,11 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         detachEffortSlider()
         return
       }
-      if (effortBridge.menu !== found.menu) {
+      /* React may reuse the row and drop our node when it swaps panes, so the
+         attachment is re-checked on every pass instead of trusting the flag. */
+      const attached = effortBridge.slider && effortBridge.menu === found.menu
+        && effortFollowsRow(effortBridge.node, found.row)
+      if (!attached) {
         detachEffortSlider()
         const slider = createEffortSlider(doc, {
           ariaLabel: effortBridge.labels.ariaLabel,
@@ -3284,10 +3411,8 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         effortBridge.slider = slider
         effortBridge.node = slider.element
         effortBridge.menu = found.menu
-        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
-          && typeof window.Event === 'function') {
-          try { window.dispatchEvent(new window.Event('resize')) } catch { /* measure is optional */ }
-        }
+        /* No `resize` dispatch here: some hosts close the menu on resize, and
+           a CSS-anchored menu follows the added height by itself. */
       }
       if (effortBridge.slider) {
         effortBridge.slider.element.setAttribute('data-busy', view.busy ? 'true' : 'false')
@@ -3316,7 +3441,7 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
 
     /** Write one level through the official directory; roll back on refusal. */
     function selectEffort(index) {
-      const directory = effortBridge.directory
+      const directory = resolveEffortDirectory()
       const view = effortBridge.view
       if (!directory || !view || typeof directory.select !== 'function') return
       const level = view.levels[index]
@@ -3371,25 +3496,19 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         || typeof modelDirectories.directoryFor !== 'function') {
         return function () {}
       }
-      let directory = null
-      try { directory = modelDirectories.directoryFor(sessionId) } catch { directory = null }
-      if (!directory || !directory.store || typeof directory.store.subscribe !== 'function') {
-        return function () {}
-      }
-      effortBridge.directory = directory
+      effortBridge.sessionId = sessionId
       effortBridge.motion = opts.motion === 'off' ? 'off' : 'full'
       effortBridge.labels = {
         ariaLabel: typeof opts.ariaLabel === 'string' ? opts.ariaLabel : '',
         errorPrefix: typeof opts.errorPrefix === 'string' ? opts.errorPrefix : '',
       }
       effortBridge.error = ''
-      let unsubscribe = null
-      try {
-        unsubscribe = directory.store.subscribe(function () { scheduleEffortSync() })
-      } catch {
-        unsubscribe = null
-      }
-      effortBridge.unsubscribe = typeof unsubscribe === 'function' ? unsubscribe : null
+      effortBridge.retryIndex = 0
+      /* The directory may still be refused here — the session scope is created
+         right around this mount, and `directoryFor()` throws until it exists.
+         The observer and the retry chain keep the bridge alive until it does. */
+      if (resolveEffortDirectory()) effortBridge.retryIndex = 0
+      else scheduleEffortRetry()
       if (typeof document.body !== 'undefined' && typeof MutationObserver === 'function') {
         effortBridge.observer = new MutationObserver(function () { scheduleEffortSync() })
         try {
@@ -3403,25 +3522,26 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
           effortBridge.observer = null
         }
       }
-      if (typeof directory.load === 'function') {
-        try { directory.load().catch(function () { /* the store reports its own error */ }) } catch { /* sync face */ }
-      }
       scheduleEffortSync()
       return function () {
         if (effortBridge.observer) {
           try { effortBridge.observer.disconnect() } catch { /* already gone */ }
           effortBridge.observer = null
         }
-        if (effortBridge.unsubscribe) {
-          try { effortBridge.unsubscribe() } catch { /* already gone */ }
-          effortBridge.unsubscribe = null
+        if (effortBridge.retryTimer) {
+          clearTimeout(effortBridge.retryTimer)
+          effortBridge.retryTimer = 0
         }
+        releaseEffortSubscription()
         if (effortBridge.frame) {
           if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(effortBridge.frame)
           else clearTimeout(effortBridge.frame)
           effortBridge.frame = 0
         }
         detachEffortSlider()
+        effortBridge.sessionId = ''
+        effortBridge.retryIndex = 0
+        effortBridge.loadAt = 0
         effortBridge.directory = null
         effortBridge.view = null
         effortBridge.error = ''
@@ -4855,6 +4975,8 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
           bridge: effortBridge,
           setDocument: function (doc) { effortDocument = doc || null },
           setDirectory: function (directory) { effortBridge.directory = directory || null },
+          setService: function (service) { modelDirectories = service || null },
+          mount: mountEffortBridge,
           setLabels: function (labels) {
             effortBridge.labels = {
               ariaLabel: labels && labels.ariaLabel ? labels.ariaLabel : '',
