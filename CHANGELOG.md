@@ -10,8 +10,13 @@
 - **下线暖炭玄岩 / 暖白画册**：`APPEARANCE_PALETTES` 变 `host` / `obsidian` / `crystal`，`LEGACY_PALETTES` 把旧值按冷暖性格迁移（`warm → obsidian`、`alabaster → crystal`）；`src/store.js` 与 `client.js` 各留一份同表，升级后旧配置不会白丢皮肤、也不会静默回落成「跟随宿主」。
 - 试管不再按配色猜深浅：`paletteIsDark(palette)` 换成 `hostIsDark()`（先读 `body[data-ds-dark-theme]`，再读 CSS `color-scheme`，最后才是 `prefers-color-scheme`）。
 - 测试 207 → 208 条：外观页断言改成 3 个色板；皮肤用例改成「两套配色都在主题服务里装成对值、晶体与黑曜的 accent 不同、旧 id 迁移、`host` 只卸载不加层」，并新增「tint 只能覆盖已存在的 token」（拼错的名字会被静默丢弃，这条拦住它）；`test/store.test.js` 新增旧配色迁移用例。
-- 文档：README 亮点 / 界面预览 / 配色表 / 技术细节改写，[docs/UI.md](docs/UI.md) 的「配色皮肤」（两段式、不再写 `color-scheme`）与「全局皮肤」（删除「选深色会改偏好」那条）、禁止项、检查清单同步，[AGENTS.md](AGENTS.md) 事实来源与第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.2.0（vendor 路由的 `?v=` 跟着换）。
-- 渲染未验证：截图仍来自离线渲染舞台；两套配色在真实 DSH 窗口里切换深浅的实际观感要装上新版本后确认。
+- **推理滑块 + 切工水晶（补上 2.1.0 说「不做」的那一项）**：官方模型菜单根面板第二行是「推理等级」，插件在那行下面注入一条 28px 轨道与一颗切面随档位点亮的宝石旋钮。读写都走官方那条路——`ctx.inject(['modelDirectories'])` → `directoryFor(sessionId).store.getSnapshot()` 读 `groups[].models[].reasoning.efforts`，`directory.select({ provider, model, reasoningEffort })` 写，`store.subscribe()` 同步；因此官方行与触发器副标题会立刻跟着变。**2.1.0 那句「DSH 客户端没有任何 effort 标识」是错的**：那是解包 `app.asar` 时漏了 `dsh-client-ui-model-selection` 与 `dsh-llm-deepseek` 得出的结论，2.1.0 的条目里已加更正。
+- **DOM 桥只用语义属性**：`button[aria-haspopup="menu"][aria-expanded="true"]` + `aria-controls` 找菜单、`button[role="menuitem"]` 第 2 行定位、`[data-composer-card]` 判归属；挂载用 `MutationObserver`（childList/subtree + `aria-expanded`）+ store 订阅 + rAF 节流。宿主没有 `modelDirectories`、模型没有档位、只有一档、菜单没开、锚点认不出——一律什么都不加，官方菜单保持原样。
+- **写失败不谎报**：`select` 返回 `ok:false`（例如 `session/writer-held`）或抛错时，`.ct-effort-error` 写原因、旋钮退回**宿主确认**的那一档（不是退回上一次乐观值）；写入中 `data-busy='true'` 锁住轨道。切工水晶是自绘 SVG（4 个切面，按位置由冰蓝到紫罗兰），`createElementNS` 不可用时退化成圆点旋钮。
+- 测试 208 → 213 条：新增档位映射（含「一档不算滑轨」「别的 provider 的同名模型不认」）、轨道几何与位置色、语义锚点查找（含 1 行菜单 / 关闭菜单 / 无 composer card 的兜底）、注入后与官方行的兄弟顺序、键盘写入 `reasoningEffort`、被拒回滚、关菜单即移除，以及 dock 只挂桥不渲染标记。
+- 离线舞台里跑通了整条链路（挂载 → 点击 → 官方行变「最高」→ 旋钮到最右），截图见 `docs/screenshots/effort.png`；真实 DSH 菜单里的最终位置仍需在窗口里确认。
+- 文档：README 亮点 / 界面预览（新增「推理滑块与切工水晶」小节与 `screenshots/effort.png`）/ 配色表 / 使用 / 技术细节 / 兼容性改写；[docs/UI.md](docs/UI.md) 新增「推理滑块（注入官方模型菜单）」整节，并同步配色皮肤（两段式、不再写 `color-scheme`）、全局皮肤（删除「选深色会改偏好」那条）、禁止项、落地映射与检查清单；[AGENTS.md](AGENTS.md) 范围 / 事实来源 / 第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.2.0（vendor 路由的 `?v=` 跟着换）。
+- 渲染未验证：截图仍来自离线渲染舞台；两套配色在真实 DSH 窗口里切换深浅、以及滑块在真实模型菜单里的位置，都要装上新版本后确认。
 
 ## 2.1.0 — 2026-11-25
 

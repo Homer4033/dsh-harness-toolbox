@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Version-2.2.0-0f172a?style=flat-square" alt="Version 2.2.0" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-208%20passing-16a34a?style=flat-square" alt="208 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-213%20passing-16a34a?style=flat-square" alt="213 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -51,7 +51,7 @@
 ## 亮点
 
 - **五档压缩，点一下写进去**：`gentle` / `light` / `standard` / `aggressive` / `max` 五档，选中即同步进所有已挂载的预设压缩引擎并留档，不重启；每档都保留官方自动压力压缩。
-- **看得见的上下文**：输入框上方的小试管实时显示占用——液面就是 `已用 / 窗口`，刻度线是对应的压缩阈值；点开能读到已用、窗口、压缩阈值、保留原文、距阈值，以及系统 / 工具 / 对话三段构成。
+- **看见的上下文与摸得到的推理档**：输入框上方的小试管实时显示占用——液面就是 `已用 / 窗口`，刻度线是对应的压缩阈值；点开能读到已用、窗口、压缩阈值、保留原文、距阈值，以及系统 / 工具 / 对话三段构成。官方模型菜单里则多一条切工水晶滑块，直接改当前会话的推理等级。
 - **桌面上的像素伙伴**：小紫猫、Clawd 与三只迷你蟹蹲在试管左边，点一下会跳；动效可降到「克制」或直接关掉，也可以把伙伴整个收起。默认开启。
 - **两套配色，换的是整个界面，跟着 DSH 走**：深空黑曜偏靛蓝，白昼冷晶偏冰青；每套都带亮、暗两份 token，DSH 切深色就用深色那份、切浅色就用浅色那份，皮肤不会把宿主的外观偏好掰到另一边。另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。选中一套时，侧栏、消息气泡、输入框、菜单、卡片与代码块一起换，不只是插件自己的面板。
 - **规则只有一份**：全局规则写 `<DSH home>/AGENTS.md`，工作区规则写各工作区根目录的 `AGENTS.md`；插件不复制、不缓存，智能体没有改写它们的工具，只能由人在面板里保存。
@@ -103,7 +103,17 @@
 
 伙伴是 canvas 逐帧绘制的像素画，右侧那一行是插件在 `conversation.input.dock` 槽里加的控件：试管触发器与当前会话的在线仓库胶囊，读取中或保存失败时中间还会出现一行状态小字。行宽按输入卡的几何收窄（`--dsh-composer-card-max-width`），胶囊右缘与输入卡右缘对齐；面板或窗口窄于 620px 时伙伴自动让位，只留控件。
 
-### 4. 面板：液体玻璃外壳 + 六个分页
+### 4. 推理滑块与切工水晶
+
+<p align="center">
+  <img src="docs/screenshots/effort.png" width="360" alt="官方模型菜单里的推理等级行与切工水晶滑块" />
+</p>
+
+DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推理等级」这一行下面注入一条 28px 的轨道，旋钮是一颗切工的紫水晶——切面亮度与色相随档位从左到右（冰蓝 → 紫罗兰）变化。拖动或按 ↑ / ↓ / Home / End 时，写入走的是官方那同一个 `modelDirectories.directoryFor(sessionId).select({ provider, model, reasoningEffort })`，所以官方行上的档位名、触发器的副标题会立刻跟着变——**没有拨动后什么都不影响的装饰控件**。
+
+挂载是 fail-open 的：宿主没有 `modelDirectories` 服务、当前模型没有 `reasoning.efforts`、只有一档、菜单没开、或者写入被拒（比如会话正被写者占用），都退回「什么都不加」，并把失败原因写在滑块下方，旋钮回到宿主确认的那一档。锚点只用语义属性（`aria-haspopup="menu"` + `aria-controls`、`role="menuitem"` 的第 2 行、`[data-composer-card]` 判归属），不认 DSH 的哈希类名。
+
+### 5. 面板：液体玻璃外壳 + 六个分页
 
 <p align="center">
   <img src="docs/screenshots/panel.png" width="100%" alt="压缩分档面板：左侧分页导航与外观页卡片" />
@@ -111,7 +121,7 @@
 
 面板在左侧栏，一次只显示一页，顺序固定为 **档位 / 规则 / 工作区 / 组件 / 外观 / GitHub**；没有注册工作区时工作区页照样打开，只是写「目前无工作区」。玻璃配方、表面层级、间距与下拉规范写在 [docs/UI.md](docs/UI.md)，改控件先改规范。
 
-### 5. 更多能力
+### 6. 更多能力
 
 - **规则面板**：全局与工作区两个编辑器，保存即原子写入（去 BOM、CRLF→LF、单个结尾换行），单次上限 100,000 字符，超出直接 413 而不是截断；系统提示只带最新 2,000 字符摘要。
 - **组件管理**：四行统一形状——名称与版本 → 状态行 → 进度 → 路径或错误 → 同一行「下载 / 重新检测」，状态没读到时整行仍在、按钮置灰。
@@ -127,7 +137,7 @@
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.0.0`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.2.0`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -147,7 +157,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 ### 升级与回退
 
-- **1.x → 2.0.0**：`settings.json` 里多一个 `appearance` 块（缺省即 `host` / `full` / 伙伴开启），规则、组件、下载目录、会话仓库绑定都不动，不需要搬文件。
+- **1.x → 2.0.0 / 2.2.0**：`settings.json` 里多一个 `appearance` 块（缺省即 `host` / `full` / 伙伴开启），规则、组件、下载目录、会话仓库绑定都不动，不需要搬文件。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
 - **卸载**：插件页移除即可，托管组件目录留在原处，删掉目录即彻底清理。
 
@@ -175,6 +185,14 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **试管触发器**：显示当前占用百分比，点开 `ContextVial` 浮窗；
 - **仓库胶囊**：给当前会话绑定一个在线仓库，`github_push` 默认推到它；空会话里也渲染，菜单向上弹出；
 - **状态小字**：胶囊还在读仓库列表、或保存绑定失败时，在胶囊左边写一行状态。
+
+### 官方模型菜单里的推理滑块
+
+输入框里的「模型」按钮点开就是官方模型菜单：根面板两行（模型 / 推理等级），下面多出插件注入的那条轨道。
+
+- 拖动轨道、点某一档、或按 ↑ / ↓ / Home / End：写入立刻发生，官方行与触发器副标题同时更新；
+- 档位名（关闭 / 低 / 高 / 最高 ……）由宿主随模型下发，插件不翻译、不写死；
+- 写入中轨道变忙碌态并暂时锁住，避免连点打架；被拒（会话被写者占用等）则在轨道下方写原因，旋钮退回宿主确认的档位。
 
 ### 四个智能体工具
 
@@ -236,11 +254,12 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
 - **配色只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行与 portal 出去的菜单上，这些值不会渗到宿主界面；`host` 是空集，保持官方主题不变。两个配色的本地 token 也按宿主模式分两份：默认块是浅色宿主读到的值，`body[data-ds-dark-theme]`（官方主题 presenter 自己写的属性）下换成深色那份；这里不写 `color-scheme`，`html` 上已经有宿主设的那一份。
 - **皮肤不掰用户的主题**：2.0.0 选深色配色会把宿主外观偏好一并切到深色，2.2.0 去掉了这次写入——配色自带亮暗两份值，用户切官方主题时皮肤跟着走。
+- **推理滑块挂官方那一行，写入走官方那条路**：客户端 `ctx.inject(['modelDirectories'])` 拿到每个会话的模型目录，读 `store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，并用 `store.subscribe()` 跟官方行同步。DOM 桥只用语义属性——`button[aria-haspopup="menu"][aria-expanded="true"]` + `aria-controls` 找菜单、`button[role="menuitem"]` 第 2 行定位、`[data-composer-card]` 判归属——认不出就不注入。切工水晶是本插件自己画的 SVG（4 个切面，亮度与色相按位置从左到右由冰蓝到紫罗兰），`createElementNS` 不可用时退化成圆点旋钮。写失败会在轨道下方写原因并把旋钮退回宿主确认的档位，不谎报成功。
 - **状态只落一个文件**：`<DSH home>/compression-tiers/settings.json`，所有写入是「临时文件 + rename」；手改坏的 JSON 回落到默认值，不让插件崩。`appearance` 在读写两侧都归一化，未知配色 / 动效值直接回落默认而不是报错。
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍。PATH 前插只影响本进程，且去重。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 208 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、规则与工作区规则、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 213 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、规则与工作区规则、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找 / 写入与回滚、manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 
@@ -252,9 +271,9 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **宿主平面**：只更新预设隔离域里的引擎；如果别的插件也管同一批引擎，两边会互相覆盖，只留一个。
 - **网络**：GitHub 与 npm 相关操作要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需要能访问 `www.gyan.dev`，git / Python 需要能访问 `github.com`。
 - **托管副本会盖过系统版本**：装了托管 git / Python 后，本进程内的 `git` / `python` 优先用托管副本；删掉 `<root>/git`、`<root>/python` 并重启即回退。
-- **推理滑块与切工水晶还没移植**：它们要挂宿主官方模型菜单里的「推理等级」行（根面板第二行，`button[role="menuitem"]`）。DSH 有真实的推理等级——读 `directoryFor(sessionId).store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，档位表见 `dsh-llm-deepseek` 的 `REASONING_EFFORTS`；参考实现是 [`dsh-codex-effort-slider`](https://github.com/Microqian2th/dsh-codex-effort-slider)。本版只做了换肤，滑块排在下一版；在那之前不做一个拨动后什么都不影响的装饰控件。
+- **推理滑块不是每条会话都有**：它只在当前模型真的暴露 `reasoning.efforts`（≥2 档）时出现；子智能体会话、没有 `modelDirectories` 服务的宿主、或模型没有推理档位时不渲染任何东西。写入失败（例如会话正被写者占用）会在滑块下方写原因并回滚，不会留下一个假的选中态。
 - **伙伴的开销**：像素伙伴挂 `dual-mascot-rig.js`（约 231 KB，按需加载一次）；不想要就在外观页关掉，关掉后 dock 只留试管触发器与仓库胶囊。
-- **渲染未验证**：README 里的画面来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库的 `client.js`），**真实 DSH 窗口里的最终观感仍需刷新页面后确认**。
+- **渲染未验证**：README 里的画面来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库的 `client.js`），**真实 DSH 窗口里的最终观感仍需刷新页面后确认**。推理滑块是在舞台里对着一个按官方语义属性搭的模型菜单跑通的（挂载、拖动写入、官方行跟着更新、被拒回滚都验证过）；真实 DSH 菜单里的位置与观感仍要在窗口里确认一遍。
 - **仓库 UI**：没有仓库列表，也没有推送按钮。多仓库由智能体在各自会话里调用 `github_push`；胶囊只决定当前会话的目标。
 
 ---

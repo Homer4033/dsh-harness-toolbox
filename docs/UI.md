@@ -1,6 +1,6 @@
 # 面板 UI 规范（dsh-harness-toolbox）
 
-> 本文件约束本插件**自己画**的那部分界面：左侧栏「压缩分档」面板（液体玻璃外壳 + 左侧分页导航）、输入框上方那一行（上下文试管、像素伙伴与仓库胶囊）、外观页的两套皮肤，以及全部自绘弹层。宿主主题与官方组件（侧边栏、输入框、标题栏）不在范围内，也不要试图改它们。
+> 本文件约束本插件**自己画**的那部分界面：左侧栏「压缩分档」面板（液体玻璃外壳 + 左侧分页导航）、输入框上方那一行（上下文试管、像素伙伴与仓库胶囊）、外观页的两套皮肤、注入官方模型菜单的推理滑块，以及全部自绘弹层。宿主主题与官方组件（侧边栏、输入框、标题栏）本身不在范围内，也不要试图改它们。
 
 ## 目录
 
@@ -15,6 +15,7 @@
 - [控件](#控件)
 - [外观页](#外观页)
 - [输入框上方那一行](#输入框上方那一行)
+- [推理滑块（注入官方模型菜单）](#推理滑块注入官方模型菜单)
 - [下拉与弹层](#下拉与弹层)
 - [动效](#动效)
 - [焦点与可访问性](#焦点与可访问性)
@@ -213,6 +214,18 @@ ctx.inject(['theme'], (scope) => {
 - 伙伴是 canvas 像素画，容器 `.ct-mascot-stage` 固定 220 × 84；canvas 用 `image-rendering: pixelated`，定位是 `position: absolute; left/bottom: 0`，宿主样式不得改写 `ag-v2-*` 的几何（那是移植模块自己的坐标系）。模块加载失败时 `data-state='failed'` 把舞台收起，不留空白框。
 - **伙伴不得抢焦点、不得拦截输入**：canvas 是 `pointer-events: none`，只有外层 actor 接受点击（`cursor: grab`，拖动时 `grabbing`），点击只是 `poke()` 一下，不写设置。
 
+## 推理滑块（注入官方模型菜单）
+
+它不属于本插件自己的面板，但样式也在本仓库里，所以同样受本文件约束。
+
+1. **只挂在官方那一行下面**：官方模型菜单根面板有两行 `button[role="menuitem"]`，插件把 `.ct-effort` 插到第 2 行（推理等级）的**下一个兄弟位**。不包裹、不改写官方节点，不读 DSH 的哈希类名；锚点只用 `aria-haspopup="menu"` + `aria-expanded` + `aria-controls`、`role="menuitem"`、`[data-composer-card]`。
+2. **尺寸与几何**：轨道 28px 高（也是旋钮直径），中间 4px 轨道条；两端各留半个旋钮（14px），旋钮位置 `left: calc(14px + (100% - 28px) × 位置%)`，因此旋钮永远不会跑出轨道。档位点（4px）与旋钮同一条轴。
+3. **切工水晶**：旋钮是一颗 4 个切面的宝石 SVG（`viewBox 0 0 32 32`），切面 `fill` 与 `fill-opacity` 由位置算出（冰蓝 → 紫罗兰）；`createElementNS` 不可用时退化成 `data-gem='plain'` 的圆点旋钮。**不要**给它加贴图或外链资源。
+4. **颜色只来自 token 与位置**：轨道底色用 `--dsw-alias-label-tertiary` 混合，填充色与光晕由 `hsl(205…285)` 位置色计算，写入 `--ct-effort-accent` / `--ct-effort-glow`。不写死某一档的颜色。
+5. **交互**：拖动（pointer capture）时只移动旋钮预览，`pointerup` 才提交；键盘 ↑ / ↓ 走一档、Home / End 到两端，每次都直接提交。写入中 `data-busy='true'` 锁住并降到 72% 不透明；失败时 `.ct-effort-error` 写原因（`:empty` 时不占位），旋钮回到宿主确认的档位。
+6. **渲染不出来就不渲染**：宿主没有 `modelDirectories`、模型没有 `reasoning.efforts`、只有一档、菜单没开、锚点认不出——一律什么都不加，官方菜单保持原样。**不得**做拨动后无效果的装饰控件。
+7. **动效**：旋钮 `left` 150ms、档位点 140ms；`data-motion='off'`（外观页动效关闭）时两者都去掉过渡。
+
 ## 下拉与弹层
 
 1. **只自绘**：面板与胶囊里不得出现原生 `<select>`。它的弹层由操作系统绘制，深色主题下是「浅底 + 继承来的浅字」，选项在白底上不可见。
@@ -260,6 +273,7 @@ ctx.inject(['theme'], (scope) => {
 - ❌ 给 `.ct-nav` 写正的 `sticky` `top`（导航栏会离第一张卡片一个偏移），或在分页进场里加位移/缩放。
 - ❌ 往 `:root` / `body` 写配色变量，或在 `.ct-skin` 里写 `color-scheme`（皮肤靠 `body[data-ds-dark-theme]` 跟随宿主，自己设会打架）。
 - ❌ 选配色时顺手 `theme.setTheme()` 改用户的外观偏好（2.2.0 已删除这次写入）。
+- ❌ 往官方模型菜单里塞一个拨动后不影响推理等级的装饰控件，或用哈希类名认锚点（只能用语义属性，认不出就不注入）。
 - ❌ 让 `client.js` import 移植模块（它们是 UMD，只能走同源 `<script src="/compression-tiers/vendor/…">`）。
 - ❌ 用条件渲染隐藏试管触发器（投影缺失时也要渲染，显示「—」并禁用）。
 - ❌ 在输入框上方那一行用 `@media` 判断伙伴显隐（要按行宽，用容器查询）。
@@ -285,6 +299,8 @@ ctx.inject(['theme'], (scope) => {
 | `.ct-dock-mascots` / `.ct-dock-tools` / `.ct-mascot-stage` | 像素伙伴槽 / 右侧工具区 / 伙伴舞台（220 × 84） |
 | `.ct-vial` / `.ct-vial-popover` / `.ct-vial-canvas` | 试管触发器 / 浮窗 / 物理画布（96 × 220） |
 | `.ct-vial-rows` / `.ct-vial-bar` / `.ct-vial-legend` | 浮窗数字行 / 三段构成条 / 图例 |
+| `.ct-effort` / `.ct-effort-track` / `.ct-effort-gem` | 注入官方模型菜单的推理轨道 / `role="slider"` 的轨道 / 切工水晶旋钮 |
+| `.ct-effort-rail` / `.ct-effort-fill` / `.ct-effort-dot` / `.ct-effort-error` | 轨道条 / 已选段 / 档位点 / 失败原因 |
 | `.ct-status` / `.ct-note` / `.ct-meta` / `.ct-scopes` | 状态行 / 弱化说明 / 页脚元信息 / 授权范围 |
 
 ## 检查清单
@@ -303,6 +319,7 @@ ctx.inject(['theme'], (scope) => {
 - [ ] 两套皮肤的 token 只写在 `.ct-skin[data-palette='…']` 上，每套都有浅色段与 `body[data-ds-dark-theme]` 深色段；「跟随宿主」是空集。
 - [ ] 外观页三组控件都能改、失败会回滚；伙伴开关是 `aria-pressed` 的按钮，不是复选框。
 - [ ] 试管触发器任何时候都在（投影缺失显示「—」），浮窗里有数字、构成条与图例。
+- [ ] 推理滑块只出现在官方「推理等级」行下面：锚点是语义属性，`role="slider"` 带 min/max/now/valuetext；写不进去就回滚并写原因，认不出锚点就什么都不加。
 - [ ] 输入框上方那一行按 `@container` 决定伙伴显隐，窗口窄但卡宽时也不会互相压住。
 - [ ] 动效三档都试过：`subtle` 只关进场与液面过渡，`off` 还把 `reducedMotion` 传给了试管与伙伴。
 - [ ] 空状态行不占位。

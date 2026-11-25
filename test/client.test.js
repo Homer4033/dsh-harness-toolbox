@@ -1293,8 +1293,12 @@ test('a palette repaints the whole app through the host theme service in both sc
     slots: { inject: (_slot, callback) => callback(), register: () => () => {} },
     inject(deps, callback) {
       // Cross-realm array: compare contents, not the prototype.
-      assert.equal(JSON.stringify(deps), '["theme"]')
-      callback({ theme })
+      const names = JSON.stringify(deps)
+      assert.ok(names === '["theme"]' || names === '["modelDirectories"]', 'unexpected injection: ' + names)
+      // The host here has no model directory: the effort slider must stay out
+      // of the way instead of throwing during apply.
+      callback(names === '["theme"]' ? { theme } : {})
+      return () => {}
     },
   }
   const plugin = module.factory(() => fakeReact(null))
@@ -1359,4 +1363,362 @@ test('a palette repaints the whole app through the host theme service in both sc
   assert.equal('mode' in skin.skinSpec('obsidian'), false)
   assert.equal('mode' in skin.skinSpec('crystal'), false)
   assert.equal(skin.skinSpec('host'), null)
+})
+
+/* ---- Reasoning effort slider -------------------------------------------- */
+
+/** A tiny DOM: just enough element/attribute/selector surface for the bridge. */
+function fakeDom() {
+  function parse(selector) {
+    const out = { tag: '', classes: [], attrs: [] }
+    const head = selector.match(/^[a-zA-Z][\w-]*/)
+    if (head) out.tag = head[0].toUpperCase()
+    const rest = head ? selector.slice(head[0].length) : selector
+    for (const part of rest.match(/\[[^\]]+\]|\.[\w-]+/g) || []) {
+      if (part[0] === '.') {
+        out.classes.push(part.slice(1))
+        continue
+      }
+      const body = part.slice(1, -1)
+      const eq = body.indexOf('=')
+      if (eq < 0) out.attrs.push([body, null])
+      else out.attrs.push([body.slice(0, eq), body.slice(eq + 1).replace(/^["']|["']$/g, '')])
+    }
+    return out
+  }
+  function matches(node, parsed) {
+    if (parsed.tag && node.tagName !== parsed.tag) return false
+    const classes = String(node.getAttribute('class') || '').split(/\s+/)
+    for (const name of parsed.classes) if (!classes.includes(name)) return false
+    for (const [name, value] of parsed.attrs) {
+      const actual = node.getAttribute(name)
+      if (actual === null) return false
+      if (value !== null && actual !== value) return false
+    }
+    return true
+  }
+  function descendants(node, out = []) {
+    for (const child of node.childNodes) {
+      out.push(child)
+      descendants(child, out)
+    }
+    return out
+  }
+  function element(tag) {
+    const node = {
+      tagName: String(tag).toUpperCase(),
+      childNodes: [],
+      parentNode: null,
+      listeners: {},
+      attributes: {},
+      rect: null,
+      textContent: '',
+      style: {
+        values: {},
+        setProperty(name, value) { this.values[name] = String(value) },
+      },
+      appendChild(child) {
+        child.parentNode = node
+        node.childNodes.push(child)
+        return child
+      },
+      insertBefore(child, reference) {
+        child.parentNode = node
+        const at = reference ? node.childNodes.indexOf(reference) : -1
+        if (at < 0) node.childNodes.push(child)
+        else node.childNodes.splice(at, 0, child)
+        return child
+      },
+      removeChild(child) {
+        const at = node.childNodes.indexOf(child)
+        if (at >= 0) node.childNodes.splice(at, 1)
+        child.parentNode = null
+        return child
+      },
+      setAttribute(name, value) { node.attributes[name] = String(value) },
+      getAttribute(name) { return name in node.attributes ? node.attributes[name] : null },
+      addEventListener(type, handler) {
+        if (!node.listeners[type]) node.listeners[type] = []
+        node.listeners[type].push(handler)
+      },
+      dispatch(type, event) {
+        for (const handler of node.listeners[type] || []) handler(event)
+      },
+      getBoundingClientRect() {
+        return node.rect || { left: 0, top: 0, width: 100, height: 28 }
+      },
+      querySelector(selector) {
+        const parsed = parse(selector)
+        return descendants(node).find((child) => matches(child, parsed)) || null
+      },
+      querySelectorAll(selector) {
+        const parsed = parse(selector)
+        return descendants(node).filter((child) => matches(child, parsed))
+      },
+      closest(selector) {
+        const parsed = parse(selector)
+        let current = node
+        while (current) {
+          if (current.tagName && matches(current, parsed)) return current
+          current = current.parentNode
+        }
+        return null
+      },
+    }
+    return node
+  }
+  const body = element('body')
+  const byId = new Map()
+  const document = {
+    body,
+    createElement: (tag) => element(tag),
+    createElementNS: (_ns, tag) => element(tag),
+    getElementById: (id) => byId.get(id) || null,
+    querySelector: (selector) => body.querySelector(selector),
+    querySelectorAll: (selector) => body.querySelectorAll(selector),
+    register(id, node) { byId.set(id, node); return node },
+  }
+  return { document, element, body }
+}
+
+/** `{ light, dark }` effort snapshot for the fake model directory. */
+function effortSnapshot(overrides = {}) {
+  return {
+    current: { provider: 'deepseek', model: 'deepseek-v4', reasoningEffort: 'high' },
+    groups: [{
+      id: 'deepseek',
+      models: [{
+        id: 'deepseek-v4',
+        reasoning: {
+          defaultEffort: 'low',
+          efforts: [
+            { id: 'off', name: '关闭' },
+            { id: 'low', name: '低' },
+            { id: 'high', name: '高' },
+            { id: 'max', name: '最高' },
+          ],
+        },
+      }],
+    }],
+    status: 'ready',
+    ...overrides,
+  }
+}
+
+test('the effort state reads the levels of the current model only', () => {
+  const { module } = loadClient()
+  const effort = module.factory(() => fakeReact(null)).__test.effort
+
+  const state = effort.stateOf(effortSnapshot())
+  // Cross-realm arrays: compare their JSON, not their prototypes.
+  assert.equal(JSON.stringify(state.levels.map((level) => level.id)), '["off","low","high","max"]')
+  assert.equal(JSON.stringify(state.levels.map((level) => level.name)), '["关闭","低","高","最高"]')
+  assert.equal(state.index, 2, 'the saved effort wins')
+  assert.equal(state.provider, 'deepseek')
+  assert.equal(state.model, 'deepseek-v4')
+  assert.equal(state.busy, false)
+
+  // No saved effort: the model's advertised default decides.
+  assert.equal(effort.stateOf(effortSnapshot({
+    current: { provider: 'deepseek', model: 'deepseek-v4' },
+  })).index, 1)
+  // An effort the catalog no longer advertises falls back to the first level.
+  assert.equal(effort.stateOf(effortSnapshot({
+    current: { provider: 'deepseek', model: 'deepseek-v4', reasoningEffort: 'turbo' },
+  })).index, 0)
+  // Mid-select the slider locks itself.
+  assert.equal(effort.stateOf(effortSnapshot({ status: 'selecting' })).busy, true)
+
+  // Nothing to slide: a model without reasoning metadata, one single level, or
+  // another model's metadata must never grow a control.
+  assert.equal(effort.stateOf(effortSnapshot({
+    groups: [{ id: 'deepseek', models: [{ id: 'deepseek-v4' }] }],
+  })), null)
+  assert.equal(effort.stateOf(effortSnapshot({
+    groups: [{
+      id: 'deepseek',
+      models: [{ id: 'deepseek-v4', reasoning: { efforts: [{ id: 'high', name: '高' }] } }],
+    }],
+  })), null, 'one level is not a slider')
+  assert.equal(effort.stateOf(effortSnapshot({
+    groups: [{
+      id: 'other',
+      models: [{ id: 'deepseek-v4', reasoning: { efforts: [{ id: 'a' }, { id: 'b' }] } }],
+    }],
+  })), null, 'levels belong to the current provider')
+  assert.equal(effort.stateOf(null), null)
+  assert.equal(effort.stateOf({ current: null, groups: [] }), null)
+})
+
+test('the effort rail geometry keeps the knob inside the track', () => {
+  const { module } = loadClient()
+  const effort = module.factory(() => fakeReact(null)).__test.effort
+
+  assert.equal(effort.knobLeft(0), 'calc(14px + (100% - 28px) * 0)')
+  assert.equal(effort.knobLeft(0.5), 'calc(14px + (100% - 28px) * 0.5)')
+  assert.equal(effort.knobLeft(1), 'calc(14px + (100% - 28px) * 1)')
+  assert.equal(effort.knobLeft(4), effort.knobLeft(1), 'clamped high')
+  assert.equal(effort.knobLeft(-2), effort.knobLeft(0), 'clamped low')
+  assert.equal(effort.knobLeft('nope'), effort.knobLeft(0), 'garbage is the low end')
+
+  assert.equal(effort.indexAt(0, 4), 0)
+  assert.equal(effort.indexAt(1, 4), 3)
+  assert.equal(effort.indexAt(0.5, 4), 2, 'the nearest level wins')
+  assert.equal(effort.indexAt(2, 4), 3, 'clamped high')
+  assert.equal(effort.step(0, -1, 4), 0)
+  assert.equal(effort.step(3, 1, 4), 3)
+  assert.equal(effort.step(1, 1, 4), 2)
+  assert.equal(effort.step(9, 0, 4), 3, 'an out-of-range index is clamped first')
+
+  // Colour is positional: blue at the bottom, violet at the top.
+  const low = effort.ramp(0)
+  const high = effort.ramp(1)
+  assert.ok(high.hue > low.hue)
+  assert.match(low.accent, /^hsl\(205 /)
+  assert.match(high.accent, /^hsl\(285 /)
+  // Facets brighten with the level and across the gem.
+  const dark = effort.facetPaint(0, 0, 4)
+  const lit = effort.facetPaint(1, 0, 4)
+  assert.ok(lit.opacity > dark.opacity)
+})
+
+test('the bridge finds the official reasoning row by semantic attributes', () => {
+  const { module } = loadClient()
+  const effort = module.factory(() => fakeReact(null)).__test.effort
+  const dom = fakeDom()
+  const card = dom.element('div')
+  card.setAttribute('data-composer-card', '')
+  const trigger = dom.element('button')
+  trigger.setAttribute('aria-haspopup', 'menu')
+  trigger.setAttribute('aria-expanded', 'true')
+  trigger.setAttribute('aria-controls', 'model-menu')
+  card.appendChild(trigger)
+  dom.body.appendChild(card)
+  const menu = dom.element('div')
+  menu.setAttribute('id', 'model-menu')
+  menu.setAttribute('role', 'menu')
+  const modelRow = dom.element('button')
+  modelRow.setAttribute('role', 'menuitem')
+  const effortRow = dom.element('button')
+  effortRow.setAttribute('role', 'menuitem')
+  menu.appendChild(modelRow)
+  menu.appendChild(effortRow)
+  dom.body.appendChild(menu)
+  dom.document.register('model-menu', menu)
+
+  const found = effort.findRow(dom.document)
+  assert.ok(found)
+  assert.equal(found.row, effortRow, 'the second row is the reasoning level')
+  assert.equal(found.menu, menu)
+
+  // A closed menu is invisible to the bridge.
+  trigger.setAttribute('aria-expanded', 'false')
+  assert.equal(effort.findRow(dom.document), null)
+  // An open menu with a single row has no reasoning row to attach to.
+  trigger.setAttribute('aria-expanded', 'true')
+  menu.removeChild(effortRow)
+  assert.equal(effort.findRow(dom.document), null)
+  // A menu without the composer card is still recognised by signature alone.
+  menu.appendChild(effortRow)
+  dom.body.removeChild(card)
+  dom.body.appendChild(trigger)
+  assert.ok(effort.findRow(dom.document), 'the fallback signature accepts it')
+  assert.equal(effort.findRow(null), null)
+  assert.equal(effort.findRow({}), null)
+})
+
+test('the slider writes through the official directory and rolls back a refusal', async () => {
+  const { module } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  const effort = plugin.__test.effort
+  const dom = fakeDom()
+  effort.setDocument(dom.document)
+  effort.setLabels({ ariaLabel: '推理等级', errorPrefix: '切换失败：' })
+
+  const card = dom.element('div')
+  card.setAttribute('data-composer-card', '')
+  const trigger = dom.element('button')
+  trigger.setAttribute('aria-haspopup', 'menu')
+  trigger.setAttribute('aria-expanded', 'true')
+  trigger.setAttribute('aria-controls', 'diff-menu')
+  card.appendChild(trigger)
+  dom.body.appendChild(card)
+  const menu = dom.element('div')
+  menu.setAttribute('id', 'diff-menu')
+  const row = dom.element('button')
+  row.setAttribute('role', 'menuitem')
+  const row2 = dom.element('button')
+  row2.setAttribute('role', 'menuitem')
+  menu.appendChild(row)
+  menu.appendChild(row2)
+  card.appendChild(menu)
+  dom.document.register('diff-menu', menu)
+
+  let snapshot = effortSnapshot()
+  const calls = []
+  let reply = () => ({ ok: true })
+  const directory = {
+    store: { getSnapshot: () => snapshot, subscribe: () => () => {} },
+    select(selection) {
+      calls.push(selection)
+      const result = reply()
+      // A successful write lands in the durable projection, so the next read
+      // shows it — that is what the official row and our knob both follow.
+      if (result.ok) snapshot = { ...snapshot, current: { ...snapshot.current, reasoningEffort: selection.reasoningEffort } }
+      return Promise.resolve(result)
+    },
+    load: () => Promise.resolve(snapshot),
+  }
+  effort.setDirectory(directory)
+
+  // Closed menu: nothing is injected into the official DOM.
+  trigger.setAttribute('aria-expanded', 'false')
+  effort.sync()
+  assert.equal(menu.querySelectorAll('.ct-effort').length, 0)
+
+  // Open: the control lands directly below the reasoning row.
+  trigger.setAttribute('aria-expanded', 'true')
+  effort.sync()
+  const sliders = menu.querySelectorAll('.ct-effort')
+  assert.equal(sliders.length, 1)
+  const slider = sliders[0]
+  assert.equal(menu.childNodes.indexOf(slider), menu.childNodes.indexOf(row2) + 1, 'right under the row')
+  const track = slider.querySelector('.ct-effort-track')
+  assert.equal(track.getAttribute('role'), 'slider')
+  assert.equal(track.getAttribute('aria-valuenow'), '2')
+  assert.equal(track.getAttribute('aria-valuemax'), '3')
+  assert.equal(track.getAttribute('aria-valuetext'), '高')
+  assert.equal(track.getAttribute('aria-label'), '推理等级')
+  assert.equal(slider.querySelectorAll('.ct-effort-dot').length, 4, 'one tick per level')
+  // A second sync must not stack a second control.
+  effort.sync()
+  assert.equal(menu.querySelectorAll('.ct-effort').length, 1)
+
+  // Keyboard: one step left selects the previous level through the directory.
+  track.dispatch('keydown', { key: 'ArrowLeft', preventDefault() {} })
+  assert.equal(JSON.stringify(calls), JSON.stringify([{ provider: 'deepseek', model: 'deepseek-v4', reasoningEffort: 'low' }]))
+  assert.equal(track.getAttribute('aria-valuenow'), '1')
+  await new Promise((resolve) => setTimeout(resolve, 30))
+
+  // A refused selection reports the host's message and puts the knob back.
+  reply = () => ({ ok: false, error: { code: 'session/writer-held', message: 'session is busy' } })
+  track.dispatch('keydown', { key: 'End', preventDefault() {} })
+  assert.equal(JSON.stringify(calls[1]), JSON.stringify({ provider: 'deepseek', model: 'deepseek-v4', reasoningEffort: 'max' }))
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  const error = slider.querySelector('.ct-effort-error')
+  assert.match(error.textContent, /切换失败：/)
+  assert.equal(track.getAttribute('aria-valuenow'), '1', 'the knob stays on the confirmed level')
+
+  // Closing the menu removes the control with it.
+  trigger.setAttribute('aria-expanded', 'false')
+  effort.sync()
+  assert.equal(menu.querySelectorAll('.ct-effort').length, 0)
+})
+
+test('the dock mounts the effort bridge but renders nothing itself', () => {
+  const nodes = renderDock([{ level: 'standard', appearance: { palette: 'host', motion: 'full', mascots: true } }], { t: (key) => key, sessionId: 'session-1' })
+  const bridge = nodes.find((node) => typeof node.type === 'function' && node.props && node.props.sessionId === 'session-1')
+  assert.ok(bridge, 'the bridge is mounted on the dock row')
+  assert.equal(bridge.props.motion, 'full')
+  assert.equal(bridge.type(bridge.props), null, 'the bridge renders no markup of its own')
 })

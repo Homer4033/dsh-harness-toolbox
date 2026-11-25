@@ -453,6 +453,8 @@ window.__ModuleLoader__.load({
         vialUnavailable: '读不到上下文用量',
         vialLoading: '读取中…',
         vialClose: '关闭',
+        effortAria: '推理等级',
+        effortFailed: '切换失败：',
         levelsTitle: '档位',
         ghScopesLabel: '授权范围',
         ghScopesNone: '未报告',
@@ -600,6 +602,8 @@ window.__ModuleLoader__.load({
         vialUnavailable: 'Context usage is unavailable',
         vialLoading: 'Reading…',
         vialClose: 'Close',
+        effortAria: 'Reasoning level',
+        effortFailed: 'Switch failed: ',
         levelsTitle: 'Tiers',
         ghScopesLabel: 'Token scopes',
         ghScopesNone: 'not reported',
@@ -1726,6 +1730,101 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
   color: var(--dsw-alias-label-tertiary);
   cursor: default;
 }
+/* ---- Reasoning effort slider (inside the official model menu) -------------
+   Injected as a sibling of the official 推理等级 row, so it inherits the menu
+   surface and its tokens. The rail is inset by half a knob at both ends: the
+   knob is cut crystal, and the facets brighten with the level. */
+.ct-effort {
+  display: block;
+  box-sizing: border-box;
+  padding: 2px 10px 6px;
+  --ct-effort-accent: hsl(240 92% 62%);
+  --ct-effort-glow: hsl(240 92% 66% / 0.5);
+}
+.ct-effort-track {
+  position: relative;
+  display: block;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: none;
+}
+.ct-effort-track:focus-visible {
+  outline: 2px solid var(--ct-effort-accent);
+  outline-offset: 2px;
+}
+.ct-effort-rail {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 50%;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 24%, transparent);
+}
+.ct-effort-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--ct-effort-accent) 55%, transparent),
+    var(--ct-effort-accent));
+}
+.ct-effort-dot {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 64%, transparent);
+  opacity: 0.4;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+.ct-effort-gem {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  margin-left: -14px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 7px var(--ct-effort-glow));
+  transition: left 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ct-effort-gem[data-gem='plain'] {
+  border-radius: 999px;
+  background: radial-gradient(60% 60% at 35% 30%, #ffffff 0%, var(--ct-effort-accent) 62%, color-mix(in srgb, var(--ct-effort-accent) 60%, #000000) 100%);
+}
+.ct-effort-gem svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ct-effort[data-motion='off'] .ct-effort-gem,
+.ct-effort[data-motion='off'] .ct-effort-dot {
+  transition: none;
+}
+.ct-effort[data-busy='true'] .ct-effort-track {
+  cursor: progress;
+  opacity: 0.72;
+}
+.ct-effort-error {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 11px;
+  line-height: 15px;
+}
+.ct-effort-error:empty {
+  display: none;
+}
+
 /* ---- Composer dock: vial + pixel companions ----------------------------- */
 .ct-dock-mascots {
   flex: 0 0 220px;
@@ -2798,6 +2897,554 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
       })
     }
 
+    /* ---- Reasoning effort slider -------------------------------------------
+       DSH has a real reasoning level. The official model menu's root pane has
+       two rows — model and reasoning level — and the second one exists only
+       when the current model advertises `reasoning.efforts`. This slider is
+       injected under that row and writes through the same per-session
+       directory the official menu writes through, so the official row shows
+       the new level as soon as the selection settles and the two entry points
+       can never disagree.
+
+       Everything here is fail-open: a host without the `modelDirectories`
+       service, a session without a directory, a closed menu, a model without
+       levels or a rejected selection all leave the official menu exactly as it
+       was. There is no decorative control: if the write cannot happen, the
+       slider is not rendered. */
+    let modelDirectories = null
+    const EFFORT_MIN_LEVELS = 2
+    const EFFORT_KNOB = 28
+
+    /** The current model's reasoning levels, or null when there is nothing to slide. */
+    function effortStateOf(snapshot) {
+      if (!snapshot || typeof snapshot !== 'object') return null
+      const current = snapshot.current
+      if (!current || typeof current.provider !== 'string' || typeof current.model !== 'string') return null
+      const groups = Array.isArray(snapshot.groups) ? snapshot.groups : []
+      let reasoning = null
+      for (const group of groups) {
+        if (!group || group.id !== current.provider || !Array.isArray(group.models)) continue
+        for (const model of group.models) {
+          if (model && model.id === current.model && model.reasoning) reasoning = model.reasoning
+        }
+      }
+      if (!reasoning || !Array.isArray(reasoning.efforts)) return null
+      const levels = []
+      for (const effort of reasoning.efforts) {
+        if (!effort || typeof effort.id !== 'string' || !effort.id) continue
+        levels.push({
+          id: effort.id,
+          name: typeof effort.name === 'string' && effort.name ? effort.name : effort.id,
+        })
+      }
+      if (levels.length < EFFORT_MIN_LEVELS) return null
+      const saved = typeof current.reasoningEffort === 'string' && current.reasoningEffort
+        ? current.reasoningEffort
+        : ''
+      const fallback = typeof reasoning.defaultEffort === 'string' ? reasoning.defaultEffort : ''
+      const at = levels.findIndex(function (level) { return level.id === (saved || fallback) })
+      return {
+        provider: current.provider,
+        model: current.model,
+        levels: levels,
+        index: at < 0 ? 0 : at,
+        busy: snapshot.status === 'selecting' || snapshot.status === 'loading',
+      }
+    }
+
+    function effortRatio(pct) {
+      const value = Number(pct)
+      if (!Number.isFinite(value)) return 0
+      return Math.min(1, Math.max(0, value))
+    }
+
+    /** Where the knob sits: half a knob inset at both ends, so it never leaves the rail. */
+    function effortKnobLeft(pct) {
+      const ratio = Math.round(effortRatio(pct) * 1000) / 1000
+      return 'calc(' + EFFORT_KNOB / 2 + 'px + (100% - ' + EFFORT_KNOB + 'px) * ' + ratio + ')'
+    }
+
+    /** The level under a pointer position, as an index on the same rail. */
+    function effortIndexAt(pct, count) {
+      const steps = Math.max(1, Number(count) - 1)
+      return Math.round(effortRatio(pct) * steps)
+    }
+
+    function stepEffort(index, delta, count) {
+      const steps = Math.max(1, Number(count) - 1)
+      const at = Math.min(Math.max(0, Math.round(Number(index) || 0)), steps)
+      return Math.min(Math.max(0, at + (Number(delta) || 0)), steps)
+    }
+
+    /**
+     * Colour by position, not by level name: a light level and a heavy level may
+     * be called anything in any locale, but the rail is always short → long.
+     */
+    function effortRamp(pct) {
+      const hue = Math.round(205 + effortRatio(pct) * 80)
+      return {
+        hue: hue,
+        accent: 'hsl(' + hue + ' 92% 62%)',
+        soft: 'hsl(' + hue + ' 88% 62% / 0.3)',
+        glow: 'hsl(' + hue + ' 92% 66% / 0.5)',
+      }
+    }
+
+    /** One facet of the cut crystal: brighter the further up the rail it is. */
+    function facetPaint(pct, facet, facets) {
+      const total = Math.max(1, Number(facets) || 1)
+      const offset = total === 1 ? 0 : (Math.max(0, Math.min(total - 1, Number(facet) || 0)) / (total - 1)) - 0.5
+      const lit = Math.min(1, Math.max(0, effortRatio(pct) + offset * 0.4))
+      const hue = Math.round(205 + lit * 80)
+      return {
+        fill: 'hsl(' + hue + ' 88% ' + Math.round(44 + lit * 34) + '%)',
+        opacity: Math.round((0.32 + lit * 0.68) * 100) / 100,
+      }
+    }
+
+    /** The cut-crystal knob, drawn as a faceted gem; a plain knob when SVG is unavailable. */
+    const EFFORT_FACETS = [
+      '16,3 26.5,11.5 16,15 5.5,11.5',
+      '5.5,11.5 16,15 16,29',
+      '16,15 26.5,11.5 16,29',
+      '5.5,11.5 2.5,7.5 16,3 16,15',
+    ]
+
+    function createEffortGem(doc) {
+      const host = doc.createElement('span')
+      host.setAttribute('class', 'ct-effort-gem')
+      let svg = null
+      try {
+        svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      } catch {
+        svg = null
+      }
+      if (!svg || typeof svg.appendChild !== 'function') {
+        host.setAttribute('data-gem', 'plain')
+        return { host: host, facets: [] }
+      }
+      svg.setAttribute('viewBox', '0 0 32 32')
+      svg.setAttribute('aria-hidden', 'true')
+      const facets = []
+      EFFORT_FACETS.forEach(function (points) {
+        const polygon = doc.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+        polygon.setAttribute('points', points)
+        polygon.setAttribute('stroke', 'hsl(208 90% 96% / 0.5)')
+        polygon.setAttribute('stroke-width', '0.8')
+        svg.appendChild(polygon)
+        facets.push(polygon)
+      })
+      host.appendChild(svg)
+      host.setAttribute('data-gem', 'cut')
+      return { host: host, facets: facets }
+    }
+
+    /**
+     * The injected control: a 28px rail with tick dots and the crystal knob.
+     * DOM-only on purpose — it lives inside a React-owned menu, so the fewer
+     * assumptions about that tree, the better.
+     */
+    function createEffortSlider(doc, handlers) {
+      const hooks = handlers || {}
+      const root = doc.createElement('div')
+      root.setAttribute('class', 'ct-effort')
+      root.setAttribute('role', 'presentation')
+
+      const track = doc.createElement('div')
+      track.setAttribute('class', 'ct-effort-track')
+      track.setAttribute('role', 'slider')
+      track.setAttribute('tabindex', '0')
+      track.setAttribute('aria-valuemin', '0')
+      root.appendChild(track)
+
+      const rail = doc.createElement('span')
+      rail.setAttribute('class', 'ct-effort-rail')
+      track.appendChild(rail)
+      const fill = doc.createElement('span')
+      fill.setAttribute('class', 'ct-effort-fill')
+      rail.appendChild(fill)
+      const gem = createEffortGem(doc)
+      track.appendChild(gem.host)
+      const ticks = []
+
+      const error = doc.createElement('p')
+      error.setAttribute('class', 'ct-effort-error')
+      error.setAttribute('role', 'alert')
+      root.appendChild(error)
+
+      const view = { levels: [], index: 0, busy: false, motion: 'full' }
+      let dragging = false
+      let preview = -1
+
+      function paint() {
+        const count = view.levels.length
+        const at = preview >= 0 ? preview : view.index
+        const steps = Math.max(1, count - 1)
+        const pct = count <= 1 ? 0 : Math.min(1, Math.max(0, at / steps))
+        const ramp = effortRamp(pct)
+        // The rail is inset by half a knob at both ends; the fill stops at the knob.
+        rail.style.setProperty('--ct-effort-accent', ramp.accent)
+        root.style.setProperty('--ct-effort-accent', ramp.accent)
+        root.style.setProperty('--ct-effort-glow', ramp.glow)
+        fill.style.setProperty('width', (Math.round(pct * 1000) / 10) + '%')
+        gem.host.style.setProperty('left', effortKnobLeft(pct))
+        gem.facets.forEach(function (facet, index) {
+          const paintFacet = facetPaint(pct, index, gem.facets.length)
+          facet.setAttribute('fill', paintFacet.fill)
+          facet.setAttribute('fill-opacity', String(paintFacet.opacity))
+        })
+        ticks.forEach(function (tick, index) {
+          const tickPct = count <= 1 ? 0 : index / steps
+          tick.style.setProperty('left', effortKnobLeft(tickPct))
+          tick.style.setProperty('opacity', index <= at ? '0.9' : '0.4')
+        })
+        while (ticks.length < count) {
+          const tick = doc.createElement('span')
+          tick.setAttribute('class', 'ct-effort-dot')
+          tick.setAttribute('aria-hidden', 'true')
+          track.insertBefore(tick, gem.host)
+          ticks.push(tick)
+        }
+        const level = view.levels[at]
+        root.setAttribute('data-busy', view.busy ? 'true' : 'false')
+        root.setAttribute('data-motion', view.motion === 'off' ? 'off' : 'full')
+        root.setAttribute('data-levels', String(count))
+        track.setAttribute('aria-valuemax', String(Math.max(0, count - 1)))
+        track.setAttribute('aria-valuenow', String(at))
+        track.setAttribute('aria-valuetext', level ? level.name : '')
+        track.setAttribute('aria-label', hooks.ariaLabel || '')
+        error.textContent = hooks.errorText || ''
+      }
+
+      function commit(index) {
+        preview = -1
+        if (view.busy || index === view.index) {
+          paint()
+          return
+        }
+        view.index = index
+        paint()
+        if (typeof hooks.onChange === 'function') hooks.onChange(index)
+      }
+
+      function ratioAt(clientX) {
+        const rect = typeof track.getBoundingClientRect === 'function' ? track.getBoundingClientRect() : null
+        if (!rect || !rect.width) return 0
+        const pad = EFFORT_KNOB / 2
+        return (Number(clientX) - rect.left - pad) / Math.max(1, rect.width - EFFORT_KNOB)
+      }
+
+      track.addEventListener('pointerdown', function (event) {
+        if (view.busy) return
+        if (event.preventDefault) event.preventDefault()
+        dragging = true
+        preview = effortIndexAt(ratioAt(event.clientX), view.levels.length)
+        paint()
+        try { track.setPointerCapture(event.pointerId) } catch { /* older engines */ }
+      })
+      track.addEventListener('pointermove', function (event) {
+        if (!dragging) return
+        preview = effortIndexAt(ratioAt(event.clientX), view.levels.length)
+        paint()
+      })
+      track.addEventListener('pointerup', function (event) {
+        if (!dragging) return
+        dragging = false
+        commit(effortIndexAt(ratioAt(event.clientX), view.levels.length))
+      })
+      track.addEventListener('pointercancel', function () {
+        dragging = false
+        preview = -1
+        paint()
+      })
+      track.addEventListener('keydown', function (event) {
+        const key = event && event.key
+        if (!key) return
+        let next = null
+        if (key === 'ArrowRight' || key === 'ArrowUp') next = stepEffort(view.index, 1, view.levels.length)
+        else if (key === 'ArrowLeft' || key === 'ArrowDown') next = stepEffort(view.index, -1, view.levels.length)
+        else if (key === 'Home') next = 0
+        else if (key === 'End') next = Math.max(0, view.levels.length - 1)
+        if (next === null) return
+        if (event.preventDefault) event.preventDefault()
+        commit(next)
+      })
+
+      paint()
+
+      return {
+        element: root,
+        update: function (next) {
+          if (!next) return
+          view.levels = Array.isArray(next.levels) ? next.levels : []
+          view.index = Math.max(0, Math.min(view.levels.length - 1, Number(next.index) || 0))
+          view.busy = next.busy === true
+          view.motion = next.motion === 'off' ? 'off' : 'full'
+          paint()
+        },
+        isDragging: function () { return dragging },
+        destroy: function () {
+          if (root.parentNode) root.parentNode.removeChild(root)
+        },
+      }
+    }
+
+    /**
+     * Find the official reasoning row. Semantic attributes only — DSH's class
+     * names are CSS-module hashes and change between builds.
+     */
+    function findReasoningRow(doc) {
+      if (!doc || typeof doc.querySelectorAll !== 'function') return null
+      const triggers = doc.querySelectorAll('button[aria-haspopup="menu"][aria-expanded="true"]')
+      const candidates = []
+      for (let i = 0; i < triggers.length; i += 1) {
+        const trigger = triggers[i]
+        const id = typeof trigger.getAttribute === 'function' ? trigger.getAttribute('aria-controls') : ''
+        if (!id || typeof doc.getElementById !== 'function') continue
+        const menu = doc.getElementById(id)
+        if (!menu || typeof menu.querySelectorAll !== 'function') continue
+        const rows = menu.querySelectorAll('button[role="menuitem"]')
+        if (!rows || rows.length < EFFORT_MIN_LEVELS) continue
+        const owned = typeof trigger.closest === 'function' && trigger.closest('[data-composer-card]')
+        candidates.push({ trigger: trigger, menu: menu, row: rows[1], owned: Boolean(owned) })
+      }
+      const preferred = candidates.filter(function (item) { return item.owned })
+      if (preferred.length > 0) return preferred[0]
+      return candidates.length > 0 ? candidates[0] : null
+    }
+
+    /**
+     * The bridge between the per-session model directory and the injected
+     * slider: subscribes to the directory, follows the menu opening and
+     * closing, and writes selections back through `directory.select`.
+     */
+    const effortBridge = {
+      directory: null,
+      observer: null,
+      unsubscribe: null,
+      frame: 0,
+      node: null,
+      menu: null,
+      slider: null,
+      view: null,
+      labels: { ariaLabel: '', errorPrefix: '' },
+      motion: 'full',
+      error: '',
+    }
+
+    /** The document the bridge reads; tests swap in a fake one. */
+    let effortDocument = null
+    function effortDoc() {
+      if (effortDocument) return effortDocument
+      return typeof document === 'undefined' ? null : document
+    }
+
+    function detachEffortSlider() {
+      if (effortBridge.slider) {
+        try { effortBridge.slider.destroy() } catch { /* already gone with the menu */ }
+      }
+      effortBridge.slider = null
+      effortBridge.node = null
+      effortBridge.menu = null
+    }
+
+    /** Paint the attached slider from the directory; attaches when the menu just opened. */
+    function syncEffortSlider() {
+      effortBridge.frame = 0
+      const doc = effortDoc()
+      if (!doc) return
+      const directory = effortBridge.directory
+      if (!directory || !directory.store || typeof directory.store.getSnapshot !== 'function') {
+        detachEffortSlider()
+        return
+      }
+      let snapshot = null
+      try { snapshot = directory.store.getSnapshot() } catch { snapshot = null }
+      const view = effortStateOf(snapshot)
+      effortBridge.view = view
+      if (!view) {
+        detachEffortSlider()
+        return
+      }
+      const found = findReasoningRow(doc)
+      if (!found) {
+        detachEffortSlider()
+        return
+      }
+      if (effortBridge.menu !== found.menu) {
+        detachEffortSlider()
+        const slider = createEffortSlider(doc, {
+          ariaLabel: effortBridge.labels.ariaLabel,
+          errorText: effortBridge.error,
+          onChange: function (index) { selectEffort(index) },
+        })
+        const parent = found.row.parentNode
+        if (!parent || typeof parent.insertBefore !== 'function') return
+        parent.insertBefore(slider.element, found.row.nextSibling || null)
+        effortBridge.slider = slider
+        effortBridge.node = slider.element
+        effortBridge.menu = found.menu
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
+          && typeof window.Event === 'function') {
+          try { window.dispatchEvent(new window.Event('resize')) } catch { /* measure is optional */ }
+        }
+      }
+      if (effortBridge.slider) {
+        effortBridge.slider.element.setAttribute('data-busy', view.busy ? 'true' : 'false')
+        effortBridge.slider.update({
+          levels: view.levels,
+          index: view.index,
+          busy: view.busy,
+          motion: effortBridge.motion,
+        })
+        const error = effortBridge.slider.element.querySelector
+          ? effortBridge.slider.element.querySelector('.ct-effort-error')
+          : null
+        if (error) error.textContent = effortBridge.error
+      }
+    }
+
+    function scheduleEffortSync() {
+      if (effortBridge.frame) return
+      const run = function () { syncEffortSlider() }
+      if (typeof requestAnimationFrame === 'function') {
+        effortBridge.frame = requestAnimationFrame(run)
+      } else {
+        effortBridge.frame = setTimeout(run, 16)
+      }
+    }
+
+    /** Write one level through the official directory; roll back on refusal. */
+    function selectEffort(index) {
+      const directory = effortBridge.directory
+      const view = effortBridge.view
+      if (!directory || !view || typeof directory.select !== 'function') return
+      const level = view.levels[index]
+      if (!level) return
+      // Roll back to what the host actually holds, not to the optimistic paint.
+      let confirmed = view.index
+      try {
+        const state = effortStateOf(directory.store.getSnapshot())
+        if (state) confirmed = state.index
+      } catch { /* keep the painted index */ }
+      const previous = confirmed
+      effortBridge.error = ''
+
+      let pending = null
+      try {
+        pending = Promise.resolve(directory.select({
+          provider: view.provider,
+          model: view.model,
+          reasoningEffort: level.id,
+        }))
+      } catch (error) {
+        pending = Promise.reject(error)
+      }
+      effortBridge.view = { ...view, index: index, busy: true }
+      if (effortBridge.slider) {
+        effortBridge.slider.update({
+          levels: effortBridge.view.levels,
+          index: index,
+          busy: true,
+          motion: effortBridge.motion,
+        })
+      }
+      pending.then(function (result) {
+        if (result && result.ok === false) {
+          effortBridge.error = effortBridge.labels.errorPrefix + messageOf(result.error)
+          effortBridge.view = { ...effortBridge.view, index: previous, busy: false }
+          scheduleEffortSync()
+          return
+        }
+        scheduleEffortSync()
+      }).catch(function (error) {
+        effortBridge.error = effortBridge.labels.errorPrefix + messageOf(error)
+        effortBridge.view = { ...effortBridge.view, index: previous, busy: false }
+        scheduleEffortSync()
+      })
+    }
+
+    /** Mount the bridge for one session; returns its disposer (React effect shape). */
+    function mountEffortBridge(sessionId, options) {
+      const opts = options || {}
+      if (typeof document === 'undefined' || !sessionId || !modelDirectories
+        || typeof modelDirectories.directoryFor !== 'function') {
+        return function () {}
+      }
+      let directory = null
+      try { directory = modelDirectories.directoryFor(sessionId) } catch { directory = null }
+      if (!directory || !directory.store || typeof directory.store.subscribe !== 'function') {
+        return function () {}
+      }
+      effortBridge.directory = directory
+      effortBridge.motion = opts.motion === 'off' ? 'off' : 'full'
+      effortBridge.labels = {
+        ariaLabel: typeof opts.ariaLabel === 'string' ? opts.ariaLabel : '',
+        errorPrefix: typeof opts.errorPrefix === 'string' ? opts.errorPrefix : '',
+      }
+      effortBridge.error = ''
+      let unsubscribe = null
+      try {
+        unsubscribe = directory.store.subscribe(function () { scheduleEffortSync() })
+      } catch {
+        unsubscribe = null
+      }
+      effortBridge.unsubscribe = typeof unsubscribe === 'function' ? unsubscribe : null
+      if (typeof document.body !== 'undefined' && typeof MutationObserver === 'function') {
+        effortBridge.observer = new MutationObserver(function () { scheduleEffortSync() })
+        try {
+          effortBridge.observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['aria-expanded'],
+          })
+        } catch {
+          effortBridge.observer = null
+        }
+      }
+      if (typeof directory.load === 'function') {
+        try { directory.load().catch(function () { /* the store reports its own error */ }) } catch { /* sync face */ }
+      }
+      scheduleEffortSync()
+      return function () {
+        if (effortBridge.observer) {
+          try { effortBridge.observer.disconnect() } catch { /* already gone */ }
+          effortBridge.observer = null
+        }
+        if (effortBridge.unsubscribe) {
+          try { effortBridge.unsubscribe() } catch { /* already gone */ }
+          effortBridge.unsubscribe = null
+        }
+        if (effortBridge.frame) {
+          if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(effortBridge.frame)
+          else clearTimeout(effortBridge.frame)
+          effortBridge.frame = 0
+        }
+        detachEffortSlider()
+        effortBridge.directory = null
+        effortBridge.view = null
+        effortBridge.error = ''
+      }
+    }
+
+    /**
+     * Renders nothing: it only owns the bridge's lifetime for the session the
+     * composer dock belongs to.
+     */
+    function EffortBridge(props) {
+      const sessionId = props.sessionId || (props.session && props.session.id) || ''
+      const t = props.t
+      React.useEffect(function () {
+        return mountEffortBridge(sessionId, {
+          motion: props.motion,
+          ariaLabel: typeof t === 'function' ? t('effortAria') : '',
+          errorPrefix: typeof t === 'function' ? t('effortFailed') : '',
+        })
+      }, [sessionId, props.motion])
+      return null
+    }
+
     /**
      * Composer dock row: which online repository this session publishes to.
      * The row sits above the input card, so a blank Session shows it too (the
@@ -3028,6 +3675,12 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
             }))
         : null,
       h('div', { key: 'tools', className: 'ct-dock-tools' },
+        h(EffortBridge, {
+          key: 'effort',
+          sessionId: sessionId,
+          motion: appearance.motion,
+          t: t,
+        }),
         h(ContextVial, {
           t: t,
           meter: meter,
@@ -4177,8 +4830,8 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
 
     return {
       inject: ['slots', 'locale', 'layout'],
-      // Seams for the unit tests: the palette table and the skin runtime are the
-      // two things a fake renderer cannot reach.
+      // Seams for the unit tests: the palette table, the skin runtime and the
+      // reasoning bridge are the things a fake renderer cannot reach.
       __test: {
         skinSpec: skinSpec,
         skinTints: SKIN_TINTS,
@@ -4187,6 +4840,29 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
         setSkinTheme: function (theme) {
           skinRuntime.theme = theme
           paintSkin()
+        },
+        // The geometry and colour ramps are pure, the DOM controller takes a
+        // fake document, and the bridge can be pointed at a fake model directory.
+        effort: {
+          stateOf: effortStateOf,
+          knobLeft: effortKnobLeft,
+          indexAt: effortIndexAt,
+          step: stepEffort,
+          ramp: effortRamp,
+          facetPaint: facetPaint,
+          findRow: findReasoningRow,
+          createSlider: createEffortSlider,
+          bridge: effortBridge,
+          setDocument: function (doc) { effortDocument = doc || null },
+          setDirectory: function (directory) { effortBridge.directory = directory || null },
+          setLabels: function (labels) {
+            effortBridge.labels = {
+              ariaLabel: labels && labels.ariaLabel ? labels.ariaLabel : '',
+              errorPrefix: labels && labels.errorPrefix ? labels.errorPrefix : '',
+            }
+          },
+          sync: function () { syncEffortSlider() },
+          select: function (index) { selectEffort(index) },
         },
       },
       apply(ctx) {
@@ -4203,6 +4879,17 @@ body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
             return function () {
               skinRuntime.theme = null
               dropSkin()
+            }
+          })
+        }
+        // Reasoning effort: the official model directory owns the levels, so
+        // this service is the only way in. Optional — a host without it keeps
+        // the dock and the menu exactly as they are (the slider never mounts).
+        if (typeof ctx.inject === 'function') {
+          ctx.inject(['modelDirectories'], function (scope) {
+            modelDirectories = scope && scope.modelDirectories ? scope.modelDirectories : null
+            return function () {
+              modelDirectories = null
             }
           })
         }
