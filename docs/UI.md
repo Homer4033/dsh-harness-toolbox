@@ -109,7 +109,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 3. **画的就是这三层**：对话区底光（底部一条 accent → 冷色的静态线性渐变，见下一节）+ 用户气泡 16px 圆角、`10px 15px` 内边距、深色加 `linear-gradient(rgba(255,255,255,.022), transparent 55%)` 与 `inset 0 1px 0 rgba(255,255,255,.058)` + `0 6px 20px -10px rgba(0,0,0,.44)`，浅色换成 `inset 0 1px 0 #fff` + `0 4px 16px -10px rgba(15,23,42,.10)`；输入卡一层 3% 顶部光泽（浅色 60%）与更深的落影。
 4. **引用块与分隔线**：`blockquote` 左侧 1.5px accent→冷紫渐变竖条（`::before`，上下各留 2px）+ accent 4% 的横向淡染；`hr` 是 84% 宽度的发丝渐变，不占额外高度。
 5. **排版只放宽行距**：对话区 `p` / `li` 的 `line-height` 1.72、`letter-spacing` .005em（上游给中日韩正文的同一条处理），字号、字重、颜色一律不动。
-6. **输入卡归宿主自己**：`[data-composer-card]` 只加光泽与落影，**不**改它的底色，也**不**动 `[data-composer-seat]`。宿主用这条 seat 遮罩把滚出去的正文裁在输入卡上方；2.4.2 为了旧辉光「到底」把遮罩关掉、卡片改 76% 半透明，结果正文透过卡片，2.4.8 全部撤回。
+6. **输入卡归宿主自己**：`[data-composer-card]` 只加光泽与落影，**不**改它的底色；`[data-composer-seat]` 的遮罩（把滚出去的正文裁在输入卡上方）一律保留，2.4.2 为了旧辉光「到底」把遮罩关掉、卡片改 76% 半透明，结果正文透过卡片，2.4.8 全部撤回。2.4.9 唯一允许碰 seat 的是**底光的那一层背景**：它叠在遮罩之上、并且照抄遮罩，见下一节第 4 条——遮罩本身与 seat 的其它属性一概不动。
 7. **美术层自身不加 CSS keyframes**：静态部分全是渐变，没有任何逐帧动画；`data-motion` 只影响试管与旋钮的过渡。
 8. **不抄的部分**：壁纸、Omni 检视台、思考转译、配额遥测都不在本插件范围内。
 
@@ -120,7 +120,11 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 1. **挂在哪里**：`body[data-ct-art='on'] [data-conversation-region='chat']` 上的 `background-image`，绝对不生成节点、不接点击、不参与排版；`position: relative` 只为让这层落在对话区自己的坐标系里。
 2. **画什么**：`linear-gradient(to top, accent 16% → chart-tools 9% @26% → transparent @54%)`，`background-repeat: no-repeat`、`background-position: bottom`——底部一条向上淡出的冷光。
 3. **为什么是静态的**：逐帧重绘的 canvas 在 4 核机器上就是切页与滚动时那点卡顿的来源，而同一张图用 CSS 渐变表达时浏览器只需要合成一次。用户看到的「动的带子」也一并消失。
-4. **和输入卡的关系**：渐变铺满整个对话区，但底部被宿主的 seat 遮罩与输入卡盖住——这正是「正文在输入卡上方就被裁住」的效果，不要为了多看一截底光去动 composer 的遮罩或透明度。
+4. **和输入卡的关系**：渐变铺满整个对话区，底部被宿主的 seat 遮罩与输入卡盖住——这正是「正文在输入卡上方就被裁住」的效果，不要为了多看一截底光去动 composer 的遮罩或透明度。**2.4.9 补上被遮罩吃掉的那一截**：seat 自己的遮罩从透明渐变到 `bg-base`（36px），底光因此停在 seat 顶边（用户报的「渐变被切掉了」）。修法是**在 seat 上再画一遍底光**，叠在遮罩之上：
+   - 选择器 `body[data-ct-art='on'] [data-conversation-region='chat'][data-content-phase='active'] [data-conversation-region='composer']`，特指度 (0,4,1) 压过宿主的 (0,3,0)，不用 `!important`；只认 active 相位——hero / settling 没有这条遮罩，也就不需要这一层。
+   - `background-image` 两层：第一层是 `to top` 的 accent 16%（0px）→ chart-tools 11%（`calc(100% - 36px)`）→ transparent（100%），第二层**照抄宿主的遮罩**（`to bottom` 的 `bg-base` 0% → `bg-base` 36px）。整条 `background-image` 会被替换，所以遮罩必须一起写回来。
+   - 为什么最后 36px 淡出：遮罩在这 36px 里从 0 升到不透明，底光按同样斜率升上来（`a × 深度 / 36px`），两层相加正好等于原渐变，接缝处没有台阶；36px 以下遮罩是全不透明的，底光用 11%（seat 高 150–260px 时那片区域的真实值约 10–12%），窗口底边回到 16%。
+   - 只改 `background-image`：卡片底色、seat 的遮罩、透明度和其它属性都不动，正文照样在卡上方被裁住。离线舞台（无遮罩的同一渐变作基准）实测整列像素差 ≤3/255，行间最大跳变 3/255；2.4.8 的对照在 36px 内从 25 掉到 10 然后全平。
 5. **宿主统计字并进试管**：美术层打开时 `body[data-ct-art='on'] [data-composer-stat] { display: none !important }` 隐藏宿主自己的 usage / activity 药丸，同样的读数改由试管浮窗底部的 `.ct-vial-usage` 一段呈现（`vialUsage()` 读官方 `tokenUsage` / `sessionStats` 投影，缺投影整行不渲染）。
 
 ## 间距、圆角与控件高度
@@ -297,6 +301,8 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - ❌ 用负 margin 贴到输入卡边缘。
 - ❌ 把整页内容重新拼成一条长滚动，或恢复 `.ct-page-inner` / `.ct-columns` 两栏栅格。
 - ❌ 用 `overflow-x` 横滚的导航条（窄面板必须换行）。
+- ❌ 为了多看一截底光去关掉 seat 遮罩、把输入卡改半透明，或在 seat 上重画背景时把遮罩那一层漏掉（底光会换成一整块不透明的 `bg-base`）。
+- ❌ 用实色或第二层遮罩冒充底光（`background-color` 一旦写上去，正文就会被盖住或被透出来）。
 - ❌ 给同一个面板换第二套卡片圆角或第二套玻璃配方。
 - ❌ 给 `.ct-nav` 写正的 `sticky` `top`（导航栏会离第一张卡片一个偏移），或在分页进场里加位移/缩放。
 - ❌ 往 `:root` / `body` 写配色变量，或在 `.ct-skin` 里写 `color-scheme`（皮肤靠 `body[data-ds-dark-theme]` 跟随宿主，自己设会打架）。
@@ -353,7 +359,8 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - [ ] 空状态行不占位。
 - [ ] 规则页是两张卡：上面全局 `AGENTS.md`，下面所选工作区的补充规则；两张卡各有一个文本域与一个保存按钮。
 - [ ] 工作区文本域里只有受管块的内容，保存后插在 `AGENTS.md` 开头，文件原有的正文原样留在块下面。
-- [ ] 输入卡归宿主：没有改 `[data-composer-card]` 的底色，也没有动 `[data-composer-seat]` 的遮罩，正文在卡上方就被裁住。
+- [ ] 输入卡归宿主：没有改 `[data-composer-card]` 的底色，seat 的遮罩与其它属性也没动；seat 上只多一层底光背景（叠在遮罩之上、并照抄遮罩），正文在卡上方就被裁住。
+- [ ] 底光跨过 seat 顶边是连续的：离线舞台里与「没有遮罩」的基准比，整列像素差 ≤3/255，没有台阶。
 - [ ] 对话区背景只有一条静态 `linear-gradient`，样式表里没有 canvas、没有背景关键帧。
 - [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、授权范围行、规则页两张卡、外观页、试管、伙伴与自绘下拉；`test/workspace-rules.test.js` 覆盖受管块的读写；`test/vendor.test.js` 覆盖移植模块与 GPL 文件）。
 - [ ] 视觉效果无法在真实窗口确认时，交付说明写「渲染未验证」。

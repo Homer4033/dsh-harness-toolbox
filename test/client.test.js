@@ -1252,17 +1252,34 @@ test('the art backdrop is one static linear gradient instead of a repainted canv
   const css = String(styles[0].textContent)
   assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-region='chat'\] \{\n  background-image:\n    linear-gradient\(to top,/)
   assert.match(css, /background-repeat: no-repeat/)
-  // The composer belongs to the host again: its seat keeps the opaque fade band
-  // that clips the transcript above the card, and the card keeps the host fill.
-  // 2.4.2 made both translucent so the old glow reached the window edge, which
-  // also let transcript text show through the card.
-  assert.equal(/\[data-composer-seat\]/.test(css), false, 'the seat mask stays with the host')
+  // The composer belongs to the host: the card keeps the host fill, and the seat
+  // keeps the opaque fade band that clips the transcript. 2.4.2 made both
+  // translucent so the old glow reached the window edge, which also let
+  // transcript text show through the card.
+  assert.equal(/\[data-composer-seat\]/.test(css), false, 'the seat is addressed by its region, not by the seat attribute')
   const cardRules = css.match(/[^}]*\[data-composer-card\][^{]*\{[^}]*\}/g) || []
   assert.ok(cardRules.length > 0, 'the card still gets the art sheen')
   for (const rule of cardRules) {
     assert.equal(/background-color/.test(rule), false, 'the card keeps the host fill')
     assert.equal(/!important/.test(rule), false, 'the composer needs no override')
   }
+  // But the seat's own mask band cuts the gradient at the top of the composer,
+  // so the glow is painted again on the seat, above that band, with its last
+  // 36px fading out exactly where the band fades in. The band is copied into
+  // the second layer because the whole background-image is replaced; nothing
+  // else about the seat is touched, and only the active phase (the only phase
+  // with a band) gets the layer.
+  const seatRule = css.match(
+    /body\[data-ct-art='on'\] \[data-conversation-region='chat'\]\[data-content-phase='active'\] \[data-conversation-region='composer'\] \{[^}]*\}/,
+  )
+  assert.ok(seatRule, 'the seat repaints the glow the mask band would clip')
+  assert.match(seatRule[0], /linear-gradient\(to top,\n      color-mix\(in srgb, var\(--dsw-alias-state-business-primary\) 16%, transparent\) 0px,\n      color-mix\(in srgb, var\(--dsw-alias-chart-tools\) [0-9]+%, transparent\) calc\(100% - 36px\),\n      transparent 100%\)/)
+  assert.match(seatRule[0], /linear-gradient\(180deg,\n      color-mix\(in srgb, var\(--dsw-alias-bg-base\) 0%, transparent\) 0px,\n      var\(--dsw-alias-bg-base\) 36px\)/)
+  assert.equal(/background-color/.test(seatRule[0]), false, 'only the image layers change')
+  assert.equal(/!important/.test(seatRule[0]), false, 'higher specificity is enough')
+  // No other art rule paints the seat: the phase guard is the only gate.
+  const seatRules = css.match(/[^}]*\[data-conversation-region='composer'\][^{]*\{[^}]*\}/g) || []
+  assert.equal(seatRules.length, 1, 'one rule, scoped to the active chat region')
   // The horizon renderer is gone: no canvas host, no fallback blobs, no keyframes,
   // and no controller left exposed for anyone to restart.
   assert.equal(/ct-aura/.test(css), false, 'the aura layer is gone')

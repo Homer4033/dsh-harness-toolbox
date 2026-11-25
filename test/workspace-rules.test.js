@@ -147,6 +147,79 @@ test('the fenced block round-trips: extract, strip and compose agree', () => {
   assert.equal(composeWorkspaceFile('', ''), '')
 })
 
+test('only a marker on a line of its own at the top of the file is a fence', () => {
+  // This repository's own AGENTS.md mentions both markers while describing the
+  // managed block; a mention sharing its line with other text is prose. Treating
+  // it as a fence would put somebody else's contract in the editor and let a
+  // save cut that contract out of the file.
+  const prose = [
+    '# Contract',
+    '',
+    `- the panel owns the block between ${WORKSPACE_BLOCK_START} and`,
+    `  ${WORKSPACE_BLOCK_END}, kept at the top of the file;`,
+    '',
+    'The rest of this file belongs to the workspace.',
+    '',
+  ].join('\n')
+  assert.equal(extractWorkspaceBlock(prose), '')
+  assert.equal(stripWorkspaceBlock(prose), prose)
+  assert.equal(composeWorkspaceFile(prose, ''), prose)
+  // A whole-line fence further down is not ours either: the block only ever
+  // lives at the top, where the instruction loader reads it first.
+  const lower = `# Contract\n\n${WORKSPACE_BLOCK_START}\nours?\n${WORKSPACE_BLOCK_END}\n`
+  assert.equal(extractWorkspaceBlock(lower), '')
+  assert.equal(stripWorkspaceBlock(lower), lower)
+  // Blank lines above the fence are fine: it is still the first real line.
+  assert.equal(extractWorkspaceBlock(`\n\n${WORKSPACE_BLOCK_START}\nmine\n${WORKSPACE_BLOCK_END}\n`), 'mine')
+})
+
+test('saving into a file that only mentions the markers keeps its body verbatim', () => {
+  const home = tempHome()
+  const root = tempHome()
+  try {
+    const dir = workspaceDir(root, 'space')
+    writeRegistry(home, ['w1'], { w1: { path: dir, title: 'Space' } })
+    const prose = [
+      '# Contract',
+      '',
+      `Fence: ${WORKSPACE_BLOCK_START} … ${WORKSPACE_BLOCK_END}`,
+      '',
+      'The rest of this file belongs to the workspace.',
+      '',
+    ].join('\n')
+    writeFileSync(join(dir, 'AGENTS.md'), prose)
+    // The editor shows the supplement only — here, nothing at all.
+    const read = readWorkspaceRules(findWorkspace(home, 'w1'))
+    assert.equal(read.exists, true)
+    assert.equal(read.text, '')
+    const saved = saveWorkspaceRules(home, 'w1', 'supplement')
+    assert.equal(saved.text, 'supplement')
+    // The prose below the new fence survives byte for byte, markers included.
+    assert.equal(
+      readFileSync(join(dir, 'AGENTS.md'), 'utf8'),
+      `${WORKSPACE_BLOCK_START}\nsupplement\n${WORKSPACE_BLOCK_END}\n\n${prose}`,
+    )
+    // Clearing takes the fence away and leaves the file exactly as it was.
+    saveWorkspaceRules(home, 'w1', '')
+    assert.equal(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), prose)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a lone START at the top is an empty block, so a save never leaves two', () => {
+  const orphan = `${WORKSPACE_BLOCK_START}\nleft over\n`
+  assert.equal(extractWorkspaceBlock(orphan), '')
+  assert.equal(stripWorkspaceBlock(orphan), 'left over\n')
+  // The text below a half-written fence is foreign, so it is kept; the new block
+  // goes above it and the orphan marker is gone: one START, one END.
+  assert.equal(
+    composeWorkspaceFile(orphan, 'fresh'),
+    `${WORKSPACE_BLOCK_START}\nfresh\n${WORKSPACE_BLOCK_END}\n\nleft over\n`,
+  )
+})
+
 test('saving a workspace puts the supplement at the top and keeps the rest', () => {
   const home = tempHome()
   const root = tempHome()

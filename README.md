@@ -12,10 +12,10 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.4.8-0f172a?style=flat-square" alt="Version 2.4.8" />
+  <img src="https://img.shields.io/badge/Version-2.4.9-0f172a?style=flat-square" alt="Version 2.4.9" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-222%20passing-16a34a?style=flat-square" alt="222 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-225%20passing-16a34a?style=flat-square" alt="225 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -106,6 +106,8 @@
 
 它跟静态美术共用一个开关：跟随宿主时用宿主的颜色画，关掉「光学外观」就整层移除。**同一层还顺手把宿主那行浅色统计字（`[data-composer-stat]`：轮/步、tok/s、总 token、缓存命中）藏起来**，同样的读数挪进试管浮窗的「本会话用量」一段——聊天区底部因此只剩输入卡本身。输入卡与它下面那条遮罩仍然归宿主：卡片保持不透明，正文滚到卡上方就被裁住，不会从卡里透出来。
 
+底光本来会被输入区底座（`[data-conversation-region='composer']`）自己的遮罩截断——那条遮罩在底座顶边透明、往下 36px 变回不透明的 `bg-base`，用来挡住滚出去的正文，代价是渐变在输入卡顶边就断掉（2.4.8 的「渐变被切掉了」）。2.4.9 起在底座上再画一遍同样的渐变，**叠在那条遮罩之上**：最后 36px 按遮罩的斜率淡出，两层相加正好还原原渐变，接缝处没有台阶；36px 以下遮罩已经不透明，底光就自己铺到底，窗口底边重新是 accent 16%。底座还是宿主的——卡片底色、遮罩、透明度一点没动，正文照样在上方被裁住。
+
 ### 4. 光学细节：上下文试管
 
 液面高度就是 `已用 / 窗口`，试管左侧的刻度是窗口的 25% / 50% / 75%，右上方的小横线是对应档位的压缩阈值；点开浮窗还能看到官方阈值公式算出的触发点与保留原文量，以及到阈值的余量。
@@ -144,7 +146,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 8. 更多能力
 
-- **规则面板**：全局规则整份写入 `<DSH home>/AGENTS.md`；工作区规则只写插件自己的受管块，保存时插到该工作区 `AGENTS.md` 的**开头**（没有文件就创建），块下面原有的正文原样保留，面板也不显示这份文件的内容。两处写入都原子、去 BOM、CRLF→LF、保留单个结尾换行，单次上限 100,000 字符，超出直接 413 而不是截断；系统提示只带最新 2,000 字符摘要。
+- **规则面板**：全局规则整份写入 `<DSH home>/AGENTS.md`；工作区规则只写插件自己的受管块，保存时插到该工作区 `AGENTS.md` 的**开头**（没有文件就创建），块下面原有的正文原样保留，面板也不显示这份文件的内容。**受管块只认文件开头**：围栏必须是首个非空行加上后面一整行的结束标记，正文里顺口提到这两个标记不算（本仓库自己的 `AGENTS.md` 就提到过两次）；半个围栏（只有开头没有结尾）按空块处理，保存后不会出现第二个开头。两处写入都原子、去 BOM、CRLF→LF、保留单个结尾换行，单次上限 100,000 字符，超出直接 413 而不是截断；系统提示只带最新 2,000 字符摘要。
 - **组件管理**：四行统一形状——名称与版本 → 状态行 → 进度 → 路径或错误 → 同一行「下载 / 重新检测」，状态没读到时整行仍在、按钮置灰。
 - **GitHub 登录与体检**：`gh auth login --web` 的设备码流程，面板只显示账号与 token 的授权范围（scopes），插件不读、不存凭据；代理探测覆盖直连 / 代理 / 代理不通 / 全断四种结论。
 - **会话仓库胶囊**：默认上拉，上方不足 200px 才翻成向下；↑ / ↓ / Home / End / Enter / Esc 全键盘可用。
@@ -280,7 +282,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍。PATH 前插只影响本进程，且去重。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 222 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块）、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名（含 2.4.6 起「渲染器已下线、白名单只剩两个」）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 225 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块）、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名（含 2.4.6 起「渲染器已下线、白名单只剩两个」）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 

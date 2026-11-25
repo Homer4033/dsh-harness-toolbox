@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.8'
+    const PLUGIN_VERSION = '2.4.9'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -1752,6 +1752,29 @@ body[data-ct-art='on'] [data-conversation-region='chat'] {
       transparent 54%);
   background-repeat: no-repeat;
   background-position: bottom;
+}
+/* The seat below the transcript paints the host's own mask band — transparent at
+   its top edge, opaque bg-base 36px down — which is what clips the transcript as
+   it scrolls under the composer. It also clips the gradient above, so the glow
+   stops at the top of the seat instead of reaching the window edge. The mask
+   cannot go: without it the transcript shows through the band (2.4.2–2.4.8).
+   So the glow is painted again on the seat itself, above the mask, and its last
+   36px fade to nothing exactly where the mask fades in: with the glow at
+   a × (depth / 36px) the mask's fade and the glow's ramp cancel, and the seam
+   keeps the gradient the region would have drawn there. Below 36px the mask is
+   opaque and the glow carries the region's own alpha (16% at the window edge,
+   ~11% at the top of a 150–260px seat). The mask is copied into the second layer
+   because this replaces the whole background-image, and it is gated on the
+   active phase, the only phase that has a seat mask to mirror. */
+body[data-ct-art='on'] [data-conversation-region='chat'][data-content-phase='active'] [data-conversation-region='composer'] {
+  background-image:
+    linear-gradient(to top,
+      color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent) 0px,
+      color-mix(in srgb, var(--dsw-alias-chart-tools) 11%, transparent) calc(100% - 36px),
+      transparent 100%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--dsw-alias-bg-base) 0%, transparent) 0px,
+      var(--dsw-alias-bg-base) 36px);
 }
 /* The composer stats line under the composer is the host's own text; the art
    layer hides it and the vial popover carries the same readings. */

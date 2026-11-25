@@ -109,28 +109,52 @@ function asSource(text) {
     .replace(/\r\n?/g, '\n')
 }
 
+/**
+ * Line range of the managed block, or null when the file carries none.
+ *
+ * The fence only counts at the very top of the file: the first non-empty line
+ * has to be the START marker, and the END marker has to be a later line on its
+ * own. Anything else is ordinary prose — a contract that merely *mentions* the
+ * markers (this repository's own `AGENTS.md` does, twice) must never be read as
+ * a fence, or the panel would show somebody else's contract and a save would
+ * cut it out of the file.
+ *
+ * A lone START at the top counts as an empty block spanning that one line, so a
+ * half-written fence never survives to be prefixed by a second one.
+ */
+function blockRange(lines) {
+  let start = -1
+  for (let index = 0; index < lines.length; index++) {
+    if (lines[index].trim() === '') continue
+    if (lines[index].trim() === WORKSPACE_BLOCK_START) start = index
+    break
+  }
+  if (start === -1) return null
+  for (let index = start + 1; index < lines.length; index++) {
+    if (lines[index].trim() === WORKSPACE_BLOCK_END) return { start, end: index }
+  }
+  return { start, end: start }
+}
+
 /** The supplement between the fences; empty when the file carries no block. */
 export function extractWorkspaceBlock(text) {
-  const source = asSource(text)
-  const start = source.indexOf(WORKSPACE_BLOCK_START)
-  if (start === -1) return ''
-  const end = source.indexOf(WORKSPACE_BLOCK_END, start + WORKSPACE_BLOCK_START.length)
-  if (end === -1) return ''
-  return source
-    .slice(start + WORKSPACE_BLOCK_START.length, end)
+  const lines = asSource(text).split('\n')
+  const range = blockRange(lines)
+  if (range === null) return ''
+  return lines
+    .slice(range.start + 1, range.end)
+    .join('\n')
     .replace(/^\n+/, '')
     .replace(/\n+$/, '')
 }
 
 /** Everything the panel does not own: the file with the fenced block removed. */
 export function stripWorkspaceBlock(text) {
-  const source = asSource(text)
-  const start = source.indexOf(WORKSPACE_BLOCK_START)
-  if (start === -1) return source
-  const end = source.indexOf(WORKSPACE_BLOCK_END, start + WORKSPACE_BLOCK_START.length)
-  if (end === -1) return source
-  const head = source.slice(0, start).replace(/\n+$/, '')
-  const tail = source.slice(end + WORKSPACE_BLOCK_END.length).replace(/^\n+/, '')
+  const lines = asSource(text).split('\n')
+  const range = blockRange(lines)
+  if (range === null) return lines.join('\n')
+  const head = lines.slice(0, range.start).join('\n').replace(/\n+$/, '')
+  const tail = lines.slice(range.end + 1).join('\n').replace(/^\n+/, '')
   if (!head) return tail
   if (!tail) return head
   return `${head}\n\n${tail}`
