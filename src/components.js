@@ -5,18 +5,22 @@ import { downloadWithResume, extractArchive, runCommand } from './gh.js'
 import { moveIntoPlace } from './swap.js'
 
 /**
- * Managed components beyond `gh` and ffmpeg: git and Python.
+ * Managed components beyond `gh` and ffmpeg: two compiled tools (git, Python)
+ * and two source trees (ComfyUI, its official MCP server).
  *
- * Both install a whole extracted tree below the shared download root, next to
- * `<root>/gh` and `<root>/ffmpeg`, so one configured `toolsPath` covers every
- * managed binary:
+ * Every one installs a whole extracted tree below the shared download root, next
+ * to `<root>/gh` and `<root>/ffmpeg`, so one configured `toolsPath` covers all of
+ * them:
  *
- *   <root>/git     MinGit zip        binary <root>/git/cmd/git.exe
- *   <root>/python  python-build-*    binary <root>/python/python.exe
+ *   <root>/git        MinGit zip        binary <root>/git/cmd/git.exe
+ *   <root>/python     python-build-*    binary <root>/python/python.exe
+ *   <root>/comfyui    GitHub archive    marker <root>/comfyui/main.py
+ *   <root>/comfy-mcp  GitHub archive    marker <root>/comfy-mcp/pyproject.toml
  *
- * Versions are pinned here together with the exact release asset; the probe
- * after extraction is what makes a broken or truncated archive fail before it
- * replaces a working install.
+ * Versions are pinned here together with the exact release asset (or, for a
+ * source tree, the Git ref the archive was cut from). The probe after extraction
+ * — running the binary, or finding the marker file — is what makes a broken or
+ * truncated archive fail before it replaces a working install.
  */
 
 const DOWNLOAD_TIMEOUT_MS = 20 * 60_000
@@ -31,10 +35,21 @@ const PYTHON_TAG = '20261110'
 const PYTHON_RELEASE = `https://github.com/astral-sh/python-build-standalone/releases/download/${PYTHON_TAG}`
 const PYTHON_ASSET = `cpython-${PYTHON_VERSION}+${PYTHON_TAG}-x86_64-pc-windows-msvc-install_only.tar.gz`
 
+// Source trees, pinned by Git ref. ComfyUI publishes releases (the tag below) and
+// the official MCP server does not, so it is pinned to a commit: a branch name
+// would silently install something else tomorrow.
+const COMFYUI_VERSION = '0.46.0'
+const COMFYUI_TAG = `v${COMFYUI_VERSION}`
+const COMFYUI_REPO = 'Comfy-Org/ComfyUI'
+const COMFY_MCP_REPO = 'Comfy-Org/comfy-mcp'
+const COMFY_MCP_COMMIT = '6c438809aca588e9b1cf31ab023d148399338d10'
+const COMFY_MCP_SHORT = COMFY_MCP_COMMIT.slice(0, 7)
+
 /**
  * One entry per component. `binary` is relative to the installed tree and is
  * what the post-install probe runs; `binDirs` are the directories that go on
- * PATH (`.` means the install root itself).
+ * PATH (`.` means the install root itself). A source tree has no binary — it is
+ * checked against `marker` instead and puts nothing on PATH.
  */
 export const COMPONENTS = {
   git: {
@@ -71,6 +86,46 @@ export const COMPONENTS = {
     args: ['--version'],
     versionPattern: /Python (\d+\.\d+\.\d+)/i,
   },
+  comfyui: {
+    id: 'comfyui',
+    name: 'ComfyUI',
+    version: COMFYUI_VERSION,
+    source: `https://github.com/${COMFYUI_REPO}`,
+    // A Git archive instead of a release asset: the same zip on every platform,
+    // and GitHub wraps the tree in one `<repo>-<ref>/` directory (see
+    // `archiveTree`), which is why `archiveTree: true` is set.
+    assets: {
+      any: {
+        url: `https://github.com/${COMFYUI_REPO}/archive/refs/tags/${COMFYUI_TAG}.zip`,
+        file: `ComfyUI-${COMFYUI_TAG}.zip`,
+        kind: 'zip',
+        archiveTree: true,
+      },
+    },
+    marker: 'main.py',
+    binary: null,
+    binDirs: [],
+    args: null,
+  },
+  'comfy-mcp': {
+    id: 'comfy-mcp',
+    name: 'ComfyUI MCP',
+    // A commit, not a version: the pin is what the archive is cut from.
+    version: `commit ${COMFY_MCP_SHORT}`,
+    source: `https://github.com/${COMFY_MCP_REPO}`,
+    assets: {
+      any: {
+        url: `https://github.com/${COMFY_MCP_REPO}/archive/${COMFY_MCP_COMMIT}.zip`,
+        file: `comfy-mcp-${COMFY_MCP_SHORT}.zip`,
+        kind: 'zip',
+        archiveTree: true,
+      },
+    },
+    marker: 'pyproject.toml',
+    binary: null,
+    binDirs: [],
+    args: null,
+  },
 }
 
 export const COMPONENT_IDS = Object.keys(COMPONENTS)
@@ -83,19 +138,36 @@ export function componentRoot(root, id) {
   return join(root, id)
 }
 
-/** The release asset for this platform, or null when there is no managed build. */
+/**
+ * The release asset for this platform, or null when there is no managed build.
+ *
+ * A compiled component names the platform it was built for; a Git archive (key
+ * `any`) is the same bytes everywhere, so a machine without a specific build
+ * still gets one.
+ */
 export function componentAsset(id, platform = process.platform, arch = process.arch) {
   const spec = componentSpec(id)
   if (!spec) return null
-  const asset = spec.assets[`${platform}-${arch}`]
+  const asset = spec.assets[`${platform}-${arch}`] || spec.assets.any
   return asset ? { ...asset } : null
 }
 
 /** The managed binary's path (independent of whether it exists yet). */
 export function componentBinaryPath(root, id) {
   const spec = componentSpec(id)
-  if (!spec) return null
+  if (!spec || !spec.binary) return null
   return join(componentRoot(root, id), spec.binary)
+}
+
+/**
+ * What an install is checked against: the binary of a compiled component, the
+ * marker file of a source tree (`ComfyUI/main.py`, the MCP server's
+ * `pyproject.toml`). Null for an unknown component.
+ */
+export function componentEntryPath(root, id) {
+  const spec = componentSpec(id)
+  if (!spec) return null
+  return spec.binary ? componentBinaryPath(root, id) : join(componentRoot(root, id), spec.marker)
 }
 
 /** Directories to put on PATH for this component. */
@@ -123,7 +195,8 @@ export function systemComponentFile(file, platform = process.platform, envPath =
 /** `git version 2.56.1.windows.1` / `Python 3.11.18` → the version, or null. */
 export function parseComponentVersion(id, output) {
   const spec = componentSpec(id)
-  if (!spec) return null
+  // A source tree reports no version line; the pin is all there is to show.
+  if (!spec || !spec.versionPattern) return null
   return spec.versionPattern.exec(String(output || ''))?.[1] || null
 }
 
@@ -172,14 +245,17 @@ export async function componentStatus(root, id, { platform = process.platform, a
   if (!spec) throw new Error(`unknown component: ${id}`)
   const asset = componentAsset(id, platform, arch)
   const job = jobs.get(jobKey(root, id)) || null
-  const managed = componentBinaryPath(root, id)
+  const managed = componentEntryPath(root, id)
   const hasManaged = existsSync(managed)
   // A failed job keeps the component "not installed" even if a binary is still
   // on disk, so the page offers a retry instead of a broken install.
   const installed = hasManaged && !job?.error
-  const system = installed ? null : systemComponentFile(spec.binary.split(/[\\/]/).pop(), platform, envPath)
+  // A source tree has no executable to look for on PATH: it is managed or absent.
+  const system = !installed && spec.binary
+    ? systemComponentFile(spec.binary.split(/[\\/]/).pop(), platform, envPath)
+    : null
   const version = installed
-    ? await probeVersion(managed, spec, run)
+    ? spec.binary ? await probeVersion(managed, spec, run) : null
     : system ? await probeVersion(system, spec, run) : null
   const partBytes = asset && existsSync(partPath(root, id, asset)) ? statSync(partPath(root, id, asset)).size : 0
   let state = 'missing'
@@ -202,7 +278,9 @@ export async function componentStatus(root, id, { platform = process.platform, a
     installed,
     system: system !== null,
     systemPath: system,
-    binaryPath: installed ? managed : system,
+    // The install root is what a source tree's path line should show; for a
+    // compiled component it stays the binary that is actually used.
+    binaryPath: installed ? (spec.binary ? managed : componentRoot(root, id)) : system,
     sourceKind: installed ? 'managed' : system ? 'system' : null,
     toolVersion: version,
     received,
@@ -218,7 +296,8 @@ export function prependComponentPath(root, id, platform = process.platform) {
   const spec = componentSpec(id)
   if (!spec) return false
   const binary = componentBinaryPath(root, id)
-  if (!existsSync(binary)) return false
+  // A source tree (ComfyUI, the MCP server) contributes nothing to PATH.
+  if (!binary || !existsSync(binary)) return false
   const separator = platform === 'win32' ? ';' : ':'
   const current = String(process.env.PATH || '')
   const parts = current.split(separator)
@@ -257,12 +336,33 @@ function prune(root, id) {
 }
 
 /**
- * Move the staged tree into place and probe the installed binary. The previous
- * install is kept until the probe passes, then dropped; on failure it is
- * restored, so an install either fully replaces the component or changes
- * nothing. Both renames go through `moveIntoPlace`: Windows reports a tree that
- * is still being scanned (or whose probe process has not fully exited) as
- * `EPERM`, so the swap retries and finally copies instead of failing.
+ * The directory an archive actually unpacks to.
+ *
+ * GitHub's `/archive/<ref>.zip` wraps the whole repository in one
+ * `<repo>-<ref>/` directory whose name is not part of the pin (`ComfyUI-0.46.0`,
+ * `ComfyUI-<sha>`), so that wrapper must be dropped — otherwise the component
+ * would install as `<root>/comfyui/ComfyUI-0.46.0/main.py`. Anything that is not
+ * a single directory is left alone, so an unexpected layout surfaces as a
+ * missing marker instead of a silently nested install.
+ */
+export function archiveTree(unpacked, asset) {
+  if (!asset.archiveTree) return unpacked
+  try {
+    const entries = readdirSync(unpacked, { withFileTypes: true })
+    if (entries.length === 1 && entries[0].isDirectory()) return join(unpacked, entries[0].name)
+  } catch {
+    // Let the marker check below report the missing tree.
+  }
+  return unpacked
+}
+
+/**
+ * Move the staged tree into place and verify it. The previous install is kept
+ * until the check passes, then dropped; on failure it is restored, so an install
+ * either fully replaces the component or changes nothing. Both renames go
+ * through `moveIntoPlace`: Windows reports a tree that is still being scanned (or
+ * whose probe process has not fully exited) as `EPERM`, so the swap retries and
+ * finally copies instead of failing.
  */
 async function swapTree(finalDir, stagedDir, spec, platform, run) {
   const backup = `${finalDir}.old-${process.pid}-${Date.now()}`
@@ -271,17 +371,24 @@ async function swapTree(finalDir, stagedDir, spec, platform, run) {
     if (existsSync(finalDir)) await moveIntoPlace(finalDir, backup)
     await moveIntoPlace(stagedDir, finalDir)
     moved = true
-    const binary = join(finalDir, spec.binary)
-    const check = await run(binary, spec.args, { timeoutMs: VERIFY_TIMEOUT_MS })
-    if (check.code !== 0) {
-      const detail = `${check.stderr}${check.stdout}`.trim().slice(-300)
-      throw new Error(`${spec.name} failed its probe after install: ${detail || `exit ${check.code}`}`)
-    }
-    if (platform !== 'win32') {
-      try {
-        chmodSync(binary, 0o755)
-      } catch {
-        // Already executable; the probe above is the real check.
+    // A source tree has nothing to execute; its marker file is the whole check.
+    if (!spec.binary) {
+      if (!existsSync(join(finalDir, spec.marker))) {
+        throw new Error(`${spec.name} is missing ${spec.marker} after install`)
+      }
+    } else {
+      const binary = join(finalDir, spec.binary)
+      const check = await run(binary, spec.args, { timeoutMs: VERIFY_TIMEOUT_MS })
+      if (check.code !== 0) {
+        const detail = `${check.stderr}${check.stdout}`.trim().slice(-300)
+        throw new Error(`${spec.name} failed its probe after install: ${detail || `exit ${check.code}`}`)
+      }
+      if (platform !== 'win32') {
+        try {
+          chmodSync(binary, 0o755)
+        } catch {
+          // Already executable; the probe above is the real check.
+        }
       }
     }
     // A stale backup is harmless; the new tree already answered its probe.
@@ -352,24 +459,30 @@ export async function startComponentDownload(root, id, { platform = process.plat
     const staging = stagingRoot(root, id)
     rmSync(staging, { recursive: true, force: true })
     const unpacked = join(staging, 'unpacked')
-    const tree = spec.subdir ? join(unpacked, spec.subdir) : unpacked
+    let tree = unpacked
     try {
       await extractArchive(archive, unpacked, asset.kind, platform)
-      if (!existsSync(join(tree, spec.binary))) {
-        throw new Error(`the archive did not contain ${spec.binary}`)
+      tree = spec.subdir ? join(unpacked, spec.subdir) : archiveTree(unpacked, asset)
+      // Binary or marker: an archive that did not deliver the pinned tree must
+      // never replace a working install.
+      const stagedEntry = spec.binary ? join(tree, spec.binary) : join(tree, spec.marker)
+      if (!existsSync(stagedEntry)) {
+        throw new Error(`the archive did not contain ${spec.binary || spec.marker}`)
       }
-      // Probe the staged copy first: a broken binary must never replace a working one.
-      const stagedCheck = await run(join(tree, spec.binary), spec.args, { timeoutMs: VERIFY_TIMEOUT_MS })
-      if (platform !== 'win32') {
-        try {
-          chmodSync(join(tree, spec.binary), 0o755)
-        } catch {
-          // Non-fatal; the probe already ran.
+      if (spec.binary) {
+        // Probe the staged copy first: a broken binary must never replace a working one.
+        const stagedCheck = await run(stagedEntry, spec.args, { timeoutMs: VERIFY_TIMEOUT_MS })
+        if (platform !== 'win32') {
+          try {
+            chmodSync(stagedEntry, 0o755)
+          } catch {
+            // Non-fatal; the probe already ran.
+          }
         }
-      }
-      if (stagedCheck.code !== 0) {
-        const detail = `${stagedCheck.stderr}${stagedCheck.stdout}`.trim().slice(-300)
-        throw new Error(`${spec.name} staged probe failed: ${detail || `exit ${stagedCheck.code}`}`)
+        if (stagedCheck.code !== 0) {
+          const detail = `${stagedCheck.stderr}${stagedCheck.stdout}`.trim().slice(-300)
+          throw new Error(`${spec.name} staged probe failed: ${detail || `exit ${stagedCheck.code}`}`)
+        }
       }
     } catch (error) {
       // The archive is the suspect (truncated body, an HTML page served with
@@ -383,7 +496,8 @@ export async function startComponentDownload(root, id, { platform = process.plat
       throw error
     }
     const staged = join(staging, 'tree')
-    if (spec.subdir) {
+    if (tree !== unpacked) {
+      // `subdir` and the Git-archive wrapper both sit below the extraction root.
       cpSync(tree, staged, { recursive: true })
       rmSync(unpacked, { recursive: true, force: true })
     } else {

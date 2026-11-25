@@ -256,8 +256,19 @@ const ROOT = {
 
 const componentRow = (id, state, extra) => ({
   id,
-  name: id === 'gh' ? 'GitHub CLI' : id === 'python' ? 'Python' : id,
-  version: id === 'gh' ? '2.76.2' : id === 'git' ? '2.56.1' : id === 'python' ? '3.11.18' : null,
+  name: id === 'gh'
+    ? 'GitHub CLI'
+    : id === 'python' ? 'Python'
+    : id === 'comfyui' ? 'ComfyUI'
+    : id === 'comfy-mcp' ? 'ComfyUI MCP'
+    : id,
+  version: id === 'gh'
+    ? '2.76.2'
+    : id === 'git' ? '2.56.1'
+    : id === 'python' ? '3.11.18'
+    : id === 'comfyui' ? '0.46.0'
+    : id === 'comfy-mcp' ? 'commit 6c43880'
+    : null,
   toolVersion: null,
   state,
   supported: true,
@@ -565,15 +576,18 @@ test('the component panel renders one row per managed component', () => {
       ],
     }),
     componentRow('python', 'installed', { path: 'C:/dsh/compression-tiers/python/python.exe', toolVersion: '3.11.18' }),
+    componentRow('comfyui', 'installed', { path: 'C:/dsh/compression-tiers/comfyui' }),
+    componentRow('comfy-mcp', 'installed', { path: 'C:/dsh/compression-tiers/comfy-mcp' }),
   ]
   const nodes = renderSection('components', { components: componentsPayload(rows) })
   const names = nodes
     .filter((node) => String(node.props.className || '') === 'ct-component-name')
     .map((node) => textOf(node))
-  // The page is 模型和组件 now: the four PATH components, then the local model.
-  assert.deepEqual(names, ['GitHub CLI', 'git', 'ffmpeg / ffprobe', 'Python', 'FLUX.2 [klein] 4B'])
+  // The page is 模型和组件 now: the PATH components and the two source trees,
+  // then the local model.
+  assert.deepEqual(names, ['GitHub CLI', 'git', 'ffmpeg / ffprobe', 'Python', 'ComfyUI', 'ComfyUI MCP', 'FLUX.2 [klein] 4B'])
   const blocks = nodes.filter((node) => String(node.props.className || '') === 'ct-component')
-  assert.equal(blocks.length, 4)
+  assert.equal(blocks.length, 6)
   assert.equal(nodes.filter((node) => Boolean(node.props['data-model'])).length, 1, 'one local model row')
   assert.match(deepText(blocks[0]), /downloadDone · v2\.76\.2/)
   assert.match(deepText(blocks[0]), /gh\\?\.exe|gh\.exe/)
@@ -582,8 +596,13 @@ test('the component panel renders one row per managed component', () => {
   assert.deepEqual(tools, ['ffmpeg', 'ffprobe'])
   assert.match(deepText(blocks[2]), /toolsManaged v7\.1\.1/)
   assert.match(deepText(blocks[2]), /ffprobe\.exe/)
+  // A source tree shows its tag with a `v`, a commit pin without one, and the
+  // install root instead of a binary.
+  assert.match(deepText(blocks[4]), /downloadDone · v0\.46\.0/)
+  assert.match(deepText(blocks[4]), /comfyui/)
+  assert.match(deepText(blocks[5]), /downloadDone · commit 6c43880/)
   // An installed component is done: the button is disabled but still rendered.
-  for (const id of ['gh', 'git', 'ffmpeg', 'python']) {
+  for (const id of ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp']) {
     const download = buttonOf(nodes, `download:${id}`)
     assert.ok(download, `download:${id} is rendered`)
     assert.equal(download.props.disabled, true)
@@ -632,9 +651,10 @@ test('a row with no binary at all says it once instead of repeating the state', 
 })
 
 test('every component row obeys one button standard', () => {
-  const missing = componentsPayload(['gh', 'git', 'ffmpeg', 'python'].map((id) => componentRow(id, 'missing')))
+  const ids = ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp']
+  const missing = componentsPayload(ids.map((id) => componentRow(id, 'missing')))
   const nodes = renderSection('components', { components: missing })
-  for (const id of ['gh', 'git', 'ffmpeg', 'python']) {
+  for (const id of ids) {
     const download = buttonOf(nodes, `download:${id}`)
     assert.deepEqual(String(download.props.className).split(' '), ['ct-btn', 'ct-btn--primary'])
     assert.equal(textOf(download), 'downloadIdle')
@@ -703,8 +723,8 @@ test('a failed download keeps its error and offers a retry', () => {
 test('the component buttons wait for the payload instead of vanishing', () => {
   const nodes = renderSection('components')
   const blocks = nodes.filter((node) => String(node.props.className || '') === 'ct-component')
-  assert.equal(blocks.length, 4, 'all four rows render before the fetch resolves')
-  for (const id of ['gh', 'git', 'ffmpeg', 'python']) {
+  assert.equal(blocks.length, 6, 'all six rows render before the fetch resolves')
+  for (const id of ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp']) {
     const download = buttonOf(nodes, `download:${id}`)
     assert.ok(download, `download:${id} is rendered while loading`)
     assert.equal(download.props.disabled, true)

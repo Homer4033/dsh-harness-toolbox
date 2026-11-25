@@ -2,6 +2,13 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.6.0 — 2026-11-25
+
+- **组件页新增 ComfyUI 与官方 ComfyUI MCP 两棵源码树**（用户：「组件添加ComfyUI+MVC」，确认 MVC = ComfyUI-MCP、范围 = 只下载解压）：`src/components.js` 新增 `comfyui`（钉 `Comfy-Org/ComfyUI` 的 tag `v0.46.0`）与 `comfy-mcp`（钉 commit `6c43880`，它没有 release，分支名不能当钉）。两者都是 GitHub 的 `/archive/<ref>.zip`，资产键用 `any`（同一份归档不分平台），装到 `<下载根>/comfyui` 与 `<下载根>/comfy-mcp`。
+- **源码树没有可执行文件**：新增 `marker`（`main.py` / `pyproject.toml`）与 `componentEntryPath()`，安装自检从跑 `--version` 改成找标记文件；`archiveTree()` 剥掉 GitHub 多包的那一层 `ComfyUI-0.46.0/`（只在解压目录里恰好一个目录时剥，其它布局原样保留让标记检查报错），装完就是仓库根。它们不建 venv、不装依赖、不启动服务、不进 PATH，面板路径显示安装根、版本位显示 `· v0.46.0` 与 `· commit 6c43880`。
+- **六套统一**：`COMPONENT_ORDER` / `TOOL_DIRS` / `componentRows()` / `componentsPayload` / `toolsStatus.running` 与整体迁移都改成六套；客户端 `COMPONENT_ROWS` 六行，版本位对非数字钉不加 `v`；`prependComponentPath()` 对没有 binary 的项直接返回 false，`parseComponentVersion()` 对没有 `versionPattern` 的项返回 null。
+- **顺便补上下载的空闲闸门**（`src/gh.js`，gh / ffmpeg / git / Python / 模型共用）：半开连接上 `fetch` 不会自己报错，ComfyUI 归档实测在 9.8 MB 处停住 8 分钟毫无反应，`pipeline` 就一直等着。现在 `downloadWithResume` 带 `idleTimeoutMs`（默认 `DOWNLOAD_IDLE_TIMEOUT_MS` 60 秒），超过没有新字节即按可重试错误处理，下一次尝试从 `.part` 续传——这也顺带治好了 16 GB 模型下载可能永远「下载中」的问题。测试覆盖「body 停住不来数据 → 重试并从 `.part` 续传」。
+- 测试 249 → **255**：`any` 资产在任意平台返回同一份归档、`archiveTree()` 只剥单层包裹、标记文件存在才算 installed、源码树不进 PATH、六行顺序与按钮一致性、迁移集合含新目录；README、AGENTS.md、docs/UI.md、locale 描述同步，2.4.6 / 2.4.7 的变更记录移入 docs/HISTORY.md（归档范围改为 1.0 – 2.4.7）。
 ## 2.5.1 — 2026-11-25
 
 - **模型下载在国内网络下必失败**（用户实测：`D:\Components\models\flux2-klein-4b` 报 `fetch failed (gave up after 4 attempts)`）：2.5.0 只认 `huggingface.co`，而这台机器上 `huggingface.co:443` 不可达、`hf-mirror.com:443` 可达。现在 `src/models.js` 新增 `MODEL_ENDPOINTS = ['https://hf-mirror.com', 'https://huggingface.co']`：逐个文件按顺序试，镜像失败再回落到上游；`.part` 跨端点共享（字节相同，换端点继续续传，不会重下已下的部分）；`DSH_HF_ENDPOINT` 可覆盖首选端点。两个端点都失败时错误信息列出每个 host 与原因（如 `hf-mirror.com: fetch failed (ENOTFOUND)`），不再只有一句 `fetch failed`。

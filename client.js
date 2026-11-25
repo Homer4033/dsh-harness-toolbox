@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
     const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.5.1'
+    const PLUGIN_VERSION = '2.6.0'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -467,6 +467,8 @@ window.__ModuleLoader__.load({
       { id: 'git', name: 'git' },
       { id: 'ffmpeg', name: 'ffmpeg' },
       { id: 'python', name: 'Python' },
+      { id: 'comfyui', name: 'ComfyUI' },
+      { id: 'comfy-mcp', name: 'ComfyUI MCP' },
     ]
 
     /**
@@ -4943,7 +4945,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const rootInfo = components && components.root ? components.root : null
       const rootPath = rootInfo && rootInfo.path ? String(rootInfo.path) : ''
       const rootDefault = rootInfo && rootInfo.defaultPath ? String(rootInfo.defaultPath) : ''
-      const rootRunning = Boolean(rootInfo && rootInfo.running && ['gh', 'git', 'ffmpeg', 'python', 'models'].some(function (id) {
+      const rootRunning = Boolean(rootInfo && rootInfo.running && ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp', 'models'].some(function (id) {
         return rootInfo.running[id] === true
       }))
       const rowsById = {}
@@ -4967,7 +4969,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           system: Boolean(row && row.state === 'system'),
           percent: row ? row.percent : null,
         })
-        const pinned = row && row.version ? ' · v' + row.version : ''
+        // A numeric pin reads as a version (`v2.76.2`); a source tree pinned to
+        // a commit reads as what it is (`commit 6c43880`).
+        const pinned = row && row.version ? ' · ' + (/^\d/.test(row.version) ? 'v' : '') + row.version : ''
         const used = row && row.toolVersion ? ' (' + row.toolVersion + ')' : ''
         // A row that covers several binaries says so in its title, so "ffprobe
         // is part of this row" stays visible even when there is nothing to list.

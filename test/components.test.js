@@ -6,10 +6,12 @@ import { dirname, join } from 'node:path'
 import {
   COMPONENTS,
   COMPONENT_IDS,
+  archiveTree,
   componentAsset,
   componentBinDirs,
   componentBinaryPath,
   componentDownloadRunning,
+  componentEntryPath,
   componentRoot,
   componentSpec,
   componentStatus,
@@ -39,15 +41,19 @@ function versionRun() {
   })
 }
 
-test('git and Python are the managed components beyond gh and ffmpeg', () => {
-  assert.deepEqual(COMPONENT_IDS, ['git', 'python'])
+test('git and Python are compiled components; ComfyUI and its MCP server are source trees', () => {
+  assert.deepEqual(COMPONENT_IDS, ['git', 'python', 'comfyui', 'comfy-mcp'])
   assert.equal(componentSpec('git').name, 'git')
   assert.equal(componentSpec('python').name, 'Python')
+  assert.equal(componentSpec('comfyui').name, 'ComfyUI')
+  assert.equal(componentSpec('comfy-mcp').name, 'ComfyUI MCP')
   assert.equal(componentSpec('nope'), null)
-  assert.deepEqual(Object.keys(COMPONENTS).sort(), ['git', 'python'])
-  // Both install below the shared download root, in their own directory.
+  assert.deepEqual(Object.keys(COMPONENTS).sort(), ['comfy-mcp', 'comfyui', 'git', 'python'])
+  // All four install below the shared download root, in their own directory.
   assert.equal(componentRoot('D:/tools', 'git'), join('D:/tools', 'git'))
   assert.equal(componentRoot('D:/tools', 'python'), join('D:/tools', 'python'))
+  assert.equal(componentRoot('D:/tools', 'comfyui'), join('D:/tools', 'comfyui'))
+  assert.equal(componentRoot('D:/tools', 'comfy-mcp'), join('D:/tools', 'comfy-mcp'))
 })
 
 test('the pinned release assets are the official per-platform archives', () => {
@@ -69,6 +75,63 @@ test('the pinned release assets are the official per-platform archives', () => {
   assert.match(python.url, /cpython-3\.11\.18%2B20261110-x86_64-pc-windows-msvc-install_only\.tar\.gz$/)
   assert.match(python.url, /^https:\/\/github\.com\/astral-sh\/python-build-standalone\/releases\/download\/20261110\//)
   assert.equal(componentAsset('python', 'win32', 'arm64'), null)
+})
+
+test('the source trees are Git archives, the same bytes on every platform', () => {
+  const comfyui = componentAsset('comfyui', 'win32', 'x64')
+  assert.equal(comfyui.file, 'ComfyUI-v0.46.0.zip')
+  assert.equal(comfyui.kind, 'zip')
+  assert.equal(comfyui.archiveTree, true, 'GitHub wraps the tree in an extra directory')
+  assert.equal(comfyui.url, 'https://github.com/Comfy-Org/ComfyUI/archive/refs/tags/v0.46.0.zip')
+  // No platform-specific build: the archive is the same everywhere.
+  assert.deepEqual(componentAsset('comfyui', 'linux', 'x64'), comfyui)
+  assert.deepEqual(componentAsset('comfyui', 'darwin', 'arm64'), comfyui)
+
+  // The MCP server has no release, so the pin is a commit.
+  const mcp = componentAsset('comfy-mcp', 'win32', 'x64')
+  assert.equal(mcp.file, 'comfy-mcp-6c43880.zip')
+  assert.equal(mcp.archiveTree, true)
+  assert.equal(
+    mcp.url,
+    'https://github.com/Comfy-Org/comfy-mcp/archive/6c438809aca588e9b1cf31ab023d148399338d10.zip',
+  )
+  assert.equal(componentSpec('comfy-mcp').version, 'commit 6c43880')
+  assert.equal(componentSpec('comfyui').version, '0.46.0')
+})
+
+test('a source tree is checked by its marker and puts nothing on PATH', () => {
+  assert.equal(componentBinaryPath('D:/tools', 'comfyui'), null)
+  assert.deepEqual(componentBinDirs('D:/tools', 'comfyui'), [])
+  assert.equal(componentEntryPath('D:/tools', 'comfyui'), join('D:/tools', 'comfyui', 'main.py'))
+  assert.equal(componentEntryPath('D:/tools', 'comfy-mcp'), join('D:/tools', 'comfy-mcp', 'pyproject.toml'))
+  // A compiled component's entry is still the binary the probe runs.
+  assert.equal(componentEntryPath('D:/tools', 'git'), join('D:/tools', 'git', 'cmd', 'git.exe'))
+  assert.equal(componentEntryPath('D:/tools', 'nope'), null)
+  // Nothing to run means nothing to parse, and nothing to add to PATH.
+  assert.equal(parseComponentVersion('comfyui', 'anything'), null)
+  assert.equal(prependComponentPath('D:/tools', 'comfyui', 'win32'), false)
+})
+
+test('the Git-archive wrapper directory is dropped, an unexpected layout is not', () => {
+  const dir = tempDir()
+  try {
+    const nested = join(dir, 'nested')
+    mkdirSync(join(nested, 'ComfyUI-0.46.0'), { recursive: true })
+    writeFileSync(join(nested, 'ComfyUI-0.46.0', 'main.py'), '')
+    assert.equal(archiveTree(nested, { archiveTree: true }), join(nested, 'ComfyUI-0.46.0'))
+    // A release archive is not wrapped and keeps its extraction root.
+    assert.equal(archiveTree(nested, { archiveTree: false }), nested)
+    // Two entries mean the wrapper cannot be identified: leave it alone, so the
+    // marker check reports the real problem instead of a nested install.
+    const flat = join(dir, 'flat')
+    mkdirSync(join(flat, 'a'), { recursive: true })
+    writeFileSync(join(flat, 'README.md'), '')
+    assert.equal(archiveTree(flat, { archiveTree: true }), flat)
+    // A missing extraction root is not an error here.
+    assert.equal(archiveTree(join(dir, 'gone'), { archiveTree: true }), join(dir, 'gone'))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 test('each component knows its binary and the directories that go on PATH', () => {
@@ -139,6 +202,45 @@ test('a managed copy reports its binary, version and installed state', async () 
   }
 })
 
+test('a source tree is installed when its marker is there, never as a PATH copy', async () => {
+  const root = tempDir()
+  const bin = tempDir()
+  try {
+    const marker = join(componentRoot(root, 'comfyui'), 'main.py')
+    mkdirSync(dirname(marker), { recursive: true })
+    writeFileSync(marker, '')
+    const status = await componentStatus(root, 'comfyui', {
+      platform: 'win32',
+      arch: 'x64',
+      envPath: [bin, 'D:/nope'].join(';'),
+      run: versionRun(),
+    })
+    assert.equal(status.state, 'installed')
+    assert.equal(status.installed, true)
+    assert.equal(status.system, false)
+    assert.equal(status.sourceKind, 'managed')
+    // The row points at the install root; there is no binary to show.
+    assert.equal(status.binaryPath, componentRoot(root, 'comfyui'))
+    assert.equal(status.toolVersion, null, 'a source tree has no version line to probe')
+
+    // A Python on PATH must not make an uninstalled MCP tree look ready.
+    touch(join(bin, 'python.exe'))
+    const missing = await componentStatus(root, 'comfy-mcp', {
+      platform: 'win32',
+      arch: 'x64',
+      envPath: [bin].join(';'),
+      run: versionRun(),
+    })
+    assert.equal(missing.state, 'missing')
+    assert.equal(missing.system, false)
+    assert.equal(missing.binaryPath, null)
+    assert.equal(missing.version, 'commit 6c43880', 'the pin stays visible')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(bin, { recursive: true, force: true })
+  }
+})
+
 test('a PATH copy is reported as a system install', async () => {
   const root = tempDir()
   const bin = tempDir()
@@ -160,7 +262,6 @@ test('a PATH copy is reported as a system install', async () => {
     rmSync(bin, { recursive: true, force: true })
   }
 })
-
 test('a leftover .part file is an incomplete download that can resume', async () => {
   const root = tempDir()
   try {

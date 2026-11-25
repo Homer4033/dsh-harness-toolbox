@@ -69,7 +69,8 @@ test('toolsStatus names every component directory and the running jobs', () => {
       assert.equal(item.path, join(defaultToolsPath(home), item.id))
       assert.equal(item.exists, false)
     }
-    assert.deepEqual(empty.running, { gh: false, git: false, ffmpeg: false, python: false, models: false })
+    const noJobs = Object.fromEntries([...TOOL_DIRS, 'models'].map((id) => [id, false]))
+    assert.deepEqual(empty.running, noJobs)
     // Models share the root but get their own folder and never a PATH entry.
     assert.equal(empty.models.path, join(defaultToolsPath(home), 'models'))
     assert.equal(empty.models.exists, false)
@@ -77,7 +78,7 @@ test('toolsStatus names every component directory and the running jobs', () => {
     plantedRoot(defaultToolsPath(home))
     const planted = toolsStatus(home, {}, { running: { ffmpeg: true } })
     for (const item of planted.components) assert.equal(item.exists, true, `${item.id} exists`)
-    assert.deepEqual(planted.running, { gh: false, git: false, ffmpeg: true, python: false, models: false })
+    assert.deepEqual(planted.running, { ...noJobs, ffmpeg: true })
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
@@ -236,7 +237,7 @@ test('a second run over half-migrated directories finishes the job', () => {
     // The first run moved gh and then failed on ffmpeg.
     renameSync(join(from, 'gh'), join(target, 'gh'))
     const report = migrateTools({ home, settings: {}, target })
-    assert.deepEqual(report.moved, ['git', 'ffmpeg', 'python'])
+    assert.deepEqual(report.moved, TOOL_DIRS.filter((id) => id !== 'gh'))
     assert.equal(existsSync(join(target, 'gh', 'bin', 'gh.txt')), true)
     assert.equal(existsSync(join(target, 'ffmpeg', 'bin', 'ffmpeg.txt')), true)
     // A third run has nothing left to do and still succeeds.

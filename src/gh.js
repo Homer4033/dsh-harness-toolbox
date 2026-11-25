@@ -170,6 +170,15 @@ async function fetchKeepingRange(url, headers, signal, fetchImpl, hops = 0) {
 const DOWNLOAD_RETRIES = 3
 const DOWNLOAD_RETRY_DELAY_MS = 1500
 
+/**
+ * How long a body may go without a single byte before the attempt counts as
+ * stalled. A half-open socket does not always error: `fetch` can sit on it for
+ * minutes, which used to leave a 16 GB model download frozen at the same byte
+ * count with the page still saying "downloading". A stalled attempt is retried
+ * like a dropped connection, and the retry resumes from the `.part` file.
+ */
+const DOWNLOAD_IDLE_TIMEOUT_MS = 60_000
+
 /** HTTP statuses that are worth another attempt; other 4xx answers are final. */
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504])
 
@@ -191,6 +200,9 @@ function isRetryableDownloadError(error, signal) {
   // A body that ended before its advertised length: the next attempt resumes
   // from the bytes already on disk, so this is worth retrying.
   if (error.shortRead === true) return true
+  // A body that stopped arriving altogether: the socket may still be open, so
+  // only our own idle timer noticed. Same resume story as a short read.
+  if (error.stalled === true) return true
   if (typeof error.status === 'number') return RETRYABLE_STATUS.has(error.status)
   if (RETRYABLE_CODE.has(String(error.code || ''))) return true
   return /fetch failed|socket hang up|other side closed|premature|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN/i.test(String(error.message || ''))
@@ -225,7 +237,7 @@ function waitForRetry(delayMs, signal) {
  * a short body against, so a pinned size lets the caller keep the short-read
  * check instead of silently promoting a truncated file.
  */
-async function downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal, expectedBytes = null }) {
+async function downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal, expectedBytes = null, idleTimeoutMs = DOWNLOAD_IDLE_TIMEOUT_MS }) {
   mkdirSync(dirname(target), { recursive: true })
   let existing = existsSync(target) ? statSync(target).size : 0
   const request = (resume) => fetchKeepingRange(
@@ -262,11 +274,40 @@ async function downloadAttempt({ url, partPath: target, fetchImpl, onProgress, s
   if (!body) throw new Error('download response had no body')
   const file = createWriteStream(target, { flags: restart ? 'w' : 'a' })
   const source = typeof body.getReader === 'function' ? Readable.fromWeb(body) : body
+  // `pipeline` waits for the body to end; a body that simply stops arriving
+  // would wait forever. Watch the gap between chunks and turn a long enough one
+  // into a retryable error (see DOWNLOAD_IDLE_TIMEOUT_MS).
+  let idleTimer = null
+  let stalledError = null
+  const armIdleTimer = () => {
+    if (!(idleTimeoutMs > 0)) return
+    if (idleTimer) clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => {
+      idleTimer = null
+      stalledError = new Error(`download stalled: no data for ${idleTimeoutMs}ms`)
+      stalledError.stalled = true
+      // Destroying the source is what makes `pipeline` settle; the sink has to
+      // go too, or the write stream would keep the process busy.
+      source.destroy(stalledError)
+      file.destroy(stalledError)
+    }, idleTimeoutMs)
+    if (typeof idleTimer.unref === 'function') idleTimer.unref()
+  }
   source.on('data', (chunk) => {
     received += chunk.length
     onProgress?.({ received, total, resumedFrom: restart ? 0 : existing })
+    armIdleTimer()
   })
-  await pipeline(source, file)
+  armIdleTimer()
+  try {
+    await pipeline(source, file)
+  } catch (error) {
+    // The stream wrapper may report its own error after the destroy; the stall
+    // is the cause we want to retry on, and it carries the flag for it.
+    throw stalledError || error
+  } finally {
+    if (idleTimer) clearTimeout(idleTimer)
+  }
   // A body that just stops (a proxy answering 200 with an HTML page, a chunked
   // response cut short) still resolves the pipeline. Promoting that file to the
   // archive path would make every later "retry" import the same broken archive,
@@ -300,12 +341,13 @@ export async function downloadWithResume({
   retries = DOWNLOAD_RETRIES,
   retryDelayMs = DOWNLOAD_RETRY_DELAY_MS,
   expectedBytes = null,
+  idleTimeoutMs = DOWNLOAD_IDLE_TIMEOUT_MS,
 }) {
   let attempts = 0
   for (;;) {
     attempts += 1
     try {
-      return await downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal, expectedBytes })
+      return await downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal, expectedBytes, idleTimeoutMs })
     } catch (error) {
       if (attempts > retries || !isRetryableDownloadError(error, signal)) {
         if (attempts > 1 && error instanceof Error) {

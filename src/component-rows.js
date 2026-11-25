@@ -9,7 +9,7 @@ import { ffmpegRoot } from './ffmpeg.js'
  */
 
 /** Render order of the component panel. */
-export const COMPONENT_ORDER = ['gh', 'git', 'ffmpeg', 'python']
+export const COMPONENT_ORDER = ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp']
 
 /**
  * The shared row shape:
@@ -113,13 +113,15 @@ export function managedComponentRow(status) {
   })
 }
 
-/** All four rows, in render order; a missing status simply drops its row. */
+/** Every row, in render order; a missing status simply drops its row. */
 export function componentRows(root, statuses) {
-  const rows = {
-    gh: statuses.gh ? ghComponentRow(statuses.gh) : null,
-    git: statuses.git ? managedComponentRow(statuses.git) : null,
-    ffmpeg: statuses.ffmpeg ? ffmpegComponentRow(root, statuses.ffmpeg) : null,
-    python: statuses.python ? managedComponentRow(statuses.python) : null,
+  const rows = {}
+  for (const id of COMPONENT_ORDER) {
+    const status = statuses[id]
+    if (!status) continue
+    if (id === 'gh') rows[id] = ghComponentRow(status)
+    else if (id === 'ffmpeg') rows[id] = ffmpegComponentRow(root, status)
+    else rows[id] = managedComponentRow(status)
   }
   return COMPONENT_ORDER.filter((id) => rows[id]).map((id) => rows[id])
 }

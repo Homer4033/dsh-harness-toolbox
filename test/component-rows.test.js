@@ -33,18 +33,23 @@ function ghStatus(overrides) {
 }
 
 function managedStatus(id, overrides) {
+  const source = id === 'comfyui' || id === 'comfy-mcp'
+  const version = id === 'python' ? '3.11.18' : id === 'comfyui' ? '0.46.0' : id === 'comfy-mcp' ? 'commit 6c43880' : '2.56.1'
   return {
     id,
-    name: id === 'python' ? 'Python' : 'git',
-    version: id === 'python' ? '3.11.18' : '2.56.1',
+    name: id === 'python' ? 'Python' : id === 'comfyui' ? 'ComfyUI' : id === 'comfy-mcp' ? 'ComfyUI MCP' : 'git',
+    version,
     state: 'installed',
     supported: true,
     installed: true,
     system: false,
     systemPath: null,
-    binaryPath: id === 'python' ? join(ROOT, 'python', 'python.exe') : join(ROOT, 'git', 'cmd', 'git.exe'),
+    // A source tree reports its install root; a compiled component its binary.
+    binaryPath: source
+      ? join(ROOT, id)
+      : id === 'python' ? join(ROOT, 'python', 'python.exe') : join(ROOT, 'git', 'cmd', 'git.exe'),
     sourceKind: 'managed',
-    toolVersion: id === 'python' ? '3.11.18' : '2.56.1.windows.1',
+    toolVersion: source ? null : id === 'python' ? '3.11.18' : '2.56.1.windows.1',
     received: 0,
     total: null,
     percent: null,
@@ -68,17 +73,48 @@ function ffmpegStatus(overrides) {
   }
 }
 
-test('the panel order is GitHub CLI, git, ffmpeg and Python', () => {
-  assert.deepEqual(COMPONENT_ORDER, ['gh', 'git', 'ffmpeg', 'python'])
+test('the panel order is GitHub CLI, git, ffmpeg, Python and the two source trees', () => {
+  assert.deepEqual(COMPONENT_ORDER, ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp'])
   const rows = componentRows(ROOT, {
     gh: ghStatus({ id: 'gh' }),
     git: managedStatus('git'),
     ffmpeg: ffmpegStatus(),
     python: managedStatus('python'),
+    comfyui: managedStatus('comfyui'),
+    'comfy-mcp': managedStatus('comfy-mcp'),
   })
-  assert.deepEqual(rows.map((row) => row.id), ['gh', 'git', 'ffmpeg', 'python'])
+  assert.deepEqual(rows.map((row) => row.id), ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp'])
   // A status the host could not read simply drops its row.
   assert.deepEqual(componentRows(ROOT, { gh: ghStatus() }).map((row) => row.id), ['gh'])
+})
+
+test('a source tree row has no binary, points at its install root and keeps its pin', () => {
+  const installed = managedComponentRow(managedStatus('comfyui'))
+  assert.equal(installed.id, 'comfyui')
+  assert.equal(installed.name, 'ComfyUI')
+  assert.equal(installed.state, 'installed')
+  assert.equal(installed.ready, true)
+  assert.equal(installed.managed, true)
+  assert.equal(installed.system, false)
+  assert.equal(installed.path, join(ROOT, 'comfyui'), 'the install root, not a marker file')
+  assert.equal(installed.version, '0.46.0')
+  assert.equal(installed.toolVersion, null, 'nothing to probe, so no detected version')
+  assert.equal(installed.tools, null)
+
+  // Pinned by commit, the version line says so instead of inventing a tag.
+  const mcp = managedComponentRow(managedStatus('comfy-mcp'))
+  assert.equal(mcp.version, 'commit 6c43880')
+  assert.equal(mcp.path, join(ROOT, 'comfy-mcp'))
+
+  const missing = managedComponentRow(managedStatus('comfyui', {
+    state: 'missing',
+    installed: false,
+    binaryPath: null,
+    toolVersion: null,
+  }))
+  assert.equal(missing.ready, false)
+  assert.equal(missing.path, null)
+  assert.equal(missing.version, '0.46.0', 'the pin stays visible before the install')
 })
 
 test('a managed install is ready, managed and points at its own binary', () => {

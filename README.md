@@ -6,16 +6,16 @@
 
 **为 DeepSeek Harness 打造的五档上下文压缩与综合工作台**
 
-五档压缩 · 会流动的上下文试管 · 本地模型与四套托管组件 · 两套跟随宿主深浅的配色 · 全局与工作区规则 · 会话仓库发布
+五档压缩 · 会流动的上下文试管 · 本地模型与六套托管组件 · 两套跟随宿主深浅的配色 · 全局与工作区规则 · 会话仓库发布
 
 [**更新日志 (CHANGELOG)**](./CHANGELOG.md) · [**问题反馈 (Issues)**](https://github.com/Homer4033/dsh-harness-toolbox/issues) · [**npm 包**](https://www.npmjs.com/package/dsh-harness-toolbox) · [**插件详情**](./docs/DETAIL.zh.md)
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.5.1-0f172a?style=flat-square" alt="Version 2.5.1" />
+  <img src="https://img.shields.io/badge/Version-2.6.0-0f172a?style=flat-square" alt="Version 2.6.0" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-249%20passing-16a34a?style=flat-square" alt="249 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-255%20passing-16a34a?style=flat-square" alt="255 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -52,12 +52,12 @@
 
 - **五档压缩，点一下写进去**：`gentle` / `light` / `standard` / `aggressive` / `max` 五档，选中即同步进所有已挂载的预设压缩引擎并留档，不重启；每档都保留官方自动压力压缩。
 - **看见的上下文与摸得到的推理档**：输入框上方的小试管实时显示占用——液面就是 `已用 / 窗口`，刻度线是对应的压缩阈值；点开能读到已用、窗口、压缩阈值、保留原文、距阈值，以及系统 / 工具 / 对话三段构成。官方模型菜单里则多一条推理滑块，直接改当前会话的推理等级。
-- **本地模型单独一个文件夹**：「模型和组件」页能一键下载 **FLUX.2 [klein] 4B** 的蒸馏 4 步版本（`black-forest-labs/FLUX.2-klein-4B`，Apache-2.0、免登录、18 个 diffusers 文件、共约 15.98 GB），装在下载根下单独的 `models/` 目录里，和四套组件分开放；逐文件断点续传，只有完整文件才落盘。
+- **本地模型单独一个文件夹**：「模型和组件」页能一键下载 **FLUX.2 [klein] 4B** 的蒸馏 4 步版本（`black-forest-labs/FLUX.2-klein-4B`，Apache-2.0、免登录、18 个 diffusers 文件、共约 15.98 GB），装在下载根下单独的 `models/` 目录里，和六套组件分开放；逐文件断点续传，只有完整文件才落盘。
 - **两套配色，换的是整个界面，跟着 DSH 走**：深空黑曜偏靛蓝，白昼冷晶偏冰青；每套都带亮、暗两份 token，DSH 切深色就用深色那份、切浅色就用浅色那份，皮肤不会把宿主的外观偏好掰到另一边。另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。选中一套时，侧栏、消息气泡、输入框、菜单、卡片与代码块一起换，不只是插件自己的面板。
 - **主题美术也一起搬**：光换 token 宿主表面还是平的，所以还会画一层美术——对话区底部一条静态底光、16px 圆角的烟熏用户气泡、引用块左侧 accent 竖条、84% 宽的发丝分隔线、6px 细滚动条、输入卡顶部光泽；「跟随宿主」下用 DSH 自己的颜色画（不是关掉这层），外观页还能单独关掉美术。
 - **底光是一条不动的渐变**：2.4.6 起对话区底部只有一条 `linear-gradient`（accent 16% → 冰蓝 9% @26% → 透明 @54%），2.5.0 起底座上那截由同一层的 `::before` 伪元素按实测高度补上，接缝不再有台阶；没有 canvas、没有帧、没有动画。2.4.0–2.4.5 那套 canvas 地平线渲染器已删除。
 - **规则只有一份**：全局规则写 `<DSH home>/AGENTS.md`，工作区规则写各工作区根目录的 `AGENTS.md`（插件只占其中开头一个受管块，文件其余部分是工作区自己的）；插件不复制、不缓存，智能体没有改写它们的工具，只能由人在面板里保存。
-- **四套组件一个根目录**：GitHub CLI、git、ffmpeg / ffprobe、Python 都能检测系统 PATH 副本或下载托管版，断点续传、自检后原子替换、失败回滚；整个根目录可在面板里迁移。
+- **六套组件一个根目录**：GitHub CLI、git、ffmpeg / ffprobe、Python 都能检测系统 PATH 副本或下载托管版，断点续传、自检后原子替换、失败回滚；ComfyUI 与官方 ComfyUI MCP 是两棵源码树（GitHub 仓库归档，不做 PATH 检测），同样下载、自检、原子替换；整个根目录可在面板里迁移。
 - **发布只有一个入口**：`github_push` 依次做网络体检 → 密钥扫描 → 60 秒超时推送 → 失败分类；输入框上方的「仓库」胶囊决定当前会话推到哪里，胶囊在空会话里也在。
 - **轻、守规矩**：面板只用官方主题 token、不引入 Host 的 Client 包；托管副本只插本进程 PATH，不写系统环境变量；移植的那份 UMD 模块走同源脚本路由，按需加载。
 
@@ -121,14 +121,14 @@
 
 ### 5. 本地模型
 
-「模型和组件」页在四套组件下面多出一段「本地模型」：一行 **FLUX.2 [klein] 4B**，带「下载」与「重新检测」两个常显按钮，状态行、进度条与组件行同一套形状。
+「模型和组件」页在六套组件下面多出一段「本地模型」：一行 **FLUX.2 [klein] 4B**，带「下载」与「重新检测」两个常显按钮，状态行、进度条与组件行同一套形状。
 
 | 项 | 值 |
 | :--- | :--- |
 | 模型 | [`black-forest-labs/FLUX.2-klein-4B`](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B)，蒸馏 4 步版本 |
 | 许可 | Apache-2.0；Hugging Face 上免登录即可下载 |
 | 体积 | 18 个文件，共约 **15.98 GB** |
-| 位置 | `<下载根>/models/flux2-klein-4b`（与四套组件分开的独立目录，整体迁移时一起搬） |
+| 位置 | `<下载根>/models/flux2-klein-4b`（与六套组件分开的独立目录，整体迁移时一起搬） |
 
 只取 diffusers 最小集（transformer、两段文本编码器、VAE、tokenizer / scheduler / 配置）；仓库里那份重复的单文件 transformer 与三张预览图不取。下载逐文件走 HTTP Range 续传，失败留下的 `.part` 下次接着下，只有完整文件才改名落盘——所以状态只有「未安装 / 下了一部分 / 已安装」三种，进度按文件字节累计算。接口是 `GET/POST /compression-tiers/api/models`（读状态 / `{ id, action: 'download' }`），同一时间只允许一个下载任务，下载中再点返回 409。
 
@@ -157,10 +157,10 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 ### 8. 更多能力
 
 - **规则面板**：全局规则整份写入 `<DSH home>/AGENTS.md`；工作区规则只写插件自己的受管块，保存时插到该工作区 `AGENTS.md` 的**开头**（没有文件就创建），块下面原有的正文原样保留，面板也不显示这份文件的内容。**受管块只认文件开头**：围栏必须是首个非空行加上后面一整行的结束标记，正文里顺口提到这两个标记不算（本仓库自己的 `AGENTS.md` 就提到过两次）；半个围栏（只有开头没有结尾）按空块处理，保存后不会出现第二个开头。两处写入都原子、去 BOM、CRLF→LF、保留单个结尾换行，单次上限 100,000 字符，超出直接 413 而不是截断；系统提示只带最新 2,000 字符摘要。
-- **组件管理**：四行统一形状——名称与版本 → 状态行 → 进度 → 路径或错误 → 同一行「下载 / 重新检测」，状态没读到时整行仍在、按钮置灰。
+- **组件管理**：六行统一形状——名称与版本 → 状态行 → 进度 → 路径或错误 → 同一行「下载 / 重新检测」，状态没读到时整行仍在、按钮置灰。
 - **GitHub 登录与体检**：`gh auth login --web` 的设备码流程，面板只显示账号与 token 的授权范围（scopes），插件不读、不存凭据；代理探测覆盖直连 / 代理 / 代理不通 / 全断四种结论。
 - **会话仓库胶囊**：默认上拉，上方不足 200px 才翻成向下；↑ / ↓ / Home / End / Enter / Esc 全键盘可用。
-- **下载根目录迁移**：只接受绝对路径，四套组件要么都搬要么都不动；跨卷 `EXDEV` 退化成复制后删除，搬完才写新值。
+- **下载根目录迁移**：只接受绝对路径，六套组件要么都搬要么都不动；跨卷 `EXDEV` 退化成复制后删除，搬完才写新值。
 
 ---
 
@@ -170,7 +170,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.5.1`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.6.0`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -192,6 +192,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 - **1.x → 2.0.0 / 2.2.0**：`settings.json` 里多一个 `appearance` 块（缺省即 `host` / `full` / 美术层开启），规则、组件、下载目录、会话仓库绑定都不动，不需要搬文件。
 - **2.4.x → 2.5.0**：像素伙伴整块删除，旧 `settings.json` 里的 `appearance.mascots` 会被直接忽略（不回写、不报错）；外观页只剩配色、动效与光学外观三组。新增「本地模型」一行，但不会自动下载任何东西。
+- **2.5.x → 2.6.0**：「模型和组件」页多出 ComfyUI 与 ComfyUI MCP 两行（GitHub 仓库归档，只下载解压，不建 venv、不启动）。设置、已装组件与下载目录都不动，也不会自动下载；点了才下。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
 - **卸载**：插件页移除即可，托管组件目录留在原处，删掉目录即彻底清理。
 
@@ -207,7 +208,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 | :--- | :--- | :--- |
 | **档位** | 五个按钮，点一下写入所有已挂载的预设压缩引擎 | `src/levels.js` 的 `COMPRESSION` |
 | **规则** | 全局规则整份编辑；下半张卡编辑所选工作区的补充规则（插到它 `AGENTS.md` 开头） | `<DSH home>/AGENTS.md`、`<DSH home>/storages/workspace.json` + 各工作区 `AGENTS.md` |
-| **模型和组件** | 四套组件的状态、下载、重新检测与下载根目录，以及一行本地模型 | `src/components.js` 的 `COMPONENTS`、`src/models.js` 的 `MODELS` |
+| **模型和组件** | 六套组件的状态、下载、重新检测与下载根目录，以及一行本地模型 | `src/components.js` 的 `COMPONENTS`、`src/models.js` 的 `MODELS` |
 | **外观** | 配色、动效、光学外观 | `settings.json` 的 `appearance` |
 | **GitHub** | 账号、token scope、设备码登录、网络体检 | `gh` 自己的存储（插件不读凭据） |
 
@@ -256,7 +257,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 ## 组件管理
 
-四套托管组件装在同一个可配置根目录下，都能识别系统 PATH 里的副本；托管副本优先，并插到本进程 PATH 最前（不写系统环境变量）。
+六套托管组件装在同一个可配置根目录下。前四套是可执行程序：能识别系统 PATH 里的副本，托管副本优先，并插到本进程 PATH 最前（不写系统环境变量）。后两套是源码树，没有可执行文件，也就没有 PATH 那一段。
 
 | 组件 | 托管源 | 位置 | PATH 目录 |
 | :--- | :--- | :--- | :--- |
@@ -264,12 +265,15 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 | git | MinGit，钉 `2.56.1` | `<root>/git` | `<root>/git/cmd` |
 | ffmpeg / ffprobe | gyan.dev essentials（浮动 release） | `<root>/ffmpeg` | `<root>/ffmpeg/bin` |
 | Python | python-build-standalone，钉 `3.11.18+20261110` | `<root>/python` | `<root>/python`、`<root>/python/Scripts` |
+| ComfyUI | `Comfy-Org/ComfyUI` 仓库归档，钉 tag `v0.46.0` | `<root>/comfyui` | 无 |
+| ComfyUI MCP | `Comfy-Org/comfy-mcp` 仓库归档，钉 commit `6c43880` | `<root>/comfy-mcp` | 无 |
 
-- **下载**：HTTP Range 续传、20 分钟超时、失败自动重试（指数退避）；解压到 `<root>/.staging/<id>` 后先跑 `--version` / `-version` 自检，通过才整棵目录原子替换，失败回滚并保留 `.part`。
+- **下载**：HTTP Range 续传、20 分钟超时、失败自动重试（指数退避），body 超过 60 秒没有新字节按掉线重试（半开连接不会让进度条永远停在一个数上）；解压到 `<root>/.staging/<id>` 后先自检（可执行组件跑 `--version` / `-version`，源码树找标记文件 `main.py` / `pyproject.toml`），通过才整棵目录原子替换，失败回滚并保留 `.part`。
+- **源码树只负责下载**：装完是两棵可以直接查看、自行接管依赖的树，插件不建 venv、不装 torch，也不启动 ComfyUI——`<root>/comfyui/main.py`、`<root>/comfy-mcp/pyproject.toml` 就是安装完成的凭据。GitHub 的 `/archive/<ref>.zip` 会在仓库外面多包一层 `ComfyUI-0.46.0/`，这一层会被剥掉，所以安装目录就是仓库根。
 - **Windows 占用**：替换经 `moveIntoPlace()`——rename 重试退避，仍失败就复制过去，不再因为杀毒扫描刚写出的二进制而报 `EPERM`。
-- **下载目录**：`settings.json` 的 `toolsPath`（空 = `<DSH home>/compression-tiers`）。迁移只接受绝对路径、整体搬四套组件、任一下载进行中 409、目标已存在拒绝、跨卷自动退化为复制后删除。
-- **接口**：`GET/POST /compression-tiers/api/components`（读四行状态 / `{id, action:'download'}`），`GET/POST /compression-tiers/api/tools`（读目录状态 / `{action:'migrate', path}`）。
-- **边界**：托管源只有 Windows；Linux / macOS 只做 PATH 检测并显示「当前系统不可用」。
+- **下载目录**：`settings.json` 的 `toolsPath`（空 = `<DSH home>/compression-tiers`）。迁移只接受绝对路径、整体搬六套组件、任一下载进行中 409、目标已存在拒绝、跨卷自动退化为复制后删除。
+- **接口**：`GET/POST /compression-tiers/api/components`（读六行状态 / `{id, action:'download'}`），`GET/POST /compression-tiers/api/tools`（读目录状态 / `{action:'migrate', path}`）。
+- **边界**：gh / git / ffmpeg / Python 的托管源只有 Windows，Linux / macOS 只做 PATH 检测并显示「当前系统不可用」；ComfyUI 与 MCP 的仓库归档不分平台，两种系统都能装。
 
 ---
 
@@ -278,10 +282,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.5.1`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.6.0`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.5.1` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.6.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」并禁用触发器（`title` 说明读不到），不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
@@ -293,7 +297,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍——但**只有完整下载才落成归档**（body 比 `content-length` 短算可重试的断点续传），归档解压不出二进制或暂存自检失败时会先删掉它，下一次重新下载而不是反复解压同一个坏文件。备份目录的清理失败不会回滚已经自检通过的安装。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 249 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块 / 整行围栏标记 400）、`gh` / 组件 / 下载位置（含短读重试、PowerShell 兜底、复制失败回滚后半程可重试）、本地模型（钉住的文件清单与总字节数、三态、`.part` 续传、下载中 409、未知 id 404）、发布流程、移植模块的 UMD 装载与署名（白名单只剩 `vial-core.js`）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级、试管禁用态、设置快照推送、底光 `::before` 与 `--ct-glow-height`、宿主上下文环隐藏，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 255 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块 / 整行围栏标记 400）、`gh` / 组件 / 下载位置（含短读重试、停住 60 秒的掉线重试、PowerShell 兜底、复制失败回滚后半程可重试）、源码树组件（仓库归档的 `any` 资产、剥掉 GitHub 的 `ComfyUI-0.46.0/` 外层目录、按标记文件判定安装、不参与 PATH、六行统一形状）、本地模型（钉住的文件清单与总字节数、三态、`.part` 续传、下载中 409、未知 id 404）、发布流程、移植模块的 UMD 装载与署名（白名单只剩 `vial-core.js`）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级、试管禁用态、设置快照推送、底光 `::before` 与 `--ct-glow-height`、宿主上下文环隐藏，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 
@@ -303,10 +307,11 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 - **窗口大小**：五档按 ≥ 256k tokens 的窗口设计；128k 窗口下各档只剩「保留量」不同，≤ 64k 的窗口会被官方 65,536 的输出余量卡住——用 `compression_tiers` 的 `routeLines` 给该路由写更小的 `headroomTokens`。
 - **宿主平面**：只更新预设隔离域里的引擎；如果别的插件也管同一批引擎，两边会互相覆盖，只留一个。
-- **网络**：GitHub 与 npm 相关操作要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需要能访问 `www.gyan.dev`，git / Python 需要能访问 `github.com`，本地模型先试 `hf-mirror.com`、再试 `huggingface.co`。
+- **网络**：GitHub 与 npm 相关操作要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需要能访问 `www.gyan.dev`，git / Python / ComfyUI / ComfyUI MCP 需要能访问 `github.com`（后两者的仓库归档走 `github.com/.../archive/...`，国内网络下这个地址偏慢，13.7 MB 的 ComfyUI 归档可能要几分钟），本地模型先试 `hf-mirror.com`、再试 `huggingface.co`。
 - **托管副本会盖过系统版本**：装了托管 git / Python 后，本进程内的 `git` / `python` 优先用托管副本；删掉 `<root>/git`、`<root>/python` 并重启即回退。
+- **ComfyUI / MCP 只装代码**：两行下载的是仓库归档，装完是 `<root>/comfyui` 与 `<root>/comfy-mcp` 两棵源码树，插件不建 venv、不装依赖（torch 等要自己装）、也不启动服务；「已安装」只代表归档解开且标记文件在（`main.py` / `pyproject.toml`），删掉目录即清掉。MCP 服务器钉的是一个 commit 而不是版本号，面板上的版本位直接写 `commit 6c43880`。
 - **推理滑块不是每条会话都有**：它只在当前模型真的暴露 `reasoning.efforts`（≥2 档）时出现；子智能体会话、没有 `modelDirectories` 服务的宿主、或模型没有推理档位时不渲染任何东西。写入失败（例如会话正被写者占用）会在滑块下方写原因并回滚，不会留下一个假的选中态。
-- **本地模型要自己下**：FLUX.2 [klein] 4B 约 15.98 GB，插件只负责下载与文件大小校验，不内置权重、也不校验哈希；面板里点了才下，删掉 `<root>/models/<id>` 即彻底清掉。下载默认从 `hf-mirror.com` 拉，连不上才回落 `huggingface.co`（`DSH_HF_ENDPOINT` 可换镜像）；下载中途断网留在原地的 `.part` 下次接着下。
+- **本地模型要自己下**：FLUX.2 [klein] 4B 约 15.98 GB，插件只负责下载与文件大小校验，不内置权重、也不校验哈希；面板里点了才下，删掉 `<root>/models/<id>` 即彻底清掉。下载默认从 `hf-mirror.com` 拉，连不上才回落 `huggingface.co`（`DSH_HF_ENDPOINT` 可换镜像）；下载中途断网留在原地的 `.part` 下次接着下，卡住 60 秒不动也会自动重连续传。
 - **美术层与配色解耦**：2.4.2 起「跟随宿主」也用宿主 token 画这层美术，不是关掉；外观页的「光学外观」开关常显可点，关掉只去掉底光 / 气泡 / 分隔线这些美术，配色 token 仍然生效。
 - **渲染未验证**：README 里的画面来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库的 `client.js`），**真实 DSH 窗口里的最终观感仍需刷新页面后确认**。推理滑块是在舞台里对着一个按官方语义属性搭的模型菜单跑通的（挂载、拖动写入、官方行跟着更新、被拒回滚都验证过）；真实 DSH 菜单里的位置与观感仍要在窗口里确认一遍。
 - **仓库 UI**：没有仓库列表，也没有推送按钮。多仓库由智能体在各自会话里调用 `github_push`；胶囊只决定当前会话的目标。
@@ -373,8 +378,8 @@ dsh-harness-toolbox/
 │   ├── workspace-rules.js        # 工作区规则：注册表读取、受管块注入、原子写入
 │   ├── gh.js                     # GitHub CLI：托管下载、PATH、设备码登录、仓库列表
 │   ├── ffmpeg.js                 # ffmpeg / ffprobe 托管下载与 PATH
-│   ├── components.js             # git / Python 托管下载与 PATH
-│   ├── component-rows.js         # 面板四行组件的统一形状
+│   ├── components.js             # 托管组件：git / Python 可执行文件 + ComfyUI / MCP 源码树
+│   ├── component-rows.js         # 面板六行组件的统一形状
 │   ├── models.js                 # 本地模型：钉住的文件清单、状态、逐文件续传下载
 │   ├── tools-path.js             # 下载根目录与整体迁移
 │   ├── swap.js                   # 安装树替换（rename 重试 → 复制回退）

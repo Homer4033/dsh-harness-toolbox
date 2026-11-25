@@ -289,16 +289,16 @@ function rulesPayload(rules) {
  */
 const MANAGED_COMPONENTS = new Set(COMPONENT_ORDER)
 
-/** The four managed components plus the shared download root, for one load. */
+/** Every managed component plus the shared download root, for one load. */
 async function componentsPayload(root) {
-  const [ffmpeg, git, python] = await Promise.all([
+  const [ffmpeg, managed] = await Promise.all([
     ffmpegStatus(root),
-    componentStatus(root, 'git'),
-    componentStatus(root, 'python'),
+    Promise.all(COMPONENT_IDS.map((id) => componentStatus(root, id))),
   ])
+  const statuses = Object.fromEntries(COMPONENT_IDS.map((id, index) => [id, managed[index]]))
   return {
     root: toolsStatus(homeDir(), readSettings(homeDir()).settings, { running: toolsRunning(root) }),
-    components: componentRows(root, { gh: ghStatus(root), git, ffmpeg, python }),
+    components: componentRows(root, { gh: ghStatus(root), ffmpeg, ...statuses }),
   }
 }
 

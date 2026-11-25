@@ -7,7 +7,8 @@ import { isAbsolute, join, normalize, resolve, sep } from 'node:path'
  * `gh` and ffmpeg used to be two hardcoded directories inside the DSH home.
  * They now share `<toolsPath>`: `gh` installs into `<toolsPath>/gh`, ffmpeg into
  * `<toolsPath>/ffmpeg`, git into `<toolsPath>/git`, Python into
- * `<toolsPath>/python`. The setting lives in `settings.json` as `toolsPath`;
+ * `<toolsPath>/python`, and the two source trees into `<toolsPath>/comfyui` and
+ * `<toolsPath>/comfy-mcp`. The setting lives in `settings.json` as `toolsPath`;
  * empty means the default `<DSH home>/compression-tiers`, which is exactly where
  * earlier versions put `gh` and ffmpeg, so upgrading moves nothing.
  *
@@ -16,7 +17,7 @@ import { isAbsolute, join, normalize, resolve, sep } from 'node:path'
  */
 
 /** Subdirectories of the root, one per managed component. */
-export const TOOL_DIRS = ['gh', 'git', 'ffmpeg', 'python']
+export const TOOL_DIRS = ['gh', 'git', 'ffmpeg', 'python', 'comfyui', 'comfy-mcp']
 
 /** Local diffusion models get their own folder, never mixed with the tools. */
 export const MODELS_DIR = 'models'

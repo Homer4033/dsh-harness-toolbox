@@ -355,6 +355,48 @@ test('a dropped connection is retried and resumes from the part file', async () 
   }
 })
 
+test('a body that stops arriving stalls out and is retried', async () => {
+  const home = tempHome()
+  try {
+    const target = join(home, 'download', 'gh.zip.part')
+    mkdirSync(join(home, 'download'), { recursive: true })
+    let calls = 0
+    const fetchImpl = async () => {
+      calls += 1
+      if (calls === 1) {
+        // Three of six bytes, then the stream just stops: no end, no error.
+        // Only the idle timer can notice this, and a half-open socket would
+        // otherwise keep a download frozen for as long as the process lives.
+        return {
+          status: 200,
+          headers: new Headers({ 'content-length': '6' }),
+          body: new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('aaa'))
+            },
+          }),
+        }
+      }
+      return { status: 200, headers: new Headers({ 'content-length': '6' }), body: streamOf('aaabbb') }
+    }
+    const retried = []
+    const result = await downloadWithResume({
+      url: 'https://example.test/gh.zip',
+      partPath: target,
+      fetchImpl,
+      idleTimeoutMs: 40,
+      retryDelayMs: 0,
+      onRetry: (info) => retried.push(info.error.message),
+    })
+    assert.equal(calls, 2, 'the stalled attempt is retried once')
+    assert.match(retried[0], /download stalled: no data for 40ms/)
+    assert.equal(readFileSync(target, 'utf8'), 'aaabbb')
+    assert.equal(result.received, 6)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
 test('an answer that will not change is not retried', async () => {
   const home = tempHome()
   try {
