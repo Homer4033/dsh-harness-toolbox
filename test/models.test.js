@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { MODEL_IDS, MODELS, modelDir, modelFileUrl, modelStatus, modelTotalBytes, startModelDownload } from '../src/models.js'
+import { MODEL_ENDPOINTS, MODEL_IDS, MODELS, modelDir, modelFileUrls, modelStatus, modelTotalBytes, startModelDownload } from '../src/models.js'
 
 function tempRoot() {
   return mkdtempSync(join(tmpdir(), 'compression-tiers-models-'))
@@ -32,8 +32,13 @@ test('the pinned pipeline is FLUX.2 [klein] 4B, distilled, ungated and Apache-2.
   assert.equal(spec.files.some((file) => file.path === 'flux-2-klein-4b.safetensors'), false)
   assert.equal(spec.files.some((file) => file.path.endsWith('.jpg')), false)
   assert.equal(modelTotalBytes('flux2-klein-4b'), 15980131745)
-  const url = modelFileUrl('flux2-klein-4b', 'transformer/diffusion_pytorch_model.safetensors')
-  assert.equal(url, 'https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/resolve/main/transformer/diffusion_pytorch_model.safetensors')
+  // huggingface.co is unreachable on the networks this plugin ships to, so the
+  // path-compatible mirror is tried first and upstream stays as the fallback.
+  assert.deepEqual(MODEL_ENDPOINTS, ['https://hf-mirror.com', 'https://huggingface.co'])
+  assert.deepEqual(modelFileUrls('flux2-klein-4b', 'vae/config.json'), [
+    'https://hf-mirror.com/black-forest-labs/FLUX.2-klein-4B/resolve/main/vae/config.json',
+    'https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/resolve/main/vae/config.json',
+  ])
   assert.equal(modelDir('C:/root', 'flux2-klein-4b').replace(/\\/g, '/'), 'C:/root/models/flux2-klein-4b')
 })
 
@@ -124,6 +129,55 @@ test('a model download resumes from the .part file and renames complete files in
       { path: 'model/b.bin', range: null },
     ])
     assert.equal(statSync(join(dir, 'model', 'b.bin')).size, 6)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a blocked host falls back to the next endpoint and names every host on failure', async () => {
+  const root = tempRoot()
+  const hits = []
+  const fetchImpl = (url) => {
+    const host = new URL(String(url)).host
+    hits.push(host)
+    if (host === 'hf-mirror.com') return Promise.resolve({ ok: false, status: 404, headers: new Headers(), body: null })
+    return Promise.resolve({ ok: true, status: 200, headers: new Headers({ 'content-length': '3' }), body: streamOf('abc') })
+  }
+  try {
+    await startModelDownload(root, 'flux2-klein-4b', { fetchImpl, files: [{ path: 'only.txt', size: 3 }] })
+    assert.equal(readFileSync(join(modelDir(root, 'flux2-klein-4b'), 'only.txt'), 'utf8'), 'abc')
+    assert.deepEqual(hits, ['hf-mirror.com', 'huggingface.co'])
+
+    // Both hosts blocked: "fetch failed" alone sent users looking in the wrong
+    // place, so the message says which hosts were tried and why each failed.
+    const blocked = () => Promise.reject(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } }))
+    await assert.rejects(
+      startModelDownload(root, 'flux2-klein-4b', { fetchImpl: blocked, files: [{ path: 'two.txt', size: 3 }], retries: 0 }),
+      (error) => {
+        assert.equal(error.status, 502)
+        assert.match(error.message, /hf-mirror\.com: fetch failed \(ENOTFOUND\)/)
+        assert.match(error.message, /huggingface\.co: fetch failed \(ENOTFOUND\)/)
+        return true
+      },
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a short body without a length is never renamed into place', async () => {
+  const root = tempRoot()
+  // The mirror serves small files chunked (no `content-length`), so the pinned
+  // size is handed to the downloader; otherwise a truncated body would pass.
+  const fetchImpl = () => Promise.resolve({ ok: true, status: 200, headers: new Headers(), body: streamOf('abc') })
+  try {
+    const dir = modelDir(root, 'flux2-klein-4b')
+    await assert.rejects(
+      startModelDownload(root, 'flux2-klein-4b', { fetchImpl, files: [{ path: 'short.bin', size: 10 }], retries: 0 }),
+      /download ended at 3 of 10 bytes/,
+    )
+    assert.equal(existsSync(join(dir, 'short.bin')), false)
+    assert.equal(statSync(join(dir, 'short.bin.part')).size, 3, 'the partial bytes stay for the next resume')
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

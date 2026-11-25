@@ -12,10 +12,10 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.5.0-0f172a?style=flat-square" alt="Version 2.5.0" />
+  <img src="https://img.shields.io/badge/Version-2.5.1-0f172a?style=flat-square" alt="Version 2.5.1" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-245%20passing-16a34a?style=flat-square" alt="245 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-249%20passing-16a34a?style=flat-square" alt="249 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -132,6 +132,8 @@
 
 只取 diffusers 最小集（transformer、两段文本编码器、VAE、tokenizer / scheduler / 配置）；仓库里那份重复的单文件 transformer 与三张预览图不取。下载逐文件走 HTTP Range 续传，失败留下的 `.part` 下次接着下，只有完整文件才改名落盘——所以状态只有「未安装 / 下了一部分 / 已安装」三种，进度按文件字节累计算。接口是 `GET/POST /compression-tiers/api/models`（读状态 / `{ id, action: 'download' }`），同一时间只允许一个下载任务，下载中再点返回 409。
 
+下载端点默认**先走镜像 `hf-mirror.com`，失败了再回落 `huggingface.co`**：`huggingface.co` 在国内多数网络不可达（第一版只认它，用户看到的就是 `fetch failed (gave up after 4 attempts)`），镜像的 `/<repo>/resolve/main/<path>` 路径与 `Range` 语义和上游一致，可以照用。每个文件都按这个顺序尝试，`.part` 在两端之间共享（字节相同），所以换了 host 也还是续传、不会从零开始。要换别的镜像就设环境变量 `DSH_HF_ENDPOINT`（带 `https://`，会排在首选；上游仍留在最后）。两端都失败时，面板那一行的错误会写清**每个 host 与原因**（例如 `hf-mirror.com: fetch failed (ENOTFOUND); huggingface.co: …`），不再只有一句 `fetch failed`。
+
 输入框上方那一行仍然只有插件在 `conversation.input.dock` 槽里加的控件：试管触发器、状态小字与当前会话的在线仓库胶囊（像素伙伴在 2.5.0 整块删除了）。行宽按输入卡的几何收窄（`--dsh-composer-card-max-width`），胶囊右缘与输入卡右缘对齐。
 
 ### 6. 推理滑块
@@ -168,7 +170,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.5.0`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.5.1`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -276,10 +278,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.5.0`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.5.1`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.5.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.5.1` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」并禁用触发器（`title` 说明读不到），不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
@@ -291,7 +293,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍——但**只有完整下载才落成归档**（body 比 `content-length` 短算可重试的断点续传），归档解压不出二进制或暂存自检失败时会先删掉它，下一次重新下载而不是反复解压同一个坏文件。备份目录的清理失败不会回滚已经自检通过的安装。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 245 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块 / 整行围栏标记 400）、`gh` / 组件 / 下载位置（含短读重试、PowerShell 兜底、复制失败回滚后半程可重试）、本地模型（钉住的文件清单与总字节数、三态、`.part` 续传、下载中 409、未知 id 404）、发布流程、移植模块的 UMD 装载与署名（白名单只剩 `vial-core.js`）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级、试管禁用态、设置快照推送、底光 `::before` 与 `--ct-glow-height`、宿主上下文环隐藏，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 249 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块 / 整行围栏标记 400）、`gh` / 组件 / 下载位置（含短读重试、PowerShell 兜底、复制失败回滚后半程可重试）、本地模型（钉住的文件清单与总字节数、三态、`.part` 续传、下载中 409、未知 id 404）、发布流程、移植模块的 UMD 装载与署名（白名单只剩 `vial-core.js`）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级、试管禁用态、设置快照推送、底光 `::before` 与 `--ct-glow-height`、宿主上下文环隐藏，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 
@@ -301,10 +303,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 - **窗口大小**：五档按 ≥ 256k tokens 的窗口设计；128k 窗口下各档只剩「保留量」不同，≤ 64k 的窗口会被官方 65,536 的输出余量卡住——用 `compression_tiers` 的 `routeLines` 给该路由写更小的 `headroomTokens`。
 - **宿主平面**：只更新预设隔离域里的引擎；如果别的插件也管同一批引擎，两边会互相覆盖，只留一个。
-- **网络**：GitHub 与 npm 相关操作要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需要能访问 `www.gyan.dev`，git / Python 需要能访问 `github.com`。
+- **网络**：GitHub 与 npm 相关操作要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需要能访问 `www.gyan.dev`，git / Python 需要能访问 `github.com`，本地模型先试 `hf-mirror.com`、再试 `huggingface.co`。
 - **托管副本会盖过系统版本**：装了托管 git / Python 后，本进程内的 `git` / `python` 优先用托管副本；删掉 `<root>/git`、`<root>/python` 并重启即回退。
 - **推理滑块不是每条会话都有**：它只在当前模型真的暴露 `reasoning.efforts`（≥2 档）时出现；子智能体会话、没有 `modelDirectories` 服务的宿主、或模型没有推理档位时不渲染任何东西。写入失败（例如会话正被写者占用）会在滑块下方写原因并回滚，不会留下一个假的选中态。
-- **本地模型要自己下**：FLUX.2 [klein] 4B 约 15.98 GB，插件只负责下载与文件大小校验，不内置权重、也不校验哈希；面板里点了才下，删掉 `<root>/models/<id>` 即彻底清掉。下载中途断网留在原地的 `.part` 下次接着下。
+- **本地模型要自己下**：FLUX.2 [klein] 4B 约 15.98 GB，插件只负责下载与文件大小校验，不内置权重、也不校验哈希；面板里点了才下，删掉 `<root>/models/<id>` 即彻底清掉。下载默认从 `hf-mirror.com` 拉，连不上才回落 `huggingface.co`（`DSH_HF_ENDPOINT` 可换镜像）；下载中途断网留在原地的 `.part` 下次接着下。
 - **美术层与配色解耦**：2.4.2 起「跟随宿主」也用宿主 token 画这层美术，不是关掉；外观页的「光学外观」开关常显可点，关掉只去掉底光 / 气泡 / 分隔线这些美术，配色 token 仍然生效。
 - **渲染未验证**：README 里的画面来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库的 `client.js`），**真实 DSH 窗口里的最终观感仍需刷新页面后确认**。推理滑块是在舞台里对着一个按官方语义属性搭的模型菜单跑通的（挂载、拖动写入、官方行跟着更新、被拒回滚都验证过）；真实 DSH 菜单里的位置与观感仍要在窗口里确认一遍。
 - **仓库 UI**：没有仓库列表，也没有推送按钮。多仓库由智能体在各自会话里调用 `github_push`；胶囊只决定当前会话的目标。

@@ -219,8 +219,13 @@ function waitForRetry(delayMs, signal) {
 /**
  * One download attempt. The `.part` file is the resume point, so a previous
  * attempt's bytes are counted from disk every time this runs.
+ *
+ * `expectedBytes` is for servers that answer chunked (no `content-length`, no
+ * `content-range` total): without a declared length there is nothing to compare
+ * a short body against, so a pinned size lets the caller keep the short-read
+ * check instead of silently promoting a truncated file.
  */
-async function downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal }) {
+async function downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal, expectedBytes = null }) {
   mkdirSync(dirname(target), { recursive: true })
   let existing = existsSync(target) ? statSync(target).size : 0
   const request = (resume) => fetchKeepingRange(
@@ -242,11 +247,15 @@ async function downloadAttempt({ url, partPath: target, fetchImpl, onProgress, s
   }
   const restart = response.status === 200
   const contentRange = response.headers.get('content-range') || ''
-  const lengthHeader = Number(response.headers.get('content-length'))
+  const lengthHeader = response.headers.get('content-length')
+  // `Number(null)` is 0, not NaN: a chunked answer with no `content-length` used
+  // to look like a zero-byte file and every such download failed as a short read.
+  const declaredLength = lengthHeader === null ? null : Number(lengthHeader)
   const rangeTotal = /\/(\d+)\s*$/.exec(contentRange)
-  const total = rangeTotal
+  const knownTotal = rangeTotal
     ? Number(rangeTotal[1])
-    : (Number.isFinite(lengthHeader) ? (restart ? lengthHeader : existing + lengthHeader) : null)
+    : (Number.isFinite(declaredLength) ? (restart ? declaredLength : existing + declaredLength) : null)
+  const total = knownTotal === null ? (expectedBytes === null ? null : expectedBytes) : knownTotal
   let received = restart ? 0 : existing
   onProgress?.({ received, total, resumedFrom: restart ? 0 : existing })
   const body = response.body
@@ -290,12 +299,13 @@ export async function downloadWithResume({
   signal,
   retries = DOWNLOAD_RETRIES,
   retryDelayMs = DOWNLOAD_RETRY_DELAY_MS,
+  expectedBytes = null,
 }) {
   let attempts = 0
   for (;;) {
     attempts += 1
     try {
-      return await downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal })
+      return await downloadAttempt({ url, partPath: target, fetchImpl, onProgress, signal, expectedBytes })
     } catch (error) {
       if (attempts > retries || !isRetryableDownloadError(error, signal)) {
         if (attempts > 1 && error instanceof Error) {

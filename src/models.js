@@ -54,10 +54,51 @@ export function modelSpec(id) {
   return Object.prototype.hasOwnProperty.call(MODELS, id) ? MODELS[id] : null
 }
 
-export function modelFileUrl(id, path) {
+/**
+ * Where a model file can be fetched from, in order.
+ *
+ * `huggingface.co` is blocked on many networks (mainland China answers
+ * `fetch failed` / `ENOTFOUND`), which is exactly what the first release shipped
+ * and what users hit. `hf-mirror.com` speaks the same `/<repo>/resolve/main/<path>`
+ * URL scheme and the same `Range` semantics, so it goes first and the upstream
+ * host stays as the fallback for networks where the mirror is the slow one.
+ * Override with `DSH_HF_ENDPOINT` (e.g. a corporate mirror) — it is tried first.
+ */
+export const MODEL_ENDPOINTS = ['https://hf-mirror.com', 'https://huggingface.co']
+
+function modelEndpoints() {
+  const override = String(process.env.DSH_HF_ENDPOINT || '').trim().replace(/\/+$/, '')
+  if (!/^https?:\/\/[^/]+/i.test(override)) return MODEL_ENDPOINTS
+  return [override, ...MODEL_ENDPOINTS.filter((endpoint) => endpoint !== override)]
+}
+
+export function modelFileUrl(id, path, endpoint = modelEndpoints()[0]) {
   const spec = modelSpec(id)
   if (!spec) throw new Error(`unknown model: ${id}`)
-  return `https://huggingface.co/${spec.repo}/resolve/main/${path}`
+  return `${endpoint}/${spec.repo}/resolve/main/${path}`
+}
+
+/** Every URL a file can come from, in the order they are tried. */
+export function modelFileUrls(id, path) {
+  return modelEndpoints().map((endpoint) => modelFileUrl(id, path, endpoint))
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+/**
+ * `fetch failed` alone tells the user nothing. Node hides the real socket / DNS
+ * error in `cause`, so surface its code (`ENOTFOUND`, `ECONNREFUSED`, …).
+ */
+function describeDownloadError(error) {
+  const message = error instanceof Error ? error.message : String(error)
+  const code = (error && error.cause && error.cause.code) || (error && error.code)
+  return code && !String(message).includes(code) ? `${message} (${code})` : message
 }
 
 export function modelTotalBytes(id) {
@@ -145,8 +186,13 @@ export function modelsStatus(root, options = {}) {
  * next start continues from their byte offsets instead of refetching ~16GB.
  * Downloaded files are renamed into place only when the downloader reports the
  * pinned length, so a short body never becomes part of the model.
+ *
+ * Each file walks {@link MODEL_ENDPOINTS} until one host delivers it: a blocked
+ * host is a dead end, not a reason to fail a 16GB download. The `.part` file is
+ * shared across hosts (the bytes are the same), so switching from the mirror to
+ * upstream still resumes instead of starting over.
  */
-export async function startModelDownload(root, id, { fetchImpl = fetch, signal, files = null } = {}) {
+export async function startModelDownload(root, id, { fetchImpl = fetch, signal, files = null, retries } = {}) {
   const spec = modelSpec(id)
   if (!spec) {
     const error = new Error(`unknown model: ${id}`)
@@ -178,15 +224,43 @@ export async function startModelDownload(root, id, { fetchImpl = fetch, signal, 
       job.received = 0
       // A `.part` left over from an older attempt may be short or long; the
       // downloader handles the 416 restart, so no extra bookkeeping is needed.
-      await downloadWithResume({
-        url: modelFileUrl(id, file.path),
-        partPath: part,
-        fetchImpl,
-        signal,
-        onProgress: (progress) => {
-          job.received = Number(progress && progress.received) || 0
-        },
-      })
+      const problems = []
+      let delivered = false
+      for (const url of modelFileUrls(id, file.path)) {
+        try {
+          await downloadWithResume({
+            url,
+            partPath: part,
+            fetchImpl,
+            signal,
+            retries,
+            expectedBytes: file.size,
+            onProgress: (progress) => {
+              job.received = Number(progress && progress.received) || 0
+            },
+          })
+          delivered = true
+          break
+        } catch (error) {
+          if (signal?.aborted) throw error
+          problems.push(`${hostOf(url)}: ${describeDownloadError(error)}`)
+        }
+      }
+      if (!delivered) {
+        const error = new Error(`下载失败 / download failed — ${problems.join('; ')}`)
+        error.status = 502
+        throw error
+      }
+      // `hf-mirror.com` sometimes omits `content-length` on small files, so the
+      // downloader cannot spot a short body on its own; never rename a file that
+      // is not exactly the pinned size (the status check would keep retrying it,
+      // and a truncated transformer would surface as a mysterious load error).
+      const written = fileSize(statSync, part)
+      if (written !== file.size) {
+        const error = new Error(`${file.path}: expected ${file.size} bytes, got ${written == null ? 0 : written}`)
+        error.shortRead = true
+        throw error
+      }
       renameSync(part, target)
       job.fileBytes += file.size
       job.received = 0

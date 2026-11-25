@@ -2,6 +2,14 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.5.1 — 2026-11-25
+
+- **模型下载在国内网络下必失败**（用户实测：`D:\Components\models\flux2-klein-4b` 报 `fetch failed (gave up after 4 attempts)`）：2.5.0 只认 `huggingface.co`，而这台机器上 `huggingface.co:443` 不可达、`hf-mirror.com:443` 可达。现在 `src/models.js` 新增 `MODEL_ENDPOINTS = ['https://hf-mirror.com', 'https://huggingface.co']`：逐个文件按顺序试，镜像失败再回落到上游；`.part` 跨端点共享（字节相同，换端点继续续传，不会重下已下的部分）；`DSH_HF_ENDPOINT` 可覆盖首选端点。两个端点都失败时错误信息列出每个 host 与原因（如 `hf-mirror.com: fetch failed (ENOTFOUND)`），不再只有一句 `fetch failed`。
+- **顺手修掉分块响应的长度判定**（`src/gh.js`）：`Number(headers.get('content-length'))` 在没有该头时得到 `0` 而不是 `null`，于是任何 chunked 响应都会被判成「0 字节短读」。现在缺头即视为未知长度；`downloadWithResume` 新增 `expectedBytes` 参数，模型下载把钉住的字节数传下去，这种响应上仍然能做短读校验（不完整文件绝不改名落盘）。gh / ffmpeg / 组件共用这个下载器，一并受益。
+- 测试 245 → **249**：`test/models.test.js` 补端点顺序与回落、双端全挂时的错误文案、无 `content-length` 时按钉住字节判短读；`test/gh.test.js` 补「chunked 不当作 0 字节」与 `expectedBytes` 兜底。
+- 真实下载验证：用 `startModelDownload` 的 `files` 注入只取两个真实小文件（`model_index.json` 446 B、`transformer/config.json` 541 B），从 `hf-mirror.com` 3.2 秒落地、字节数吻合（同一路径下大文件的 `Range` 也验过返回 206 + `content-range`）。
+- README §5 补镜像与排查说明；AGENTS.md 的本地模型事实来源、验证要求同步；2.4.0 – 2.4.5 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)，AGENTS.md 只保留 2.4.6 起。
+
 ## 2.5.0 — 2026-11-25
 
 - **删掉像素伙伴，输入框上方那一行只剩控件**（用户：「像素伙伴相关功能删除。」）：`MascotStage`、`vendor/obsidian-prism/dual-mascot-rig.js`、`.ct-dock-mascots` / `.ct-mascot-stage` 样式、`appearance.mascots` 字段、外观页的「像素伙伴」开关与 `mascotsLabel` / `mascotsOn` / `mascotsOff` 文案、`@container (max-width: 620px)` 收伙伴规则全部删除；`.ct-repo-dock` 不再需要 `container-type`，改为 `justify-content: flex-end`，`.ct-dock-tools` 仍然右对齐。旧 `settings.json` 里残留的 `mascots` 字段被读侧忽略（不报错、不复活）。`VENDOR_SCRIPTS` 只剩 `vial-core.js`，`NOTICE` 的衍生文件清单同步；`test/vendor.test.js` 断言两个文件都不再随包发布。

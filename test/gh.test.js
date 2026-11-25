@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -181,6 +181,44 @@ test('a body shorter than its content-length is retried instead of kept', async 
       /download ended at 10 of 100 bytes/,
     )
     assert.equal(attempts, 2, 'the short read is retried once')
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('a chunked answer without content-length is not read as a zero-byte file', async () => {
+  const home = tempHome()
+  try {
+    const target = join(home, 'download', 'gh.zip.part')
+    const body = 'x'.repeat(64)
+    // `Number(null)` is 0, which used to make every chunked response look like a
+    // zero-byte file and fail as a short read before this header check.
+    const fetchImpl = async () => ({ status: 200, headers: new Headers(), body: streamOf(body) })
+    const result = await downloadWithResume({ url: 'https://example.test/gh.zip', partPath: target, fetchImpl })
+    assert.equal(readFileSync(target, 'utf8'), body)
+    assert.equal(result.total, null, 'no length was declared, so none is invented')
+    assert.equal(result.received, body.length)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('expectedBytes stands in for a missing length so a short body is still caught', async () => {
+  const home = tempHome()
+  try {
+    const target = join(home, 'download', 'model.safetensors.part')
+    const fetchImpl = async () => ({ status: 200, headers: new Headers(), body: streamOf('0123456789') })
+    await assert.rejects(
+      downloadWithResume({
+        url: 'https://example.test/model.safetensors',
+        partPath: target,
+        fetchImpl,
+        retries: 0,
+        expectedBytes: 100,
+      }),
+      /download ended at 10 of 100 bytes/,
+    )
+    assert.equal(statSync(target).size, 10, 'the partial bytes stay for the next resume')
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
