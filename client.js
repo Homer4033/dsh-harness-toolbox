@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.0.0'
+    const PLUGIN_VERSION = '2.1.0'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -36,6 +36,419 @@ window.__ModuleLoader__.load({
       { id: 'off', labelKey: 'motionOff' },
     ]
     const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', mascots: true }
+
+    /**
+     * Whole-app skins, as opposed to this plugin's own `.ct-skin` surfaces.
+     *
+     * DSH's theme service composes `overrideTokens(source, tokens)` layers on top
+     * of the active theme and its presenter writes them as inline CSS variables
+     * on <body> — so a palette here repaints the sidebar, message bubbles, the
+     * composer, menus, cards and code blocks, not just our panel. Every value
+     * must be a { light, dark } pair because the service rejects bare strings:
+     * a single value goes illegible the moment the user flips the colour scheme.
+     *
+     * The four palettes are two colour families × two modes. Picking one also
+     * pins the host scheme (see `setHostScheme`), and the other mode of the same
+     * family is carried along as the fallback for a later manual switch.
+     */
+    const SKIN_FAMILIES = {
+      cool: {
+        dark: {
+          '--dsw-alias-bg-base': '#0a0a0c',
+          '--dsw-alias-bg-layer-1': '#101013',
+          '--dsw-alias-bg-layer-2': '#17171b',
+          '--dsw-alias-bg-layer-3': '#202026',
+          '--dsw-alias-bg-module-platform': '#292930',
+          '--dsw-alias-bg-overlay': 'rgba(8, 8, 11, 0.72)',
+          '--dsw-alias-bg-mask-1': 'rgba(0, 0, 0, 0.28)',
+          '--dsw-alias-bg-mask-2': 'rgba(0, 0, 0, 0.44)',
+          '--dsw-alias-bg-mask-3': 'rgba(0, 0, 0, 0.6)',
+          '--dsw-alias-bg-skeleton': '#1d1d22',
+          '--dsw-alias-border-l1': 'rgba(255, 255, 255, 0.06)',
+          '--dsw-alias-border-l2': 'rgba(255, 255, 255, 0.1)',
+          '--dsw-alias-border-l3': 'rgba(255, 255, 255, 0.18)',
+          '--dsw-alias-border-l4': 'rgba(255, 255, 255, 0.26)',
+          '--dsw-alias-border-selected': '#8fa6ff',
+          '--dsw-alias-label-primary': '#f4f5f9',
+          '--dsw-alias-label-secondary': '#c3c8d4',
+          '--dsw-alias-label-tertiary': '#8a91a0',
+          '--dsw-alias-label-caption': '#7b8494',
+          '--dsw-alias-label-dimmed': '#6c7484',
+          '--dsw-alias-label-on-color': '#0a0a0c',
+          '--dsw-alias-link': '#8fb4ff',
+          '--dsw-alias-interactive-bg-hover': 'rgba(255, 255, 255, 0.08)',
+          '--dsw-alias-interactive-bg-active': 'rgba(255, 255, 255, 0.12)',
+          '--dsw-alias-interactive-bg-hover-solid': '#2a2a31',
+          '--dsw-alias-button-primary-fill': '#6f9bff',
+          '--dsw-alias-button-primary-hover': '#86adff',
+          '--dsw-alias-button-contrast-fill': '#f4f5f9',
+          '--dsw-alias-button-elevated-fill': '#26262c',
+          '--dsw-alias-button-tool-bar-fill': 'rgba(255, 255, 255, 0.06)',
+          '--dsw-alias-button-tool-bar-hover': 'rgba(255, 255, 255, 0.12)',
+          '--dsw-alias-card-fill': 'rgba(32, 32, 38, 0.66)',
+          '--dsw-alias-card-fill-hover': 'rgba(41, 41, 48, 0.78)',
+          '--dsw-alias-settings-card-fill': 'rgba(23, 23, 27, 0.72)',
+          '--dsw-alias-settings-card-stroke': 'rgba(255, 255, 255, 0.14)',
+          '--dsw-alias-menu-group-header-fill': 'rgba(255, 255, 255, 0.04)',
+          '--dsw-alias-state-business-primary': '#6f9bff',
+          '--dsw-alias-state-success-primary': '#4ec9a0',
+          '--dsw-alias-state-success-secondary': 'rgba(78, 201, 160, 0.16)',
+          '--dsw-alias-state-warn-primary': '#f0b45c',
+          '--dsw-alias-state-warn-secondary': 'rgba(240, 180, 92, 0.16)',
+          '--dsw-alias-state-error-primary': '#ff7b72',
+          '--dsw-alias-state-error-secondary': 'rgba(255, 123, 114, 0.16)',
+          '--dsw-alias-state-done-primary': '#6f9bff',
+          '--dsw-alias-state-idle-primary': '#8a91a0',
+          '--dsw-alias-chart-system': '#6f9bff',
+          '--dsw-alias-chart-tools': '#b18cff',
+          '--dsw-alias-chart-messages': '#5fd0c8',
+          '--dsw-alias-markdown-code-block': '#101013',
+          '--dsw-alias-markdown-code-block-banner': '#1a1a1f',
+          '--dsw-alias-markdown-inline-code': 'rgba(255, 255, 255, 0.08)',
+          '--dsw-alias-markdown-citation': 'rgba(111, 155, 255, 0.16)',
+          '--dsw-alias-markdown-tag': 'rgba(255, 255, 255, 0.08)',
+          '--dsw-specific-sidebar-fill': '#101013',
+          '--dsw-specific-sidebar-glass-fill': 'rgba(23, 23, 27, 0.7)',
+          '--dsw-specific-sidebar-glass-hover': 'rgba(32, 32, 38, 0.82)',
+          '--dsw-specific-sidebar-nav-item-active': 'rgba(111, 155, 255, 0.16)',
+          '--dsw-specific-sidebar-nav-item-active-accent': '#6f9bff',
+          '--dsw-specific-sidebar-tint': 'rgba(111, 155, 255, 0.06)',
+          '--dsw-specific-bubble': 'rgba(32, 32, 38, 0.92)',
+          '--dsw-specific-bubble-highlight': 'rgba(255, 255, 255, 0.06)',
+          '--dsw-specific-menu': '#202026',
+          '--dsw-specific-input-major': '#17171b',
+          '--dsw-specific-selector': '#202026',
+          '--dsw-specific-tip': 'rgba(255, 255, 255, 0.06)',
+          '--dsw-alias-tooltip-bg': '#2b2b33',
+          '--dsw-alias-tooltip-label': '#f4f5f9',
+          '--dsw-alias-tooltip-key-bg': 'rgba(255, 255, 255, 0.1)',
+          '--dsw-alias-toast-bg': '#2b2b33',
+          '--dsw-alias-toast-label': '#f4f5f9',
+          '--dsw-alias-toast-action': '#8fb4ff',
+          '--dsw-alias-scrollbar-bg-l1': 'rgba(255, 255, 255, 0.06)',
+          '--dsw-alias-scrollbar-hover-l1': 'rgba(255, 255, 255, 0.18)',
+          '--dsw-focus-ring-color': '#8fa6ff',
+          '--dsw-elevation-panel': '0 28px 64px rgba(0, 0, 0, 0.5)',
+          '--dsw-elevation-prominent': '0 20px 48px rgba(0, 0, 0, 0.45)',
+          '--dsw-elevation-soft': '0 8px 24px rgba(0, 0, 0, 0.32)',
+          '--dsw-elevation-stroke': '1px solid rgba(255, 255, 255, 0.14)',
+        },
+        light: {
+          '--dsw-alias-bg-base': '#e6edf6',
+          '--dsw-alias-bg-layer-1': '#eef4fb',
+          '--dsw-alias-bg-layer-2': '#f7fafd',
+          '--dsw-alias-bg-layer-3': '#ffffff',
+          '--dsw-alias-bg-module-platform': '#e1eaf6',
+          '--dsw-alias-bg-overlay': 'rgba(244, 247, 252, 0.82)',
+          '--dsw-alias-bg-mask-1': 'rgba(23, 40, 64, 0.12)',
+          '--dsw-alias-bg-mask-2': 'rgba(23, 40, 64, 0.2)',
+          '--dsw-alias-bg-mask-3': 'rgba(23, 40, 64, 0.32)',
+          '--dsw-alias-bg-skeleton': '#dfe7f2',
+          '--dsw-alias-border-l1': 'rgba(23, 40, 64, 0.08)',
+          '--dsw-alias-border-l2': 'rgba(23, 40, 64, 0.14)',
+          '--dsw-alias-border-l3': 'rgba(23, 40, 64, 0.24)',
+          '--dsw-alias-border-l4': 'rgba(23, 40, 64, 0.32)',
+          '--dsw-alias-border-selected': '#2f6fed',
+          '--dsw-alias-label-primary': '#142033',
+          '--dsw-alias-label-secondary': '#40516a',
+          '--dsw-alias-label-tertiary': '#697a93',
+          '--dsw-alias-label-caption': '#77879d',
+          '--dsw-alias-label-dimmed': '#8a99ad',
+          '--dsw-alias-label-on-color': '#ffffff',
+          '--dsw-alias-link': '#2563eb',
+          '--dsw-alias-interactive-bg-hover': 'rgba(23, 40, 64, 0.07)',
+          '--dsw-alias-interactive-bg-active': 'rgba(23, 40, 64, 0.11)',
+          '--dsw-alias-interactive-bg-hover-solid': '#e4ebf5',
+          '--dsw-alias-button-primary-fill': '#2f6fed',
+          '--dsw-alias-button-primary-hover': '#4a84f2',
+          '--dsw-alias-button-contrast-fill': '#142033',
+          '--dsw-alias-button-elevated-fill': '#ffffff',
+          '--dsw-alias-button-tool-bar-fill': 'rgba(23, 40, 64, 0.05)',
+          '--dsw-alias-button-tool-bar-hover': 'rgba(23, 40, 64, 0.1)',
+          '--dsw-alias-card-fill': 'rgba(255, 255, 255, 0.72)',
+          '--dsw-alias-card-fill-hover': '#ffffff',
+          '--dsw-alias-settings-card-fill': 'rgba(255, 255, 255, 0.8)',
+          '--dsw-alias-settings-card-stroke': 'rgba(23, 40, 64, 0.16)',
+          '--dsw-alias-menu-group-header-fill': 'rgba(23, 40, 64, 0.04)',
+          '--dsw-alias-state-business-primary': '#2f6fed',
+          '--dsw-alias-state-success-primary': '#0f9d8a',
+          '--dsw-alias-state-success-secondary': 'rgba(15, 157, 138, 0.14)',
+          '--dsw-alias-state-warn-primary': '#b45309',
+          '--dsw-alias-state-warn-secondary': 'rgba(180, 83, 9, 0.14)',
+          '--dsw-alias-state-error-primary': '#c02626',
+          '--dsw-alias-state-error-secondary': 'rgba(192, 38, 38, 0.14)',
+          '--dsw-alias-state-done-primary': '#2f6fed',
+          '--dsw-alias-state-idle-primary': '#697a93',
+          '--dsw-alias-chart-system': '#2f6fed',
+          '--dsw-alias-chart-tools': '#7c5cff',
+          '--dsw-alias-chart-messages': '#0f9d8a',
+          '--dsw-alias-markdown-code-block': '#f1f5fb',
+          '--dsw-alias-markdown-code-block-banner': '#e7eef8',
+          '--dsw-alias-markdown-inline-code': 'rgba(23, 40, 64, 0.06)',
+          '--dsw-alias-markdown-citation': 'rgba(47, 111, 237, 0.12)',
+          '--dsw-alias-markdown-tag': 'rgba(23, 40, 64, 0.06)',
+          '--dsw-specific-sidebar-fill': '#eaf0f8',
+          '--dsw-specific-sidebar-glass-fill': 'rgba(255, 255, 255, 0.62)',
+          '--dsw-specific-sidebar-glass-hover': 'rgba(255, 255, 255, 0.82)',
+          '--dsw-specific-sidebar-nav-item-active': 'rgba(47, 111, 237, 0.12)',
+          '--dsw-specific-sidebar-nav-item-active-accent': '#2f6fed',
+          '--dsw-specific-sidebar-tint': 'rgba(47, 111, 237, 0.06)',
+          '--dsw-specific-bubble': 'rgba(255, 255, 255, 0.94)',
+          '--dsw-specific-bubble-highlight': 'rgba(23, 40, 64, 0.05)',
+          '--dsw-specific-menu': '#ffffff',
+          '--dsw-specific-input-major': '#f7fafd',
+          '--dsw-specific-selector': '#ffffff',
+          '--dsw-specific-tip': 'rgba(23, 40, 64, 0.05)',
+          '--dsw-alias-tooltip-bg': '#142033',
+          '--dsw-alias-tooltip-label': '#f7fafd',
+          '--dsw-alias-tooltip-key-bg': 'rgba(255, 255, 255, 0.14)',
+          '--dsw-alias-toast-bg': '#142033',
+          '--dsw-alias-toast-label': '#f7fafd',
+          '--dsw-alias-toast-action': '#8fb4ff',
+          '--dsw-alias-scrollbar-bg-l1': 'rgba(23, 40, 64, 0.16)',
+          '--dsw-alias-scrollbar-hover-l1': 'rgba(23, 40, 64, 0.3)',
+          '--dsw-focus-ring-color': '#2f6fed',
+          '--dsw-elevation-panel': '0 26px 56px rgba(31, 54, 93, 0.16)',
+          '--dsw-elevation-prominent': '0 20px 44px rgba(31, 54, 93, 0.14)',
+          '--dsw-elevation-soft': '0 8px 22px rgba(31, 54, 93, 0.1)',
+          '--dsw-elevation-stroke': '1px solid rgba(23, 40, 64, 0.18)',
+        },
+      },
+      warm: {
+        dark: {
+          '--dsw-alias-bg-base': '#12110f',
+          '--dsw-alias-bg-layer-1': '#181613',
+          '--dsw-alias-bg-layer-2': '#201d19',
+          '--dsw-alias-bg-layer-3': '#2a2520',
+          '--dsw-alias-bg-module-platform': '#342e27',
+          '--dsw-alias-bg-overlay': 'rgba(12, 11, 9, 0.74)',
+          '--dsw-alias-bg-mask-1': 'rgba(0, 0, 0, 0.26)',
+          '--dsw-alias-bg-mask-2': 'rgba(0, 0, 0, 0.42)',
+          '--dsw-alias-bg-mask-3': 'rgba(0, 0, 0, 0.58)',
+          '--dsw-alias-bg-skeleton': '#252119',
+          '--dsw-alias-border-l1': 'rgba(255, 235, 210, 0.07)',
+          '--dsw-alias-border-l2': 'rgba(255, 235, 210, 0.12)',
+          '--dsw-alias-border-l3': 'rgba(255, 235, 210, 0.2)',
+          '--dsw-alias-border-l4': 'rgba(255, 235, 210, 0.28)',
+          '--dsw-alias-border-selected': '#e0a45c',
+          '--dsw-alias-label-primary': '#f5eee3',
+          '--dsw-alias-label-secondary': '#d3c6b4',
+          '--dsw-alias-label-tertiary': '#a59784',
+          '--dsw-alias-label-caption': '#9a8c79',
+          '--dsw-alias-label-dimmed': '#8b7e6c',
+          '--dsw-alias-label-on-color': '#12110f',
+          '--dsw-alias-link': '#f0bd7a',
+          '--dsw-alias-interactive-bg-hover': 'rgba(255, 235, 210, 0.08)',
+          '--dsw-alias-interactive-bg-active': 'rgba(255, 235, 210, 0.13)',
+          '--dsw-alias-interactive-bg-hover-solid': '#352f28',
+          '--dsw-alias-button-primary-fill': '#e0a45c',
+          '--dsw-alias-button-primary-hover': '#ecb877',
+          '--dsw-alias-button-contrast-fill': '#f5eee3',
+          '--dsw-alias-button-elevated-fill': '#2f2923',
+          '--dsw-alias-button-tool-bar-fill': 'rgba(255, 235, 210, 0.06)',
+          '--dsw-alias-button-tool-bar-hover': 'rgba(255, 235, 210, 0.12)',
+          '--dsw-alias-card-fill': 'rgba(42, 37, 32, 0.66)',
+          '--dsw-alias-card-fill-hover': 'rgba(52, 46, 39, 0.8)',
+          '--dsw-alias-settings-card-fill': 'rgba(32, 29, 25, 0.74)',
+          '--dsw-alias-settings-card-stroke': 'rgba(255, 235, 210, 0.16)',
+          '--dsw-alias-menu-group-header-fill': 'rgba(255, 235, 210, 0.04)',
+          '--dsw-alias-state-business-primary': '#e0a45c',
+          '--dsw-alias-state-success-primary': '#7fc8a9',
+          '--dsw-alias-state-success-secondary': 'rgba(127, 200, 169, 0.16)',
+          '--dsw-alias-state-warn-primary': '#e0a45c',
+          '--dsw-alias-state-warn-secondary': 'rgba(224, 164, 92, 0.16)',
+          '--dsw-alias-state-error-primary': '#ff8a7a',
+          '--dsw-alias-state-error-secondary': 'rgba(255, 138, 122, 0.16)',
+          '--dsw-alias-state-done-primary': '#e0a45c',
+          '--dsw-alias-state-idle-primary': '#a59784',
+          '--dsw-alias-chart-system': '#e0a45c',
+          '--dsw-alias-chart-tools': '#c58bff',
+          '--dsw-alias-chart-messages': '#7fc8a9',
+          '--dsw-alias-markdown-code-block': '#181613',
+          '--dsw-alias-markdown-code-block-banner': '#221e19',
+          '--dsw-alias-markdown-inline-code': 'rgba(255, 235, 210, 0.08)',
+          '--dsw-alias-markdown-citation': 'rgba(224, 164, 92, 0.16)',
+          '--dsw-alias-markdown-tag': 'rgba(255, 235, 210, 0.08)',
+          '--dsw-specific-sidebar-fill': '#181613',
+          '--dsw-specific-sidebar-glass-fill': 'rgba(32, 29, 25, 0.72)',
+          '--dsw-specific-sidebar-glass-hover': 'rgba(42, 37, 32, 0.84)',
+          '--dsw-specific-sidebar-nav-item-active': 'rgba(224, 164, 92, 0.16)',
+          '--dsw-specific-sidebar-nav-item-active-accent': '#e0a45c',
+          '--dsw-specific-sidebar-tint': 'rgba(224, 164, 92, 0.06)',
+          '--dsw-specific-bubble': 'rgba(42, 37, 32, 0.92)',
+          '--dsw-specific-bubble-highlight': 'rgba(255, 235, 210, 0.06)',
+          '--dsw-specific-menu': '#2a2520',
+          '--dsw-specific-input-major': '#201d19',
+          '--dsw-specific-selector': '#2a2520',
+          '--dsw-specific-tip': 'rgba(255, 235, 210, 0.06)',
+          '--dsw-alias-tooltip-bg': '#352f28',
+          '--dsw-alias-tooltip-label': '#f5eee3',
+          '--dsw-alias-tooltip-key-bg': 'rgba(255, 235, 210, 0.1)',
+          '--dsw-alias-toast-bg': '#352f28',
+          '--dsw-alias-toast-label': '#f5eee3',
+          '--dsw-alias-toast-action': '#f0bd7a',
+          '--dsw-alias-scrollbar-bg-l1': 'rgba(255, 235, 210, 0.07)',
+          '--dsw-alias-scrollbar-hover-l1': 'rgba(255, 235, 210, 0.18)',
+          '--dsw-focus-ring-color': '#e0a45c',
+          '--dsw-elevation-panel': '0 28px 64px rgba(0, 0, 0, 0.5)',
+          '--dsw-elevation-prominent': '0 20px 48px rgba(0, 0, 0, 0.45)',
+          '--dsw-elevation-soft': '0 8px 24px rgba(0, 0, 0, 0.32)',
+          '--dsw-elevation-stroke': '1px solid rgba(255, 235, 210, 0.16)',
+        },
+        light: {
+          '--dsw-alias-bg-base': '#f4f1ea',
+          '--dsw-alias-bg-layer-1': '#faf8f3',
+          '--dsw-alias-bg-layer-2': '#fffdf8',
+          '--dsw-alias-bg-layer-3': '#ffffff',
+          '--dsw-alias-bg-module-platform': '#ede7db',
+          '--dsw-alias-bg-overlay': 'rgba(250, 248, 243, 0.84)',
+          '--dsw-alias-bg-mask-1': 'rgba(74, 55, 35, 0.12)',
+          '--dsw-alias-bg-mask-2': 'rgba(74, 55, 35, 0.2)',
+          '--dsw-alias-bg-mask-3': 'rgba(74, 55, 35, 0.32)',
+          '--dsw-alias-bg-skeleton': '#ece5d9',
+          '--dsw-alias-border-l1': 'rgba(74, 55, 35, 0.09)',
+          '--dsw-alias-border-l2': 'rgba(74, 55, 35, 0.15)',
+          '--dsw-alias-border-l3': 'rgba(74, 55, 35, 0.24)',
+          '--dsw-alias-border-l4': 'rgba(74, 55, 35, 0.32)',
+          '--dsw-alias-border-selected': '#b4653a',
+          '--dsw-alias-label-primary': '#2a241c',
+          '--dsw-alias-label-secondary': '#5c5244',
+          '--dsw-alias-label-tertiary': '#857967',
+          '--dsw-alias-label-caption': '#8d8171',
+          '--dsw-alias-label-dimmed': '#9a8f7f',
+          '--dsw-alias-label-on-color': '#ffffff',
+          '--dsw-alias-link': '#9a4f2a',
+          '--dsw-alias-interactive-bg-hover': 'rgba(74, 55, 35, 0.07)',
+          '--dsw-alias-interactive-bg-active': 'rgba(74, 55, 35, 0.11)',
+          '--dsw-alias-interactive-bg-hover-solid': '#ebe4d8',
+          '--dsw-alias-button-primary-fill': '#b4653a',
+          '--dsw-alias-button-primary-hover': '#c6764a',
+          '--dsw-alias-button-contrast-fill': '#2a241c',
+          '--dsw-alias-button-elevated-fill': '#ffffff',
+          '--dsw-alias-button-tool-bar-fill': 'rgba(74, 55, 35, 0.05)',
+          '--dsw-alias-button-tool-bar-hover': 'rgba(74, 55, 35, 0.1)',
+          '--dsw-alias-card-fill': 'rgba(255, 255, 255, 0.7)',
+          '--dsw-alias-card-fill-hover': '#ffffff',
+          '--dsw-alias-settings-card-fill': 'rgba(255, 255, 255, 0.78)',
+          '--dsw-alias-settings-card-stroke': 'rgba(74, 55, 35, 0.16)',
+          '--dsw-alias-menu-group-header-fill': 'rgba(74, 55, 35, 0.04)',
+          '--dsw-alias-state-business-primary': '#b4653a',
+          '--dsw-alias-state-success-primary': '#2f8f72',
+          '--dsw-alias-state-success-secondary': 'rgba(47, 143, 114, 0.14)',
+          '--dsw-alias-state-warn-primary': '#a15c12',
+          '--dsw-alias-state-warn-secondary': 'rgba(161, 92, 18, 0.14)',
+          '--dsw-alias-state-error-primary': '#b3261e',
+          '--dsw-alias-state-error-secondary': 'rgba(179, 38, 30, 0.14)',
+          '--dsw-alias-state-done-primary': '#b4653a',
+          '--dsw-alias-state-idle-primary': '#857967',
+          '--dsw-alias-chart-system': '#b4653a',
+          '--dsw-alias-chart-tools': '#8a6bbf',
+          '--dsw-alias-chart-messages': '#2f8f72',
+          '--dsw-alias-markdown-code-block': '#f6f2ea',
+          '--dsw-alias-markdown-code-block-banner': '#efe9de',
+          '--dsw-alias-markdown-inline-code': 'rgba(74, 55, 35, 0.07)',
+          '--dsw-alias-markdown-citation': 'rgba(180, 101, 58, 0.12)',
+          '--dsw-alias-markdown-tag': 'rgba(74, 55, 35, 0.07)',
+          '--dsw-specific-sidebar-fill': '#f0ebe2',
+          '--dsw-specific-sidebar-glass-fill': 'rgba(255, 255, 255, 0.6)',
+          '--dsw-specific-sidebar-glass-hover': 'rgba(255, 255, 255, 0.8)',
+          '--dsw-specific-sidebar-nav-item-active': 'rgba(180, 101, 58, 0.12)',
+          '--dsw-specific-sidebar-nav-item-active-accent': '#b4653a',
+          '--dsw-specific-sidebar-tint': 'rgba(180, 101, 58, 0.06)',
+          '--dsw-specific-bubble': 'rgba(255, 255, 255, 0.94)',
+          '--dsw-specific-bubble-highlight': 'rgba(74, 55, 35, 0.05)',
+          '--dsw-specific-menu': '#fffdf8',
+          '--dsw-specific-input-major': '#faf8f3',
+          '--dsw-specific-selector': '#fffdf8',
+          '--dsw-specific-tip': 'rgba(74, 55, 35, 0.05)',
+          '--dsw-alias-tooltip-bg': '#2a241c',
+          '--dsw-alias-tooltip-label': '#faf8f3',
+          '--dsw-alias-tooltip-key-bg': 'rgba(255, 255, 255, 0.14)',
+          '--dsw-alias-toast-bg': '#2a241c',
+          '--dsw-alias-toast-label': '#faf8f3',
+          '--dsw-alias-toast-action': '#f0bd7a',
+          '--dsw-alias-scrollbar-bg-l1': 'rgba(74, 55, 35, 0.16)',
+          '--dsw-alias-scrollbar-hover-l1': 'rgba(74, 55, 35, 0.3)',
+          '--dsw-focus-ring-color': '#b4653a',
+          '--dsw-elevation-panel': '0 26px 56px rgba(74, 55, 35, 0.14)',
+          '--dsw-elevation-prominent': '0 20px 44px rgba(74, 55, 35, 0.12)',
+          '--dsw-elevation-soft': '0 8px 22px rgba(74, 55, 35, 0.09)',
+          '--dsw-elevation-stroke': '1px solid rgba(74, 55, 35, 0.18)',
+        },
+      },
+    }
+    const SKIN_PALETTES = {
+      obsidian: { family: 'cool', mode: 'dark' },
+      crystal: { family: 'cool', mode: 'light' },
+      warm: { family: 'warm', mode: 'dark' },
+      alabaster: { family: 'warm', mode: 'light' },
+    }
+
+    /** One palette as the { light, dark } pairs the theme service requires. */
+    function skinSpec(palette) {
+      const meta = SKIN_PALETTES[palette]
+      if (!meta) return null
+      const family = SKIN_FAMILIES[meta.family]
+      const tokens = {}
+      for (const name of Object.keys(family.dark)) {
+        tokens[name] = { light: family.light[name], dark: family.dark[name] }
+      }
+      return { id: palette, mode: meta.mode, tokens }
+    }
+
+    /**
+     * The theme service is optional: when it is missing (older host) this plugin
+     * still works, only the whole-app repaint is skipped. `overrideTokens` is
+     * imperative and returns its own disposer, so the runtime keeps one layer at
+     * a time and swaps it when the palette changes.
+     */
+    const skinRuntime = { theme: null, palette: DEFAULT_APPEARANCE.palette, applied: null, dispose: null }
+
+    function dropSkin() {
+      const dispose = skinRuntime.dispose
+      skinRuntime.dispose = null
+      skinRuntime.applied = null
+      if (typeof dispose === 'function') {
+        try { dispose() } catch { /* the host may already be gone */ }
+      }
+    }
+
+    function paintSkin() {
+      const theme = skinRuntime.theme
+      if (!theme || typeof theme.overrideTokens !== 'function') return
+      if (skinRuntime.applied === skinRuntime.palette) return
+      dropSkin()
+      const spec = skinSpec(skinRuntime.palette)
+      if (!spec) return
+      try {
+        skinRuntime.dispose = theme.overrideTokens('compression-tiers', spec.tokens)
+        skinRuntime.applied = spec.id
+      } catch {
+        // A rejected layer must not take the panel down with it.
+        skinRuntime.dispose = null
+        skinRuntime.applied = null
+      }
+    }
+
+    /** Repaint the whole app for a palette; `host` drops our layer. */
+    function setSkinPalette(palette) {
+      const next = normalizeAppearance({ palette }).palette
+      if (next === skinRuntime.palette) return
+      skinRuntime.palette = next
+      paintSkin()
+    }
+
+    /**
+     * A dark palette in a light host would read as "deep obsidian, but white",
+     * so picking one also pins the host scheme. The palette's other mode stays
+     * installed as the fallback for a later manual switch in Settings → 外观.
+     */
+    function setHostScheme(palette) {
+      const spec = skinSpec(palette)
+      const theme = skinRuntime.theme
+      if (!spec || !theme || typeof theme.setTheme !== 'function') return
+      try { theme.setTheme(spec.mode) } catch { /* preference row may reject it */ }
+    }
     // The two UMD modules vendored from Obsidian Prism. A classic <script>
     // tag keeps client.js from having to carry 300KB or use eval; the vial
     // only loads when its window opens, the rig when the dock renders.
@@ -3213,6 +3626,8 @@ window.__ModuleLoader__.load({
         const previous = state.appearance || DEFAULT_APPEARANCE
         const optimistic = normalizeAppearance({ ...previous, ...patch })
         setState({ ...state, appearance: optimistic })
+        setSkinPalette(optimistic.palette)
+        if (patch.palette) setHostScheme(optimistic.palette)
         setAppearanceBusy(true)
         setAppearanceMessage('')
         fetch(API, {
@@ -3226,6 +3641,7 @@ window.__ModuleLoader__.load({
             if (!mounted.current) return
             rememberSettings(body)
             setState(body)
+            setSkinPalette(normalizeAppearance(body.appearance).palette)
             setAppearanceMessage(t('appearanceApplied'))
           })
           .catch(function (error) {
@@ -3233,6 +3649,7 @@ window.__ModuleLoader__.load({
             setState(function (current) {
               return current ? { ...current, appearance: previous } : current
             })
+            setSkinPalette(previous.palette)
             setAppearanceMessage(t('appearanceFailed') + messageOf(error))
           })
           .then(function () {
@@ -3822,10 +4239,43 @@ window.__ModuleLoader__.load({
 
     return {
       inject: ['slots', 'locale', 'layout'],
+      // Seams for the unit tests: the palette table and the skin runtime are the
+      // two things a fake renderer cannot reach.
+      __test: {
+        skinSpec: skinSpec,
+        setSkinPalette: setSkinPalette,
+        skinRuntime: skinRuntime,
+        setSkinTheme: function (theme) {
+          skinRuntime.theme = theme
+          paintSkin()
+        },
+      },
       apply(ctx) {
         ctx.effect(function () {
           return installStyles()
         }, 'compression-tiers: styles')
+        // Whole-app skin: the host's theme service composes our palette layer on
+        // top of the active theme. Optional on purpose — a host without the
+        // service keeps the panel and the dock, it just does not repaint.
+        if (typeof ctx.inject === 'function') {
+          ctx.inject(['theme'], function (scope) {
+            skinRuntime.theme = scope.theme
+            paintSkin()
+            return function () {
+              skinRuntime.theme = null
+              dropSkin()
+            }
+          })
+        }
+        if (typeof fetch === 'function') {
+          // The palette lives in our own settings, so the skin is back before the
+          // user opens anything — not only after the appearance page loads.
+          try {
+            loadSettingsSnapshot().then(function (body) {
+              setSkinPalette(normalizeAppearance(body && body.appearance).palette)
+            }).catch(function () { /* the panel reports its own load errors */ })
+          } catch { /* relative URLs throw in non-browser tests */ }
+        }
         ctx.effect(function () {
           return ctx.locale.register(NS, DICTIONARIES)
         }, 'compression-tiers: locale')

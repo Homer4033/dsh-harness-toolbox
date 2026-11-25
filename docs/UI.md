@@ -81,6 +81,23 @@
 4. **图表三色**（`--dsw-alias-chart-system` / `-tools` / `-messages`）每套皮肤都要给，试管的三段构成条与图例直接用它们。
 5. **新增皮肤要同时改三处**：`PALETTES`（外观页选项）、`.ct-swatch-band[data-choice='…']`（色带）、`.ct-skin[data-palette='…']`（整份 token），再补一条 `test/client.test.js` 断言。
 
+### 全局皮肤（宿主主题服务）
+
+上面四套 token 只作用在插件自己的节点上；要让**整个 DSH 界面**一起换，走宿主官方的主题服务：
+
+```js
+ctx.inject(['theme'], (scope) => {
+  const dispose = scope.theme.overrideTokens('compression-tiers', tokens)
+  return () => dispose()
+})
+```
+
+1. **成对值**：每个 token 必须是 `{ light, dark }`，服务会直接拒绝裸字符串——一个值在用户切换亮暗后必然读不清。两套模式都要给。
+2. **只叠一层**：`overrideTokens` 是命令式且返回自己的 disposer；换配色时先 dispose 旧的再装新的，不要在同一 source 上反复叠加。
+3. **换配色别偷偷改用户的偏好**：深色配色点击时会把宿主外观偏好切到深色（否则「深空黑曜」在浅色宿主里名不副实）；这是用户可见、可回退的一次写入，属于交互决定，不是样式细节。
+4. **服务缺席要降级**：`theme` 是可选的，`ctx.inject` 拿不到时插件照常工作，只是不重绘整个界面。
+5. **不要用宿主 class 名硬改结构**：DSH 的界面是 CSS Modules 哈希类名，只有 token 是稳定契约；气泡、侧栏这类结构只用 `--dsw-specific-*` 换色，不改几何。
+
 ## 间距、圆角与控件高度
 
 | 刻度 | 用途 |

@@ -68,6 +68,8 @@
     - **配色只写在 `.ct-skin[data-palette='…']` 上**（面板页、dock 行、portal 菜单、试管浮窗），禁止写 `:root` / `body`；`host` 是空集，浅色两套必须同时设 `color-scheme: light`，四套都要给全量 token（含 `--dsw-alias-chart-*` 与玻璃变量）。
     - **数字只能来自官方投影**：`useProjection('contextPressure')` 与 `useProjection('contextBreakdown')`；取不到就渲染「—」并禁用触发器，不许用 0 或估算值冒充。阈值与保留量按「事实来源」里的官方阈值公式算。
     - **外观写入走一个字段**：`POST /compression-tiers/api/settings` 的 `appearance`，服务端用 `normalizeAppearance()` 归一回默认、非法值 400；客户端乐观更新，失败必须回滚并写 `.ct-status`。
+    - **整个界面换肤只走宿主主题服务**：`ctx.inject(['theme'], scope => scope.theme.overrideTokens('compression-tiers', tokens))`，每个 token 是 `{ light, dark }` 成对值（服务拒绝裸字符串），只保留一层（换色先 dispose），`theme` 缺席时静默降级；不得用宿主哈希类名改结构，只用 `--dsw-*` token 换色。
+    - **不做假的推理滑块**：DSH 客户端没有 effort / reasoningEffort / thinkingBudget 之类的概念，没有可挂的宿主控件；在宿主暴露真实推理强度之前，不添加拨动后无效果的装饰控件（切工水晶同理）。
     - **伙伴默认开启但必须可关**：关掉后不渲染 `.ct-dock-mascots`、不留占位；动效 `off` 必须把 `reducedMotion` 传给试管与伙伴。移植模块加载失败时舞台整块收起（`data-state='failed'`），不得留空白框。
 
 ## 验证要求

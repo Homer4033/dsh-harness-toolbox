@@ -1276,3 +1276,60 @@ test('a vial without a reading says so instead of inventing zero', () => {
 })
 
 
+
+test('a palette repaints the whole app through the host theme service', () => {
+  const { module } = loadClient()
+  const applied = []
+  const theme = {
+    overrideTokens(source, tokens) {
+      applied.push({ source, tokens })
+      return () => {}
+    },
+    setTheme() {},
+  }
+  const ctx = {
+    effect(fn) { fn() },
+    locale: { register: () => () => {}, bind: () => (key) => key },
+    slots: { inject: (_slot, callback) => callback(), register: () => () => {} },
+    inject(deps, callback) {
+      // Cross-realm array: compare contents, not the prototype.
+      assert.equal(JSON.stringify(deps), '["theme"]')
+      callback({ theme })
+    },
+  }
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(ctx)
+
+  const skin = plugin.__test
+  assert.ok(skin, 'the factory exposes the skin seams for tests')
+  // The default "host" palette installs no layer: the official theme stays.
+  assert.equal(applied.length, 0)
+
+  skin.setSkinPalette('warm')
+  assert.equal(applied.length, 1)
+  assert.equal(applied[0].source, 'compression-tiers')
+  const names = Object.keys(applied[0].tokens)
+  assert.ok(names.length > 60, 'the skin covers the app surface tokens')
+  for (const name of names) {
+    // The service rejects bare strings for a reason: one value cannot serve both
+    // colour schemes. Every token must carry an explicit { light, dark } pair.
+    assert.match(name, /^--dsw-/)
+    const value = applied[0].tokens[name]
+    assert.equal(typeof value.light, 'string')
+    assert.equal(typeof value.dark, 'string')
+  }
+  assert.equal(applied[0].tokens['--dsw-alias-bg-base'].dark, '#12110f')
+  assert.equal(applied[0].tokens['--dsw-specific-sidebar-fill'].dark, '#181613')
+
+  skin.setSkinPalette('alabaster')
+  assert.equal(applied.length, 2)
+  assert.equal(applied[1].tokens['--dsw-alias-bg-base'].light, '#f4f1ea')
+
+  // Going back to "host" removes the layer instead of stacking another one.
+  skin.setSkinPalette('host')
+  assert.equal(applied.length, 2)
+  assert.equal(skin.skinRuntime.applied, null)
+  assert.equal(skin.skinSpec('obsidian').mode, 'dark')
+  assert.equal(skin.skinSpec('crystal').mode, 'light')
+  assert.equal(skin.skinSpec('host'), null)
+})

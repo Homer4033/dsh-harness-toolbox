@@ -2,6 +2,17 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.0.0`。
 
+## 2.1.0 — 2026-11-25
+
+- **配色改成换整个 DSH 界面**：原来 `.ct-skin[data-palette]` 只覆盖插件自己的节点（面板页、dock 行、portal 菜单、试管浮窗）。现在另外接宿主的主题服务——`ctx.inject(['theme'], …)` 后调 `scope.theme.overrideTokens('compression-tiers', tokens)`，宿主把这一层写成 `<body>` 上的内联 CSS 变量，侧栏、消息气泡、输入框、菜单、卡片、代码块、滚动条、焦点环、阴影一并换色，视觉上就是「整个 GUI 换了一套」。
+- **皮肤表**：两套色族 × 两种模式（冷调 / 暖调 × 深 / 浅），四套配色各 62 个 token，全部是 `{ light, dark }` 成对值——主题服务故意拒绝裸字符串，因为单个值在用户切换亮暗后必然读不清；同族的另一模式随皮肤一起装好，事后在「设置 → 外观」手切亮暗也不会花。
+- **选深色配色会一并把宿主外观偏好切到深色**（`theme.setTheme('dark'|'light')`，「深空黑曜」在浅色宿主里名不副实）；这是可见、可回退的一次写入。服务缺席（旧宿主）时静默降级，只保留插件自己的皮肤。
+- **不做推理滑块与切工水晶**：这两样在上游是给 Antigravity 的模型菜单做的，依赖宿主有「推理等级 / effort」。DSH 的客户端包（chat / conversation / theme / layout / settings 等）里没有任何 `effort`、`reasoningEffort`、`thinkingBudget` 标识，没有可挂的宿主控件；按「不显示假数据」的规矩，不添加拨动后无效果的装饰控件，等宿主暴露真实推理强度再移植。
+- 设置即皮肤：插件启动时读自己的 `settings.json` 把上次的配色装回去，不必先打开外观页；写入失败仍回滚到上一个配色（连同全局层一起回滚）。
+- 测试 205 → 207 条：新增「四套配色经主题服务重绘整个界面」用例（每个 token 必须是 `--dsw-*` 且带 light/dark、`host` 只卸载不加层、暖调 / 暖白取到对应底色）。
+- 文档：README 的亮点、外观页与技术细节补上全局换肤，兼容性里写明为什么没有推理滑块与切工水晶；[docs/UI.md](docs/UI.md) 增「全局皮肤（宿主主题服务）」小节；[AGENTS.md](AGENTS.md) 第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.1.0（vendor 路由的 `?v=` 跟着换，旧缓存不会跨版本存活）。
+- 渲染未验证：跟 2.0.0 一样，截图来自离线渲染舞台；全局 token 的实际观感要在真实 DSH 窗口里换一遍确认。
+
 ## 2.0.0 — 2026-11-25
 
 - **移植 [Obsidian Prism](https://github.com/RMvdesi/obsidian-prism) 的光学界面**：`vendor/obsidian-prism/vial-core.js`（浅水波上下文试管）与 `dual-mascot-rig.js`（像素伙伴装配）是上游 `1.0.8-beta.1` 的 UMD 模块，逐字移植，只在文件头部加了出处与修改说明（2026-11-25）。它们不被打包进 `client.js`：新增同源路由 `GET /compression-tiers/vendor/<name>`（只服务这两个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`），客户端用普通 `<script src="…?v=2.0.0">` 按需加载，不用 `eval`、不背 300KB。

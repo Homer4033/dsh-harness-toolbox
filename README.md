@@ -12,10 +12,10 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.0.0-0f172a?style=flat-square" alt="Version 2.0.0" />
+  <img src="https://img.shields.io/badge/Version-2.1.0-0f172a?style=flat-square" alt="Version 2.0.0" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-205%20passing-16a34a?style=flat-square" alt="205 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-207%20passing-16a34a?style=flat-square" alt="207 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -53,7 +53,7 @@
 - **五档压缩，点一下写进去**：`gentle` / `light` / `standard` / `aggressive` / `max` 五档，选中即同步进所有已挂载的预设压缩引擎并留档，不重启；每档都保留官方自动压力压缩。
 - **看得见的上下文**：输入框上方的小试管实时显示占用——液面就是 `已用 / 窗口`，刻度线是对应的压缩阈值；点开能读到已用、窗口、压缩阈值、保留原文、距阈值，以及系统 / 工具 / 对话三段构成。
 - **桌面上的像素伙伴**：小紫猫、Clawd 与三只迷你蟹蹲在试管左边，点一下会跳；动效可降到「克制」或直接关掉，也可以把伙伴整个收起。默认开启。
-- **四套配色，两种亮暗**：深空黑曜、暖炭玄岩两套深色，白昼冷晶、暖白画册两套浅色，另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。
+- **四套配色，换的是整个界面**：深空黑曜、暖炭玄岩两套深色，白昼冷晶、暖白画册两套浅色，另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。选中一套时，侧栏、消息气泡、输入框、菜单、卡片与代码块一起换，不只是插件自己的面板。
 - **规则只有一份**：全局规则写 `<DSH home>/AGENTS.md`，工作区规则写各工作区根目录的 `AGENTS.md`；插件不复制、不缓存，智能体没有改写它们的工具，只能由人在面板里保存。
 - **四套组件一个根目录**：GitHub CLI、git、ffmpeg / ffprobe、Python 都能检测系统 PATH 副本或下载托管版，断点续传、自检后原子替换、失败回滚；整个根目录可在面板里迁移。
 - **发布只有一个入口**：`github_push` 依次做网络体检 → 密钥扫描 → 60 秒超时推送 → 失败分类；输入框上方的「仓库」胶囊决定当前会话推到哪里，胶囊在空会话里也在。
@@ -65,11 +65,17 @@
 
 ### 1. 四套配色与外观页
 
-外观页把配色、动效与像素伙伴放在一张卡里，选完立刻生效（乐观写入，失败回滚）。配色只覆盖插件自己的根节点——面板页、输入框上方那一行、portal 到 body 的菜单，宿主界面本身不被改动。
+外观页把配色、动效与像素伙伴放在一张卡里，选完立刻生效（乐观写入，失败回滚）。配色走宿主官方的主题服务（`overrideTokens`）：面板页、输入框上方那一行、portal 到 body 的菜单照旧各带一份皮肤，同时把整套 token 叠加到宿主主题上，于是侧栏、气泡、输入框、菜单与代码块一起换色。选深色配色时会把宿主的外观偏好一并切到深色，「深空黑曜」不会在浅色宿主里读成白底。
 
 <p align="center">
   <img src="docs/screenshots/palettes.png" width="100%" alt="四套深浅配色方案" />
 </p>
+
+<p align="center">
+  <img src="docs/screenshots/skins.png" width="100%" alt="暖炭玄岩把侧栏、消息气泡、输入框与按钮一起换色" />
+</p>
+
+换掉的不是某个面板，而是整块画面：侧栏选中态、消息气泡、输入框、发送键、试管图例都跟着配色走。
 
 | 主题预设 | 配置键值 | 侧栏底色 | 主画布 | 说明 |
 | :--- | :--- | :--- | :--- | :--- |
@@ -229,6 +235,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）与 `dual-mascot-rig.js`（约 231 KB）是上游 1.0.8-beta.1 的 UMD 模块，走同源路由 `GET /compression-tiers/vendor/<name>`（只服务这两个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.0.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」，不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
+- **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的整份 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都定义好，用户事后在设置里手切亮暗也不会读不清。
 - **配色是整份 token 覆盖，但只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行与 portal 出去的菜单上，这四套值不会渗到宿主界面；`host` 是空集，保持官方主题不变。浅色两套同时设 `color-scheme: light`。
 - **状态只落一个文件**：`<DSH home>/compression-tiers/settings.json`，所有写入是「临时文件 + rename」；手改坏的 JSON 回落到默认值，不让插件崩。`appearance` 在读写两侧都归一化，未知配色 / 动效值直接回落默认而不是报错。
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
@@ -246,6 +253,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **宿主平面**：只更新预设隔离域里的引擎；如果别的插件也管同一批引擎，两边会互相覆盖，只留一个。
 - **网络**：GitHub 与 npm 相关操作要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需要能访问 `www.gyan.dev`，git / Python 需要能访问 `github.com`。
 - **托管副本会盖过系统版本**：装了托管 git / Python 后，本进程内的 `git` / `python` 优先用托管副本；删掉 `<root>/git`、`<root>/python` 并重启即回退。
+- **没有推理等级滑块，也没有切工水晶**：这两样在上游是给 Antigravity 的模型菜单做的，依赖宿主有「推理等级 / effort」这个概念。DSH 的客户端包里没有任何 `effort` / `reasoningEffort` / `thinkingBudget` 标识，没有可挂的宿主控件；插件不做一个拨动后什么都不影响的装饰滑块。切工水晶同理，等宿主暴露真实的推理强度再移植。
 - **伙伴的开销**：像素伙伴挂 `dual-mascot-rig.js`（约 231 KB，按需加载一次）；不想要就在外观页关掉，关掉后 dock 只留试管触发器与仓库胶囊。
 - **渲染未验证**：README 里的画面来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库的 `client.js`），**真实 DSH 窗口里的最终观感仍需刷新页面后确认**。
 - **仓库 UI**：没有仓库列表，也没有推送按钮。多仓库由智能体在各自会话里调用 `github_push`；胶囊只决定当前会话的目标。
