@@ -126,6 +126,11 @@ function textOf(node) {
   return children.flat(Infinity).filter((child) => typeof child === 'string' || typeof child === 'number').join('')
 }
 
+/** Whether an element carries one class in its class list. */
+function hasClass(node, name) {
+  return String((node && node.props && node.props.className) || '').split(/\s+/).includes(name)
+}
+
 /** Every string inside an element subtree, in order. */
 function deepText(node) {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
@@ -144,6 +149,7 @@ const settingsState = {
   })),
   engines: 2,
   lastCompact: null,
+  appearance: { palette: 'host', motion: 'full', mascots: true },
   paths: { settings: 'C:/dsh/compression-tiers/settings.json' },
 }
 
@@ -171,6 +177,7 @@ const HOOK_ORDER = [
   'pathDraft', 'pathBusy',
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
+  'appearanceBusy', 'appearanceMessage',
   'section',
 ]
 
@@ -197,6 +204,8 @@ const BASE_PAGE = {
   workspaceText: '',
   workspaceMessage: '',
   workspaceBusy: false,
+  appearanceBusy: false,
+  appearanceMessage: '',
   section: 'levels',
 }
 
@@ -356,7 +365,8 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.match(styles[0].textContent, /\.ct-repo-pill \{/)
   const dockCss = String(styles[0].textContent).match(/\.ct-repo-dock \{[^}]*\}/)
   assert.ok(dockCss, 'the dock row keeps its own rule')
-  assert.match(dockCss[0], /justify-content: flex-end/)
+  assert.match(dockCss[0], /justify-content: space-between/)
+  assert.match(dockCss[0], /container-type: inline-size/)
   assert.match(dockCss[0], /--dsh-composer-side-clearance/)
   // The dock row is capped to the composer card and centered: a full-width row
   // parked the pill at the window edge, far right of the input card.
@@ -442,7 +452,13 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'downloadRunning', 'downloadDone', 'downloadUnsupported',
       'stateMissing', 'statePartial', 'stateFailed', 'stateSystem',
       'repoSelectLabel', 'repoNone', 'repoTitle',
-      'navAria', 'navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navGithub',
+      'navAria', 'navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navAppearance', 'navGithub',
+      'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian', 'paletteWarm',
+      'paletteCrystal', 'paletteAlabaster', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff',
+      'mascotsLabel', 'mascotsOn', 'mascotsOff', 'appearanceApplied', 'appearanceFailed',
+      'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
+      'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
+      'vialLoading', 'vialClose',
       'levelsTitle', 'ghScopesLabel', 'ghScopesNone',
     ]) {
       assert.ok(keys.includes(key), `${locale} is missing ${key}`)
@@ -817,7 +833,7 @@ test('the composer dock renders a repository pill that opens a listbox', () => {
     sessionId: 'session-a',
     t: (key) => key,
   }, [null, null, { up: true, left: 120, width: 320, bottom: 500, maxHeight: 280 }, true])
-  const dock = nodes.find((node) => String(node.props.className || '') === 'ct-repo-dock')
+  const dock = nodes.find((node) => hasClass(node, 'ct-repo-dock'))
   assert.ok(dock, 'the dock row renders in place')
   const pill = nodes.find((node) => String(node.props.className || '') === 'ct-repo-pill')
   assert.ok(pill, 'the dock renders a pill button')
@@ -830,7 +846,7 @@ test('the composer dock renders a repository pill that opens a listbox', () => {
     textOf(nodes.find((node) => String(node.props.className || '') === 'ct-repo-value')),
     'Homer4033/dsh-compression-tiers',
   )
-  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-menu')
+  const menu = nodes.find((node) => hasClass(node, 'ct-menu'))
   assert.ok(menu, 'the open pill renders its listbox')
   assert.equal(menu.props.role, 'listbox')
   // Upward placement: bottom edge anchored above the pill, not a `top` drop.
@@ -858,7 +874,7 @@ test('the composer dock renders a repository pill that opens a listbox', () => {
 test('the listbox drops downward only when the room above is gone', () => {
   const nodes = renderDock([[], '', '', false, true, 0], { sessionId: 'session-down', t: (key) => key },
     [null, null, { up: false, top: 300, left: 8, width: 288, maxHeight: 200 }, true])
-  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-menu')
+  const menu = nodes.find((node) => hasClass(node, 'ct-menu'))
   assert.equal(menu.props['data-side'], 'down')
   assert.equal(menu.props.style.top, '300px')
   assert.equal(menu.props.style.bottom, undefined)
@@ -882,7 +898,7 @@ test('a retired binding stays selectable; a closed pill renders no listbox', () 
   const options = retired.filter((node) => String(node.props.className || '').split(' ').includes('ct-menu-option'))
   assert.deepEqual(options.map((option) => deepText(option)), ['repoNone', '✓Homer4033/retired'])
   const closed = renderDock([[], '', '', false, false, null], { sessionId: 'session-b', t: (key) => key })
-  assert.equal(closed.some((node) => String(node.props.className || '') === 'ct-menu'), false)
+  assert.equal(closed.some((node) => hasClass(node, 'ct-menu')), false)
   const disabled = renderDock([[], '', '', false], { t: (key) => key })
   assert.equal(disabled.find((node) => String(node.props.className || '') === 'ct-repo-pill').props.disabled, true)
 })
@@ -989,8 +1005,8 @@ test('a workspace with no rules file says so, and editing enables saving', () =>
 test('the workspace page stays in the rail and says there is no workspace yet', () => {
   const nodes = renderSection('workspace', { workspaceRules: workspaceRulesPayload([]) })
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  // Five pages, always: an empty registry is a state, not a missing page.
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'github'])
+  // Six pages, always: an empty registry is a state, not a missing page.
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'appearance', 'github'])
   const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
   assert.match(deepText(content), /workspaceRulesTitle/)
   assert.match(deepText(content), /workspaceNone/)
@@ -1021,8 +1037,8 @@ test('the panel is a shell: one navigation rail and one page at a time', () => {
   assert.equal(nav.type, 'nav')
   assert.equal(nav.props['aria-label'], 'navAria')
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'github'])
-  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navGithub'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'appearance', 'github'])
+  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navAppearance', 'navGithub'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1, 'exactly one page is current')
   assert.equal(current[0].props['data-section'], 'components')
@@ -1034,7 +1050,7 @@ test('the panel is a shell: one navigation rail and one page at a time', () => {
   const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
   assert.ok(content)
   assert.match(deepText(content), /componentsTitle/)
-  assert.doesNotMatch(deepText(content), /rulesTitle|ghAuthTitle|levelsTitle/)
+  assert.doesNotMatch(deepText(content), /rulesTitle|ghAuthTitle|levelsTitle|appearanceTitle/)
   // Switching pages re-keys the content box so the entry animation replays.
   assert.equal(content.props.key, 'components')
 })
@@ -1067,7 +1083,7 @@ test('the workspace picker is a self-drawn listbox, not a native select', () => 
     textOf(nodes.find((node) => String(node.props.className || '') === 'ct-select-value')),
     '压缩上下文',
   )
-  const menu = nodes.find((node) => String(node.props.className || '') === 'ct-menu')
+  const menu = nodes.find((node) => hasClass(node, 'ct-menu'))
   assert.ok(menu, 'the open picker portals its listbox')
   assert.equal(menu.props.role, 'listbox')
   assert.equal(menu.props['data-side'], 'down')
@@ -1087,7 +1103,7 @@ test('the workspace picker is a self-drawn listbox, not a native select', () => 
   assert.match(String(options[1].props.className), /ct-menu-option-active/)
   // Closed and busy: no listbox, and the trigger explains why it cannot open.
   const closed = renderPicker({ ...overrides, workspaceBusy: true }, [false, 0])
-  assert.equal(closed.some((node) => String(node.props.className || '') === 'ct-menu'), false)
+  assert.equal(closed.some((node) => hasClass(node, 'ct-menu')), false)
   const idle = closed.find((node) => String(node.props.className || '') === 'ct-select')
   assert.equal(idle.props['aria-expanded'], 'false')
   assert.equal(idle.props.disabled, true)
@@ -1099,6 +1115,7 @@ test('each page renders only its own card', () => {
     ['rules', {}, ['rulesTitle']],
     ['workspace', { workspaceRules: workspaceRulesPayload([workspaceOne]), workspaceId: 'w1' }, ['workspaceRulesTitle']],
     ['components', { components: componentsPayload([]) }, ['componentsTitle']],
+    ['appearance', {}, ['appearanceTitle']],
     ['github', {}, ['ghAuthTitle']],
   ]
   for (const [section, overrides, headings] of cases) {
@@ -1114,4 +1131,148 @@ test('each page renders only its own card', () => {
     .filter((node) => node.type === 'input').length, 1)
   assert.equal(renderSection('rules').filter((node) => node.type === 'input').length, 0)
 })
+
+test('the appearance page paints the four palettes, motion tiers and companions', () => {
+  const nodes = renderSection('appearance')
+  const page = nodes.find((node) => hasClass(node, 'ct-page'))
+  assert.ok(page, 'the page carries the skin root')
+  assert.equal(page.props['data-palette'], 'host')
+  assert.equal(page.props['data-motion'], 'full')
+  const palettes = nodes.filter((node) => node.props.role === 'radio' && hasClass(node, 'ct-swatch'))
+  assert.deepEqual(palettes.map((node) => node.props['data-choice']), ['host', 'obsidian', 'warm', 'crystal', 'alabaster'])
+  assert.equal(palettes.filter((node) => node.props['aria-checked'] === 'true').length, 1)
+  assert.equal(palettes[0].props['aria-checked'], 'true')
+  const motions = nodes.filter((node) => node.props.role === 'radio' && hasClass(node, 'ct-segment'))
+  assert.deepEqual(motions.map((node) => node.props['data-motion-choice']), ['full', 'subtle', 'off'])
+  assert.equal(motions[0].props['aria-checked'], 'true')
+  const mascots = buttonOf(nodes, 'appearanceMascots')
+  assert.ok(mascots, 'the companions switch always renders')
+  assert.equal(mascots.props['aria-pressed'], 'true')
+  assert.equal(mascots.props.disabled, false)
+  // A palette choice is a radio, not a button row that vanishes while loading.
+  assert.equal(nodes.some((node) => node.type === 'select'), false)
+  // No teaching copy on the page: only control labels and values.
+  for (const banned of ['intro', 'paletteNote', 'motionNote']) {
+    assert.equal(deepText({ props: { children: nodes } }).includes(banned), false, banned + ' must not return')
+  }
+})
+
+test('a six-page rail keeps appearance in the navigation', () => {
+  const nodes = renderSection('appearance')
+  const items = nodes.filter((node) => hasClass(node, 'ct-nav-item'))
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'appearance', 'github'])
+  const current = items.filter((node) => node.props['aria-current'] === 'page')
+  assert.equal(current.length, 1)
+  assert.equal(current[0].props['data-section'], 'appearance')
+})
+
+/** Render the context vial element the dock mounts, with its own hook values. */
+function renderVial(options) {
+  const config = options || {}
+  const settings = config.settings || settingsState
+  const pressure = config.pressure || null
+  const breakdown = config.breakdown || null
+  const useProjection = function (key) {
+    if (key === 'contextPressure') return pressure || undefined
+    if (key === 'contextBreakdown') return breakdown || undefined
+    return undefined
+  }
+  const dockStates = [
+    config.repos || [],
+    config.bound || '',
+    config.note || '',
+    false,
+    false,
+    0,
+    settings,
+  ]
+  const vialStates = config.vialStates || [true, false]
+  const react = fakeReact(dockStates.concat(vialStates), config.refs || [null, null, null, true, null, null, null, null, null, null, null, { up: true, left: 100, width: 392, bottom: 400, maxHeight: 360 }, null, null])
+  const { module } = loadClient()
+  const registrations = []
+  module.factory((specifier) => (specifier === 'react-dom' ? { createPortal: (node) => node } : react)).apply(sectionContext(registrations))
+  const dock = registrations.find((item) => item.options.name === 'conversation.input.dock')
+  const dockNodes = collect(dock.component({
+    sessionId: config.sessionId || 'session-vial',
+    t: (key) => key,
+    useProjection: useProjection,
+  }))
+  const vial = dockNodes.find((node) => typeof node.type === 'function'
+    && node.props && 'meter' in node.props && typeof node.props.onPoke === 'function')
+  assert.ok(vial, 'the dock mounts the context vial')
+  return {
+    nodes: collect(vial.type(vial.props)),
+    dockNodes,
+    element: vial,
+  }
+}
+
+test('the dock renders the vial and the pixel companions in one row', () => {
+  const { dockNodes, element } = renderVial({ vialStates: [false, false] })
+  const dock = dockNodes.find((node) => hasClass(node, 'ct-repo-dock'))
+  assert.ok(dock, 'the dock row renders')
+  assert.match(String(dock.props.className), /ct-skin/)
+  assert.equal(dock.props['data-palette'], 'host')
+  assert.equal(dock.props['data-motion'], 'full')
+  const mascots = dockNodes.find((node) => hasClass(node, 'ct-dock-mascots'))
+  assert.ok(mascots, 'the companions sit on the left of the dock')
+  const stage = collect(mascots).find((node) => typeof node.type === 'function'
+    && node.props && 'stageRef' in node.props)
+  assert.ok(stage, 'the stage component is mounted inside the dock')
+  assert.equal(stage.type.name, 'MascotStage')
+  assert.equal(stage.props.motion, 'full')
+  // The vial is a real dialog trigger, not decoration.
+  assert.ok(element, 'the dock passes a meter to the vial')
+})
+
+test('turning the companions off removes only the stage', () => {
+  const quiet = { ...settingsState, appearance: { palette: 'crystal', motion: 'subtle', mascots: false } }
+  const { dockNodes } = renderVial({ settings: quiet, vialStates: [false, false] })
+  assert.equal(dockNodes.some((node) => hasClass(node, 'ct-dock-mascots')), false)
+  const dock = dockNodes.find((node) => hasClass(node, 'ct-repo-dock'))
+  assert.equal(dock.props['data-palette'], 'crystal')
+  assert.equal(dock.props['data-motion'], 'subtle')
+  // The repository pill is still there: the companions are additive.
+  assert.ok(dockNodes.some((node) => hasClass(node, 'ct-repo-pill')))
+})
+
+test('the vial trigger reads the live pressure and opens a dialog', () => {
+  const pressure = { projectedTokens: 260000, contextWindow: 512000 }
+  const breakdown = { systemTokens: 40000, toolsTokens: 60000, messageTokens: 160000 }
+  const closed = renderVial({ pressure, breakdown, vialStates: [false, false] }).nodes
+  const trigger = closed.find((node) => hasClass(node, 'ct-vial'))
+  assert.ok(trigger, 'the closed vial renders its trigger')
+  assert.equal(trigger.props['aria-haspopup'], 'dialog')
+  assert.equal(trigger.props['aria-expanded'], 'false')
+  assert.equal(deepText(trigger), '51%')
+  assert.equal(trigger.props['data-critical'], 'false')
+  const open = renderVial({ pressure, breakdown, vialStates: [true, false] }).nodes
+  const dialog = open.find((node) => hasClass(node, 'ct-vial-popover'))
+  assert.ok(dialog, 'the open vial renders a dialog')
+  assert.equal(dialog.props.role, 'dialog')
+  assert.equal(dialog.props['data-side'], 'up')
+  assert.equal(dialog.props.style.bottom, '400px')
+  assert.equal(dialog.props.style.width, '392px')
+  const canvas = open.find((node) => node.type === 'canvas')
+  assert.ok(canvas, 'the dialog mounts the physical vial canvas')
+  assert.equal(canvas.props.className, 'ct-vial-canvas')
+  const text = deepText({ props: { children: open } })
+  assert.ok(text.includes('260K / 512K'), 'the dialog shows used and window')
+  assert.ok(text.includes('vialThreshold'), 'the dialog names the compaction threshold')
+  assert.ok(text.includes('vialRetain'), 'the dialog names the verbatim retain budget')
+  assert.equal(open.filter((node) => hasClass(node, 'ct-vial-row')).length, 5)
+  assert.equal(open.filter((node) => hasClass(node, 'ct-vial-legend-row')).length, 3)
+})
+
+test('a vial without a reading says so instead of inventing zero', () => {
+  const { nodes } = renderVial({ vialStates: [true, false] })
+  const trigger = nodes.find((node) => hasClass(node, 'ct-vial'))
+  assert.equal(deepText(trigger), '—')
+  assert.match(trigger.props['aria-label'], /vialUnavailable/)
+  const dialog = nodes.find((node) => hasClass(node, 'ct-vial-popover'))
+  assert.ok(dialog)
+  assert.match(deepText(dialog), /vialUnavailable/)
+  assert.equal(nodes.some((node) => hasClass(node, 'ct-vial-row')), false)
+})
+
 

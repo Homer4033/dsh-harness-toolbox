@@ -1,1 +1,1 @@
-![Five compression tiers pushing one context window into a shorter summary](preview.svg)
+![The appearance page of the panel, with the optical context vial and pixel companions above the composer](screenshots/hero.png)

@@ -4,7 +4,7 @@ import { COMPRESSION_LEVELS, compressionSpec, levelForPolicy, parseLevel } from 
 import { presetCompactionEntries, presetEnginePolicies, syncPresetCompaction } from './src/presets.js'
 import { attachContextMeter, compactionWindowNote, contextReportText, readContextWindow, readMeter } from './src/context-meter.js'
 import { attachCompactQueue, COMPACT_TOOL_NAME, resolveCompaction } from './src/manual-compact.js'
-import { readSettings, writeSettings, normalizeRepoName } from './src/store.js'
+import { readSettings, writeSettings, normalizeRepoName, APPEARANCE_MOTIONS, APPEARANCE_PALETTES, normalizeAppearance } from './src/store.js'
 import { MAX_RULES_CHARS, readRules, rulesPromptBlock, saveRules } from './src/rules.js'
 import { saveWorkspaceRules, workspacesPayload } from './src/workspace-rules.js'
 import { beginGithubLogin, cancelGithubLogin, ghAuthStatus, ghDownloadRunning, ghStatus, githubLoginStatus, listRepos, prependGhPath, resolveGh, startGhDownload } from './src/gh.js'
@@ -15,6 +15,7 @@ import { COMPONENT_ORDER, componentRows } from './src/component-rows.js'
 import { migrateTools, parseToolsPath, resolveToolsPath, toolsStatus } from './src/tools-path.js'
 import { pushFlow, pushReportText, resolvePushCwd, sessionTarget } from './src/push-flow.js'
 import { dirname, join } from 'node:path'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { formatRouteLines, parseRouteLines } from './src/routes.js'
 import { errorStatus, guard, httpError, queryParam, readBody, sendJson } from './src/http.js'
@@ -36,6 +37,23 @@ function homeDir() {
 
 /** This package's checkout: the git working directory the network probe runs from. */
 const PLUGIN_ROOT = dirname(fileURLToPath(import.meta.url))
+
+/**
+ * The vendored Obsidian Prism modules are classic UMD scripts, not ESM: the
+ * client loads them same-origin and reads their `window.__ag*` globals. Only
+ * these three names are served; nothing else below `vendor/` is reachable.
+ */
+const VENDOR_SCRIPTS = new Set(['vial-core.js', 'dual-mascot-rig.js'])
+const vendorCache = new Map()
+
+function vendorScript(name) {
+  if (!VENDOR_SCRIPTS.has(name)) throw httpError(404, 'unknown vendor script')
+  if (vendorCache.has(name)) return vendorCache.get(name)
+  const file = join(PLUGIN_ROOT, 'vendor', 'obsidian-prism', name)
+  const body = readFileSync(file, 'utf8')
+  vendorCache.set(name, body)
+  return body
+}
 
 function githubSettings() {
   return readSettings(homeDir()).settings.github
@@ -241,6 +259,7 @@ function statePayload(ctx) {
     modelRoutes: state.settings.modelRoutes,
     routeLines: formatRouteLines(state.settings.modelRoutes),
     lastCompact: state.settings.lastCompact,
+    appearance: state.settings.appearance,
     paths: { settings: state.paths.settings, tools: resolveToolsPath(homeDir(), state.settings) },
     github: state.settings.github,
     ...engineSummary(ctx),
@@ -501,8 +520,9 @@ export function apply(ctx) {
             const body = await readBody(req)
             const levelGiven = body.level !== undefined && body.level !== null && String(body.level).trim() !== ''
             const routesGiven = typeof body.routeLines === 'string'
-            if (!levelGiven && !routesGiven) {
-              sendJson(res, 400, { error: 'nothing to update: pass level and/or routeLines' })
+            const appearanceGiven = body.appearance !== undefined && body.appearance !== null
+            if (!levelGiven && !routesGiven && !appearanceGiven) {
+              sendJson(res, 400, { error: 'nothing to update: pass level, routeLines and/or appearance' })
               return
             }
             let level
@@ -512,13 +532,40 @@ export function apply(ctx) {
               sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) })
               return
             }
+            // Appearance is cosmetic but still validated before it is written:
+            // an unknown palette must be a 400, not a silent reset to `host`.
+            if (appearanceGiven) {
+              const patch = body.appearance
+              if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+                sendJson(res, 400, { error: 'appearance must be an object' })
+                return
+              }
+              if (patch.palette !== undefined && !APPEARANCE_PALETTES.includes(patch.palette)) {
+                sendJson(res, 400, { error: `unknown palette: ${String(patch.palette)}; pass one of ${APPEARANCE_PALETTES.join(', ')}` })
+                return
+              }
+              if (patch.motion !== undefined && !APPEARANCE_MOTIONS.includes(patch.motion)) {
+                sendJson(res, 400, { error: `unknown motion tier: ${String(patch.motion)}; pass one of ${APPEARANCE_MOTIONS.join(', ')}` })
+                return
+              }
+              if (patch.mascots !== undefined && typeof patch.mascots !== 'boolean') {
+                sendJson(res, 400, { error: 'mascots must be a boolean' })
+                return
+              }
+            }
             const routes = routesGiven
               ? parseRouteLines(body.routeLines)
               : readSettings(homeDir()).settings.modelRoutes
-            const applied = await applyLevel(ctx, level, routes)
+            const applied = levelGiven || routesGiven ? await applyLevel(ctx, level, routes) : null
+            if (appearanceGiven) {
+              const current = readSettings(homeDir()).settings
+              writeSettings(homeDir(), {
+                settings: { appearance: normalizeAppearance({ ...current.appearance, ...body.appearance }) },
+              })
+            }
             sendJson(res, 200, {
               ...statePayload(ctx),
-              updatedEngines: applied.result.updated,
+              updatedEngines: applied ? applied.result.updated : 0,
             })
             return
           }
@@ -528,6 +575,40 @@ export function apply(ctx) {
         }
       },
     }))
+  })
+
+  // The optical modules are served from the plugin checkout so the client can
+  // use the vendored canvas engines without copying 300KB into client.js. The
+  // route is same-origin, guarded by the same connection check as every other
+  // /compression-tiers/* route, and only the three fixed names resolve.
+  ctx.inject(['webServer', 'connection'], (child) => {
+    for (const name of VENDOR_SCRIPTS) {
+      child.effect(() => child.webServer.register({
+        kind: 'exact',
+        path: `/compression-tiers/vendor/${name}`,
+        handler: async (req, res) => {
+          if (guard(child, req, res)) return
+          if (req.method !== 'GET' && req.method !== 'HEAD') {
+            sendJson(res, 405, { error: 'GET or HEAD' })
+            return
+          }
+          let body
+          try {
+            body = vendorScript(name)
+          } catch {
+            sendJson(res, 404, { error: 'vendor script not found' })
+            return
+          }
+          const payload = Buffer.from(body, 'utf8')
+          res.writeHead(200, {
+            'content-type': 'text/javascript; charset=utf-8',
+            'cache-control': 'public, max-age=3600',
+            'content-length': payload.length,
+          })
+          res.end(req.method === 'HEAD' ? undefined : payload)
+        },
+      }))
+    }
   })
 
   // Global rules: the same `$DSH_HOME/AGENTS.md` the official instruction

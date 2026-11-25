@@ -24,9 +24,13 @@ test('the bundle manifest declares the patch, client and locale exports', () => 
   }
   assert.equal(manifest.exports['.'], './index.js')
   assert.equal(manifest.exports['./client'], './client.js')
-  for (const entry of ['index.js', 'client.js', 'src', 'cordis.patch.yml', 'locale/*.json', 'docs', 'icon.svg']) {
+  for (const entry of ['index.js', 'client.js', 'src', 'vendor', 'cordis.patch.yml', 'locale/*.json', 'docs', 'icon.svg', 'NOTICE', 'THIRD_PARTY_NOTICES.md']) {
     assert.ok(manifest.files.includes(entry), `files is missing ${entry}`)
   }
+  assert.equal(manifest.license, 'GPL-3.0-only')
+  assert.ok(existsSync(join(root, 'NOTICE')), 'the upstream and derivative notice is shipped')
+  assert.ok(existsSync(join(root, 'THIRD_PARTY_NOTICES.md')), 'the upstream third-party notices are shipped')
+  assert.ok(statSync(join(root, 'NOTICE')).size > 1000)
 })
 
 test('the patch inserts this bundle by its package name', () => {

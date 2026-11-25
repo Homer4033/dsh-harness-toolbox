@@ -1,10 +1,10 @@
 {
   "name": "dsh-harness-toolbox",
-  "version": "1.10.3",
+  "version": "2.0.0",
   "private": false,
   "type": "module",
-  "description": "Five-tier context compaction, global and workspace rules editing, managed installs for gh / git / ffmpeg / Python below one migratable root, and per-session repository publishing in a sidebar panel.",
-  "license": "MIT",
+  "description": "Five-tier context compaction, an optical context vial and pixel companions above the composer, four appearance palettes, global and workspace rules editing, managed installs for gh / git / ffmpeg / Python below one migratable root, and per-session repository publishing.",
+  "license": "GPL-3.0-only",
   "publishConfig": {
     "access": "public"
   },
@@ -18,7 +18,11 @@
     "rules",
     "toolbox",
     "ffmpeg",
-    "github"
+    "github",
+    "optical-ui",
+    "context-vial",
+    "pixel-mascots",
+    "glassmorphism"
   ],
   "repository": {
     "type": "git",
@@ -34,18 +38,22 @@
     "./client": "./client.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json",
+    "./vendor/*": "./vendor/*",
     "./icon": "./icon.svg"
   },
   "files": [
     "index.js",
     "client.js",
     "src",
+    "vendor",
     "cordis.patch.yml",
     "locale/*.json",
     "docs",
     "icon.svg",
     "README.md",
     "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md",
     "CHANGELOG.md",
     "scripts"
   ],

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { normalizeRepoName, normalizeSessionRepos, readSettings, settingsPaths, writeJson, writeSettings, writeText } from '../src/store.js'
+import { APPEARANCE_MOTIONS, APPEARANCE_PALETTES, defaultAppearance, normalizeAppearance, normalizeRepoName, normalizeSessionRepos, readSettings, settingsPaths, writeJson, writeSettings, writeText } from '../src/store.js'
 
 function tempHome() {
   return mkdtempSync(join(tmpdir(), 'compression-tiers-'))
@@ -176,4 +176,43 @@ test('session repository bindings keep the last 200 entries', () => {
   assert.equal(kept['session-204'], 'owner/repo-204')
   assert.deepEqual(normalizeSessionRepos(null), {})
   assert.deepEqual(normalizeSessionRepos(['owner/repo']), {})
+})
+
+test('appearance defaults to the host theme, full motion and companions on', () => {
+  assert.deepEqual(defaultAppearance(), { palette: 'host', motion: 'full', mascots: true })
+  assert.deepEqual(normalizeAppearance(undefined), defaultAppearance())
+  assert.deepEqual(normalizeAppearance(null), defaultAppearance())
+  assert.deepEqual(normalizeAppearance('warm'), defaultAppearance())
+  assert.deepEqual(APPEARANCE_PALETTES, ['host', 'obsidian', 'warm', 'crystal', 'alabaster'])
+  assert.deepEqual(APPEARANCE_MOTIONS, ['full', 'subtle', 'off'])
+})
+
+test('appearance drops unknown palettes and keeps explicit booleans', () => {
+  assert.deepEqual(normalizeAppearance({ palette: 'obsidian', motion: 'subtle', mascots: false }), {
+    palette: 'obsidian',
+    motion: 'subtle',
+    mascots: false,
+  })
+  assert.deepEqual(normalizeAppearance({ palette: 'neon', motion: 'warp', mascots: 'yes' }), defaultAppearance())
+  assert.equal(normalizeAppearance({ mascots: 0 }).mascots, true, 'only false disables the companions')
+})
+
+test('appearance is persisted, merged and tolerated when an old file lacks it', () => {
+  const home = tempHome()
+  try {
+    const paths = settingsPaths(home)
+    writeJson(paths.settings, { level: 'max', modelRoutes: [] })
+    assert.deepEqual(readSettings(home).settings.appearance, defaultAppearance())
+    const saved = writeSettings(home, {
+      settings: { appearance: { palette: 'crystal', motion: 'off', mascots: false } },
+    })
+    assert.deepEqual(saved.settings.appearance, { palette: 'crystal', motion: 'off', mascots: false })
+    assert.equal(saved.settings.level, 'max')
+    // A later partial write keeps the other appearance fields.
+    const merged = writeSettings(home, { settings: { appearance: { ...saved.settings.appearance, motion: 'full' } } })
+    assert.deepEqual(merged.settings.appearance, { palette: 'crystal', motion: 'full', mascots: false })
+    assert.equal(readSettings(home).settings.appearance.palette, 'crystal')
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
 })

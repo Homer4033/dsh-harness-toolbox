@@ -25,6 +25,40 @@ export function defaultGithubSettings() {
   }
 }
 
+/** The four optical palettes plus the host theme. */
+export const APPEARANCE_PALETTES = ['host', 'obsidian', 'warm', 'crystal', 'alabaster']
+
+/** Motion tiers, from the full optical choreography to reduced motion. */
+export const APPEARANCE_MOTIONS = ['full', 'subtle', 'off']
+
+export function defaultAppearance() {
+  return {
+    // `host` keeps the official theme tokens the panel always used; the other
+    // four scope a complete light/dark palette to the plugin's own surfaces
+    // (panel, dock, portalled popovers).
+    palette: 'host',
+    motion: 'full',
+    // Pixel companions above the composer. Opt-out, not opt-in: the 2.0.0
+    // appearance page shows the switch next to the palettes.
+    mascots: true,
+  }
+}
+
+/**
+ * Appearance is cosmetic state, so a hand-edited unknown value falls back to
+ * the default instead of failing the whole settings read. The HTTP route
+ * rejects unknown values explicitly before they get here.
+ */
+export function normalizeAppearance(value) {
+  const base = defaultAppearance()
+  const next = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  return {
+    palette: APPEARANCE_PALETTES.includes(next.palette) ? next.palette : base.palette,
+    motion: APPEARANCE_MOTIONS.includes(next.motion) ? next.motion : base.motion,
+    mascots: next.mascots === false ? false : true,
+  }
+}
+
 export function defaultSettings() {
   return {
     level: DEFAULT_LEVEL,
@@ -34,6 +68,9 @@ export function defaultSettings() {
     // Session id → `owner/name` of the online repository that session publishes
     // to. Bound from the session header; the file is the only place it lives.
     sessionRepos: {},
+    // Palette, motion tier and the pixel companions. Cosmetic only: the
+    // compaction engines never read it.
+    appearance: defaultAppearance(),
     // Shared download root for the managed gh and ffmpeg installs. Empty means
     // `<DSH home>/compression-tiers`, which is where earlier versions put them.
     toolsPath: '',
@@ -80,6 +117,7 @@ export function normalizeSettings(value) {
     proxy: text(github.proxy, base.github.proxy),
   }
   next.sessionRepos = normalizeSessionRepos(next.sessionRepos)
+  next.appearance = normalizeAppearance(next.appearance)
   // A relative or unparsable toolsPath would resolve against the process CWD;
   // drop it so the shared root falls back to the default directory.
   next.toolsPath = normalizeToolsPath(next.toolsPath)

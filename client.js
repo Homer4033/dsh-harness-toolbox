@@ -21,6 +21,31 @@ window.__ModuleLoader__.load({
     const GH_BINDING_API = '/compression-tiers/api/github/binding'
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
+    const VENDOR_BASE = '/compression-tiers/vendor/'
+    const PLUGIN_VERSION = '2.0.0'
+    const PALETTES = [
+      { id: 'host', labelKey: 'paletteHost' },
+      { id: 'obsidian', labelKey: 'paletteObsidian' },
+      { id: 'warm', labelKey: 'paletteWarm' },
+      { id: 'crystal', labelKey: 'paletteCrystal' },
+      { id: 'alabaster', labelKey: 'paletteAlabaster' },
+    ]
+    const MOTIONS = [
+      { id: 'full', labelKey: 'motionFull' },
+      { id: 'subtle', labelKey: 'motionSubtle' },
+      { id: 'off', labelKey: 'motionOff' },
+    ]
+    const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', mascots: true }
+    // The two UMD modules vendored from Obsidian Prism. A classic <script>
+    // tag keeps client.js from having to carry 300KB or use eval; the vial
+    // only loads when its window opens, the rig when the dock renders.
+    const VENDOR_SCRIPTS = {
+      vial: { file: 'vial-core.js', global: '__agVialCore', pending: null },
+      mascot: { file: 'dual-mascot-rig.js', global: '__agDualMascotRig', pending: null },
+    }
+    // Host context budget: the same 65,536-token reserve the official
+    // compaction-basic engine applies.
+    const CONTEXT_HEADROOM = 65536
 
     /**
      * The rows the component panel always renders, in this order. The payload
@@ -35,15 +60,16 @@ window.__ModuleLoader__.load({
     ]
 
     /**
-     * The panel is a small shell: one navigation rail, one page at a time. The
-     * workspace page drops out of the rail entirely when the registry is empty,
-     * which is the same rule as hiding the block (no empty picker, no dead tab).
+     * The panel is a small shell: one navigation rail, one page at a time.
+     * Every page stays in the rail even before its data arrives; the page
+     * itself says what is missing.
      */
     const SECTIONS = [
       { id: 'levels', navLabel: 'navLevels', icon: 'M3 4.5h10M3 8h7M3 11.5h4' },
       { id: 'rules', navLabel: 'navRules', icon: 'M4 2.5h5.5L12.5 5.5v8H4zM9.5 2.5v3h3M6 8h4M6 10.5h3' },
       { id: 'workspace', navLabel: 'navWorkspace', icon: 'M2.5 5.5h4l1.2 1.5h5.8v5.5h-11z' },
       { id: 'components', navLabel: 'navComponents', icon: 'M6 2.5h4v3H6zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z' },
+      { id: 'appearance', navLabel: 'navAppearance', icon: 'M8 2.5a5.5 5.5 0 1 0 5.5 5.5c0-1.2-.4-2.3-1-3.2-.5.9-1.4 1.5-2.4 1.5-1.5 0-2.7-1.2-2.7-2.7 0-.4.1-.8.2-1.1zM8 13.5a4 4 0 0 1 0-8' },
       { id: 'github', navLabel: 'navGithub', icon: 'M8 2.5a5.5 5.5 0 0 0-1.7 10.7c.3.1.4-.1.4-.3v-1c-1.5.3-1.9-.7-1.9-.7-.2-.6-.6-.8-.6-.8-.5-.3 0-.3 0-.3.5 0 .8.5.8.5.5.9 1.3.6 1.6.5 0-.4.2-.6.3-.7-1.2-.1-2.5-.6-2.5-2.7 0-.6.2-1.1.5-1.5-.1-.1-.2-.7 0-1.4 0 0 .5-.2 1.5.5a5 5 0 0 1 2.8 0c1-.7 1.5-.5 1.5-.5.3.7.1 1.3.1 1.4.3.4.5.9.5 1.5 0 2.1-1.3 2.6-2.5 2.7.2.2.4.5.4 1v1.5c0 .2.1.4.4.3A5.5 5.5 0 0 0 8 2.5z' },
     ]
 
@@ -57,7 +83,38 @@ window.__ModuleLoader__.load({
         navRules: '规则',
         navWorkspace: '工作区',
         navComponents: '组件',
+        navAppearance: '外观',
         navGithub: 'GitHub',
+        appearanceTitle: '外观',
+        paletteLabel: '配色',
+        paletteHost: '跟随宿主',
+        paletteObsidian: '深空黑曜',
+        paletteWarm: '暖炭玄岩',
+        paletteCrystal: '白昼冷晶',
+        paletteAlabaster: '暖白画册',
+        motionLabel: '动效',
+        motionFull: '完整',
+        motionSubtle: '克制',
+        motionOff: '关闭',
+        mascotsLabel: '像素伙伴',
+        mascotsOn: '已开启',
+        mascotsOff: '已关闭',
+        appearanceApplied: '已应用。',
+        appearanceFailed: '保存失败：',
+        vialTitle: '上下文试管',
+        vialAria: '上下文占用',
+        vialUsed: '已用',
+        vialWindow: '窗口',
+        vialThreshold: '压缩阈值',
+        vialRetain: '保留原文',
+        vialUntil: '距阈值',
+        vialLevel: '当前档位',
+        vialSystem: '系统',
+        vialTools: '工具',
+        vialMessages: '对话',
+        vialUnavailable: '读不到上下文用量',
+        vialLoading: '读取中…',
+        vialClose: '关闭',
         levelsTitle: '档位',
         ghScopesLabel: '授权范围',
         ghScopesNone: '未报告',
@@ -175,7 +232,38 @@ window.__ModuleLoader__.load({
         navRules: 'Rules',
         navWorkspace: 'Workspace',
         navComponents: 'Components',
+        navAppearance: 'Appearance',
         navGithub: 'GitHub',
+        appearanceTitle: 'Appearance',
+        paletteLabel: 'Palette',
+        paletteHost: 'Host theme',
+        paletteObsidian: 'Obsidian',
+        paletteWarm: 'Warm ember',
+        paletteCrystal: 'Crystal',
+        paletteAlabaster: 'Alabaster',
+        motionLabel: 'Motion',
+        motionFull: 'Full',
+        motionSubtle: 'Subtle',
+        motionOff: 'Off',
+        mascotsLabel: 'Pixel companions',
+        mascotsOn: 'on',
+        mascotsOff: 'off',
+        appearanceApplied: 'Applied.',
+        appearanceFailed: 'Could not save: ',
+        vialTitle: 'Context vial',
+        vialAria: 'Context used',
+        vialUsed: 'Used',
+        vialWindow: 'Window',
+        vialThreshold: 'Compaction threshold',
+        vialRetain: 'Kept verbatim',
+        vialUntil: 'Until threshold',
+        vialLevel: 'Current tier',
+        vialSystem: 'System',
+        vialTools: 'Tools',
+        vialMessages: 'Conversation',
+        vialUnavailable: 'Context usage is unavailable',
+        vialLoading: 'Reading…',
+        vialClose: 'Close',
         levelsTitle: 'Tiers',
         ghScopesLabel: 'Token scopes',
         ghScopesNone: 'not reported',
@@ -818,11 +906,12 @@ window.__ModuleLoader__.load({
   width: min(calc(100% - var(--dsh-composer-side-clearance, 16px) * 2), var(--dsh-composer-card-max-width, 720px));
   margin: 0 auto;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 8px;
   min-width: 0;
   padding: 0;
+  container-type: inline-size;
 }
 .ct-repo-group {
   display: inline-flex;
@@ -1063,6 +1152,8 @@ window.__ModuleLoader__.load({
   line-height: 16px;
 }
 .ct-repo-note {
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 180px;
   overflow: hidden;
   white-space: nowrap;
@@ -1070,6 +1161,597 @@ window.__ModuleLoader__.load({
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
+}
+/* ---- Optical skins -------------------------------------------------------
+   Each palette defines a complete token set on the plugin's own roots (panel
+   page, composer dock, portalled menus). The host UI never sees these values:
+   the attributes only exist on our elements. "host" is the empty case and
+   keeps the official theme untouched. */
+.ct-skin[data-palette='obsidian'] {
+  color-scheme: dark;
+  --dsw-alias-bg-base: #0a0a0c;
+  --dsw-alias-bg-layer-1: #101013;
+  --dsw-alias-bg-layer-2: #17171b;
+  --dsw-alias-bg-layer-3: #202026;
+  --dsw-alias-bg-module-platform: #292930;
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.1);
+  --dsw-alias-border-l3: rgba(255, 255, 255, 0.18);
+  --dsw-alias-border-selected: #8fa6ff;
+  --dsw-alias-label-primary: #f4f5f9;
+  --dsw-alias-label-secondary: #c3c8d4;
+  --dsw-alias-label-tertiary: #8a91a0;
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.08);
+  --dsw-alias-state-business-primary: #6f9bff;
+  --dsw-alias-link: #8fb4ff;
+  --dsw-alias-chart-system: #6f9bff;
+  --dsw-alias-chart-tools: #b18cff;
+  --dsw-alias-chart-messages: #5fd0c8;
+  --dsw-alias-state-warn-primary: #f0b45c;
+  --dsw-alias-state-error-primary: #ff7b72;
+  --ct-glass-fill: rgba(32, 32, 38, 0.6);
+  --ct-glass-rail: rgba(23, 23, 27, 0.7);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 38%, transparent 64%);
+  --ct-glass-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.ct-skin[data-palette='warm'] {
+  color-scheme: dark;
+  --dsw-alias-bg-base: #12110f;
+  --dsw-alias-bg-layer-1: #181613;
+  --dsw-alias-bg-layer-2: #201d19;
+  --dsw-alias-bg-layer-3: #2a2520;
+  --dsw-alias-bg-module-platform: #342e27;
+  --dsw-alias-border-l2: rgba(255, 235, 210, 0.12);
+  --dsw-alias-border-l3: rgba(255, 235, 210, 0.2);
+  --dsw-alias-border-selected: #e0a45c;
+  --dsw-alias-label-primary: #f5eee3;
+  --dsw-alias-label-secondary: #d3c6b4;
+  --dsw-alias-label-tertiary: #a59784;
+  --dsw-alias-interactive-bg-hover: rgba(255, 235, 210, 0.08);
+  --dsw-alias-state-business-primary: #e0a45c;
+  --dsw-alias-link: #f0bd7a;
+  --dsw-alias-chart-system: #e0a45c;
+  --dsw-alias-chart-tools: #c58bff;
+  --dsw-alias-chart-messages: #7fc8a9;
+  --dsw-alias-state-warn-primary: #e0a45c;
+  --dsw-alias-state-error-primary: #ff8a7a;
+  --ct-glass-fill: rgba(42, 37, 32, 0.6);
+  --ct-glass-rail: rgba(24, 22, 19, 0.72);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 240, 220, 0.14), rgba(255, 240, 220, 0.03) 38%, transparent 64%);
+  --ct-glass-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.ct-skin[data-palette='crystal'] {
+  color-scheme: light;
+  --dsw-alias-bg-base: #e6edf6;
+  --dsw-alias-bg-layer-1: #eef4fb;
+  --dsw-alias-bg-layer-2: #f7fafd;
+  --dsw-alias-bg-layer-3: #ffffff;
+  --dsw-alias-bg-module-platform: #e1eaf6;
+  --dsw-alias-border-l2: rgba(23, 40, 64, 0.14);
+  --dsw-alias-border-l3: rgba(23, 40, 64, 0.24);
+  --dsw-alias-border-selected: #2f6fed;
+  --dsw-alias-label-primary: #142033;
+  --dsw-alias-label-secondary: #40516a;
+  --dsw-alias-label-tertiary: #697a93;
+  --dsw-alias-interactive-bg-hover: rgba(23, 40, 64, 0.07);
+  --dsw-alias-state-business-primary: #2f6fed;
+  --dsw-alias-link: #2563eb;
+  --dsw-alias-chart-system: #2f6fed;
+  --dsw-alias-chart-tools: #7c5cff;
+  --dsw-alias-chart-messages: #0f9d8a;
+  --dsw-alias-state-warn-primary: #b45309;
+  --dsw-alias-state-error-primary: #c02626;
+  --ct-glass-fill: rgba(255, 255, 255, 0.66);
+  --ct-glass-rail: rgba(255, 255, 255, 0.54);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.14) 40%, transparent 66%);
+  --ct-glass-shadow: 0 26px 56px rgba(31, 54, 93, 0.16), 0 2px 8px rgba(31, 54, 93, 0.1);
+  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(31, 54, 93, 0.06);
+}
+.ct-skin[data-palette='alabaster'] {
+  color-scheme: light;
+  --dsw-alias-bg-base: #f4f1ea;
+  --dsw-alias-bg-layer-1: #faf8f3;
+  --dsw-alias-bg-layer-2: #fffdf8;
+  --dsw-alias-bg-layer-3: #ffffff;
+  --dsw-alias-bg-module-platform: #ede7db;
+  --dsw-alias-border-l2: rgba(74, 55, 35, 0.15);
+  --dsw-alias-border-l3: rgba(74, 55, 35, 0.24);
+  --dsw-alias-border-selected: #b4653a;
+  --dsw-alias-label-primary: #2a241c;
+  --dsw-alias-label-secondary: #5c5244;
+  --dsw-alias-label-tertiary: #857967;
+  --dsw-alias-interactive-bg-hover: rgba(74, 55, 35, 0.07);
+  --dsw-alias-state-business-primary: #b4653a;
+  --dsw-alias-link: #9a4f2a;
+  --dsw-alias-chart-system: #b4653a;
+  --dsw-alias-chart-tools: #8a6bbf;
+  --dsw-alias-chart-messages: #2f8f72;
+  --dsw-alias-state-warn-primary: #a15c12;
+  --dsw-alias-state-error-primary: #b3261e;
+  --ct-glass-fill: rgba(255, 255, 255, 0.62);
+  --ct-glass-rail: rgba(255, 253, 248, 0.56);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.16) 40%, transparent 66%);
+  --ct-glass-shadow: 0 26px 56px rgba(74, 55, 35, 0.14), 0 2px 8px rgba(74, 55, 35, 0.08);
+  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(74, 55, 35, 0.06);
+}
+/* ---- Appearance page ---------------------------------------------------- */
+.ct-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+@container (max-width: 640px) {
+  .ct-swatches {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.ct-swatch {
+  display: grid;
+  gap: 7px;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 30%, transparent);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+@media (hover: hover) {
+  .ct-swatch:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
+.ct-swatch[aria-checked='true'] {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, transparent);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 20px color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);
+}
+.ct-swatch:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.ct-swatch:focus-visible,
+.ct-segment:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+.ct-swatch-band {
+  display: block;
+  height: 22px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--sw-bg) 0 38%, var(--sw-mid) 38% 68%, var(--sw-accent) 68% 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.ct-swatch-band[data-choice='host'] {
+  --sw-bg: var(--dsw-alias-bg-base);
+  --sw-mid: var(--dsw-alias-bg-layer-2);
+  --sw-accent: var(--dsw-alias-state-business-primary);
+}
+.ct-swatch-band[data-choice='obsidian'] {
+  --sw-bg: #0a0a0c;
+  --sw-mid: #202026;
+  --sw-accent: #6f9bff;
+}
+.ct-swatch-band[data-choice='warm'] {
+  --sw-bg: #12110f;
+  --sw-mid: #2a2520;
+  --sw-accent: #e0a45c;
+}
+.ct-swatch-band[data-choice='crystal'] {
+  --sw-bg: #e6edf6;
+  --sw-mid: #ffffff;
+  --sw-accent: #2f6fed;
+}
+.ct-swatch-band[data-choice='alabaster'] {
+  --sw-bg: #f4f1ea;
+  --sw-mid: #ffffff;
+  --sw-accent: #b4653a;
+}
+.ct-swatch-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 16px;
+}
+.ct-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ct-segment {
+  box-sizing: border-box;
+  height: 34px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+@media (hover: hover) {
+  .ct-segment:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
+.ct-segment[aria-checked='true'] {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 50%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent);
+  color: var(--dsw-alias-label-primary);
+}
+.ct-segment:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+/* ---- Composer dock: vial + pixel companions ----------------------------- */
+.ct-dock-mascots {
+  flex: 0 0 220px;
+  width: 220px;
+  height: 84px;
+  min-width: 0;
+}
+.ct-dock-tools {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+}
+@container (max-width: 620px) {
+  .ct-dock-mascots {
+    display: none;
+  }
+}
+.ct-mascot-stage {
+  position: relative;
+  width: 220px;
+  height: 84px;
+}
+.ct-mascot-stage[data-state='failed'] {
+  display: none;
+}
+.ct-mascot-stage .ag-v2-mascot-actor {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 96px;
+  height: 84px;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  outline: none;
+}
+.ct-mascot-stage .ag-v2-mascot-actor::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 44px;
+  height: 8px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.16) 58%, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+.ct-mascot-stage .ag-v2-mascot-actor[data-dragging='1'] {
+  cursor: grabbing;
+}
+.ct-mascot-stage .ag-v2-mascot-canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 96px;
+  height: 84px;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.ct-mascot-stage .ag-v2-mini-pile {
+  position: absolute;
+  left: 12px;
+  bottom: 1px;
+  display: none;
+  align-items: flex-end;
+  height: 32px;
+  pointer-events: none;
+  z-index: 20;
+}
+.ct-mascot-stage .ag-v2-mini-crab-canvas {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 40px;
+  height: 32px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transition: transform 160ms steps(2, end);
+}
+.ct-vial {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 26px;
+  margin: 0;
+  padding: 0 10px 0 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+@media (hover: hover) {
+  .ct-vial:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-border-l3);
+  }
+}
+.ct-vial:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+.ct-vial[aria-expanded='true'] {
+  border-color: var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+}
+.ct-vial[data-critical='true'] {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 55%, transparent);
+  color: var(--dsw-alias-state-warn-primary);
+}
+.ct-vial-mini {
+  display: block;
+  flex: none;
+  width: 10px;
+  height: 16px;
+  overflow: visible;
+}
+.ct-vial-track {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.45;
+}
+.ct-vial-liquid {
+  fill: currentColor;
+  opacity: 0.88;
+  transition: y 600ms cubic-bezier(0.22, 1, 0.36, 1), height 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Motion tiers: "subtle" drops the page/menu entrances and the liquid height
+   transition but leaves the companions alive; "off" also freezes the vial
+   simulator (the JS passes reducedMotion) and the companions. */
+.ct-page[data-motion='subtle'] .ct-content,
+.ct-page[data-motion='off'] .ct-content {
+  animation: none;
+}
+.ct-skin[data-motion='subtle'] .ct-vial-liquid,
+.ct-skin[data-motion='off'] .ct-vial-liquid {
+  transition: none;
+}
+.ct-vial-threshold {
+  stroke: var(--dsw-alias-state-warn-primary);
+  stroke-width: 1;
+  opacity: 0.9;
+}
+.ct-vial-pct {
+  font-weight: 500;
+}
+.ct-vial-popover {
+  position: fixed;
+  z-index: 2147483000;
+  display: grid;
+  gap: 10px;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 30%, var(--dsw-alias-border-l3));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 92%, transparent);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 46%);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--dsw-alias-state-business-primary) 9%, transparent), 0 24px 64px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 16px;
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  transform-origin: bottom left;
+  animation: ct-menu-rise 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ct-vial-popover[data-side='down'] {
+  transform-origin: top left;
+  animation-name: ct-menu-drop;
+}
+.ct-vial-popover:focus {
+  outline: none;
+}
+.ct-vial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ct-vial-head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ct-vial-level {
+  padding: 1px 7px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.ct-vial-bar i[data-kind='total'] {
+  background: var(--dsw-alias-state-business-primary);
+}
+.ct-vial-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .ct-vial-close:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+}
+.ct-vial-close:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+.ct-vial-body {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.ct-vial-canvas {
+  display: block;
+  width: 96px;
+  height: 220px;
+}
+.ct-vial-stats {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+.ct-vial-percent {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 30px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ct-vial[data-critical='true'] .ct-vial-percent,
+.ct-vial-popover[data-critical='true'] .ct-vial-percent {
+  color: var(--dsw-alias-state-warn-primary);
+}
+.ct-vial-numbers {
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.ct-vial-rows {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+.ct-vial-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ct-vial-row dt {
+  color: var(--dsw-alias-label-tertiary);
+}
+.ct-vial-row dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.ct-vial-bar {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--dsw-alias-border-l2);
+}
+.ct-vial-bar i {
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+.ct-vial-bar i[data-kind='system'] {
+  background: var(--dsw-alias-chart-system);
+}
+.ct-vial-bar i[data-kind='tools'] {
+  background: var(--dsw-alias-chart-tools);
+}
+.ct-vial-bar i[data-kind='messages'] {
+  background: var(--dsw-alias-chart-messages);
+}
+.ct-vial-legend {
+  display: grid;
+  gap: 4px;
+}
+.ct-vial-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 15px;
+}
+.ct-vial-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+.ct-vial-dot[data-kind='system'] {
+  background: var(--dsw-alias-chart-system);
+}
+.ct-vial-dot[data-kind='tools'] {
+  background: var(--dsw-alias-chart-tools);
+}
+.ct-vial-dot[data-kind='messages'] {
+  background: var(--dsw-alias-chart-messages);
+}
+.ct-vial-legend-row span:last-child {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.ct-vial-empty {
+  max-width: 220px;
+  color: var(--dsw-alias-label-tertiary);
 }
 `
 
@@ -1179,6 +1861,171 @@ window.__ModuleLoader__.load({
       if (error === 'gh-not-installed' || error === 'not-authenticated') return t('repoUnavailable')
       if (error === 'network') return t('repoNetwork')
       return t('repoFailed')
+    }
+
+    /** The client half of `normalizeAppearance` in `src/store.js`. */
+    function normalizeAppearance(value) {
+      const next = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+      return {
+        palette: PALETTES.some(function (item) { return item.id === next.palette }) ? next.palette : DEFAULT_APPEARANCE.palette,
+        motion: MOTIONS.some(function (item) { return item.id === next.motion }) ? next.motion : DEFAULT_APPEARANCE.motion,
+        mascots: next.mascots === false ? false : DEFAULT_APPEARANCE.mascots,
+      }
+    }
+
+    /** The tier spec the vial draws its threshold from. */
+    function levelSpecOf(settings) {
+      const level = settings && settings.level ? settings.level : 'standard'
+      const list = settings && Array.isArray(settings.levels) ? settings.levels : []
+      const found = list.find(function (item) { return item && item.id === level })
+      if (found && Number.isFinite(Number(found.thresholdRatio))) return found
+      return { id: 'standard', thresholdRatio: 0.6, retainRatio: 0.16 }
+    }
+
+    /**
+     * Fold the official `contextPressure` projection into the numbers the vial
+     * and the panel show. The threshold mirrors the documented server formula
+     * `floor(min(W × ratio, W − 65,536))`; the output reservation is unknown on
+     * the client, so this is the same upper bound `compression_context` reports.
+     */
+    function vialMeter(pressure, spec) {
+      const usedRaw = pressure && (pressure.projectedTokens !== undefined ? pressure.projectedTokens : pressure.pressureTokens)
+      const used = Number(usedRaw)
+      const window = Number(pressure && pressure.contextWindow)
+      if (!Number.isFinite(used) || used < 0 || !Number.isFinite(window) || window <= 0) return null
+      const ratio = Number(spec && spec.thresholdRatio)
+      const retainRatio = Number(spec && spec.retainRatio)
+      const threshold = Math.max(1, Math.floor(Math.min(
+        window * (Number.isFinite(ratio) && ratio > 0 ? ratio : 0.6),
+        window - CONTEXT_HEADROOM,
+      )))
+      const retain = Math.max(0, Math.floor(window * (Number.isFinite(retainRatio) && retainRatio >= 0 ? retainRatio : 0.16)))
+      const until = Math.max(0, threshold - used)
+      return {
+        used,
+        window,
+        threshold,
+        retain,
+        until,
+        percent: Math.min(1, used / window),
+        thresholdPercent: Math.min(1, threshold / window),
+        critical: until <= threshold * 0.15,
+      }
+    }
+
+    /** Compact token labels for the dock and the vial popover. */
+    function tokenLabel(value) {
+      const number = Number(value)
+      if (!Number.isFinite(number)) return '—'
+      if (number >= 1_000_000) {
+        const scaled = number / 1_000_000
+        return (scaled >= 10 ? Math.round(scaled) : Math.round(scaled * 10) / 10) + 'M'
+      }
+      if (number >= 1_000) {
+        const scaled = number / 1_000
+        return (scaled >= 100 ? Math.round(scaled) : Math.round(scaled * 10) / 10) + 'K'
+      }
+      return String(Math.round(number))
+    }
+
+    function paletteIsDark(palette) {
+      if (palette === 'obsidian' || palette === 'warm') return true
+      if (palette === 'crystal' || palette === 'alabaster') return false
+      try {
+        const scheme = typeof window !== 'undefined' && window.getComputedStyle
+          ? window.getComputedStyle(document.documentElement).colorScheme
+          : ''
+        if (scheme) return scheme.indexOf('dark') >= 0
+      } catch {
+        // Fall through to the media query.
+      }
+      return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        : true
+    }
+
+    /**
+     * Load one vendored UMD module once. The scripts are served by the host
+     * route `/compression-tiers/vendor/<name>`; the version query keeps a stale
+     * copy from surviving a plugin update in the browser cache.
+     */
+    function loadVendor(key) {
+      const spec = VENDOR_SCRIPTS[key]
+      if (!spec) return Promise.reject(new Error('unknown vendor script: ' + key))
+      if (spec.pending) return spec.pending
+      spec.pending = new Promise(function (resolve, reject) {
+        if (typeof window === 'undefined' || typeof document === 'undefined' || !document.head) {
+          reject(new Error('no document'))
+          return
+        }
+        if (window[spec.global]) {
+          resolve(window[spec.global])
+          return
+        }
+        const script = document.createElement('script')
+        script.src = VENDOR_BASE + spec.file + '?v=' + PLUGIN_VERSION
+        script.async = true
+        script.onload = function () {
+          const lib = window[spec.global]
+          if (lib) resolve(lib)
+          else reject(new Error('vendor global is missing: ' + spec.global))
+        }
+        script.onerror = function () {
+          reject(new Error('vendor script failed: ' + spec.file))
+        }
+        document.head.appendChild(script)
+      })
+      spec.pending.catch(function () {
+        // A transient failure (for example the plugin was still activating)
+        // must not poison the module for the rest of the session.
+        spec.pending = null
+      })
+      return spec.pending
+    }
+
+    /**
+     * The settings snapshot is shared by the panel and the composer dock: one
+     * request fills the tier spec, the palette and the mascot flag. Actions that
+     * write settings hand the response back here so both surfaces agree.
+     */
+    const settingsCache = { body: null, at: 0, pending: null }
+    const SETTINGS_CACHE_MS = 60_000
+
+    function rememberSettings(body) {
+      if (!body || typeof body !== 'object') return
+      settingsCache.body = body
+      settingsCache.at = Date.now()
+    }
+
+    function loadSettingsSnapshot() {
+      if (settingsCache.body && Date.now() - settingsCache.at < SETTINGS_CACHE_MS) {
+        return Promise.resolve(settingsCache.body)
+      }
+      if (settingsCache.pending) return settingsCache.pending
+      settingsCache.pending = fetch(API, { credentials: 'same-origin' })
+        .then(readJson)
+        .then(function (body) {
+          rememberSettings(body)
+          return body
+        })
+        .catch(function () {
+          return settingsCache.body
+        })
+        .then(function (body) {
+          settingsCache.pending = null
+          return body
+        })
+      return settingsCache.pending
+    }
+
+    /** Ratios for the vial's hover slices; zero usage yields a neutral split. */
+    function breakdownRatios(breakdown) {
+      if (!breakdown) return [0.08, 0.27, 0.12]
+      const system = Number(breakdown.systemTokens) || 0
+      const tools = Number(breakdown.toolsTokens) || 0
+      const messages = Number(breakdown.messageTokens) || 0
+      const total = system + tools + messages
+      return total > 0 ? [system / total, tools / total, messages / total] : [0.08, 0.27, 0.12]
     }
 
     /**
@@ -1293,6 +2140,313 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * The optical context vial. The dock shows a one-line reading; opening it
+     * mounts the vendored shallow-water vial in a portalled dialog with the
+     * live pressure, the tier threshold and the system/tools/conversation
+     * split from the official `contextBreakdown` projection.
+     */
+    function ContextVial(props) {
+      const t = props.t
+      const meter = props.meter || null
+      const breakdown = props.breakdown || null
+      const appearance = props.appearance || DEFAULT_APPEARANCE
+      const [open, setOpen] = React.useState(false)
+      const [failed, setFailed] = React.useState(false)
+      const triggerRef = React.useRef(null)
+      const panelRef = React.useRef(null)
+      const canvasRef = React.useRef(null)
+      const controllerRef = React.useRef(null)
+      const loopRef = React.useRef(0)
+      const openRef = React.useRef(false)
+      const placement = React.useRef(null)
+      const stateRef = React.useRef(null)
+      const lastTickRef = React.useRef(0)
+      openRef.current = open
+
+      const ratios = breakdownRatios(breakdown)
+      stateRef.current = {
+        fill: meter ? Math.max(0.06, Math.min(0.95, meter.percent)) : 0.06,
+        maxTokens: meter ? meter.window : 512000,
+        isDark: paletteIsDark(appearance.palette),
+        critical: Boolean(meter && meter.critical),
+        streaming: false,
+        hoveredSlice: -1,
+        ratios: ratios,
+        accentTone: 'cobalt',
+        lightPreset: appearance.palette === 'alabaster' ? 'alabaster' : 'crystal',
+      }
+
+      function startLoop() {
+        if (loopRef.current || typeof requestAnimationFrame !== 'function') return
+        lastTickRef.current = 0
+        const tick = function (now) {
+          loopRef.current = 0
+          const controller = controllerRef.current
+          if (!controller || !openRef.current) return
+          if (!lastTickRef.current) lastTickRef.current = now
+          const dt = Math.max(0.001, Math.min(0.05, (now - lastTickRef.current) / 1000))
+          lastTickRef.current = now
+          controller.step(dt)
+          if (!controller.isSettled()) loopRef.current = requestAnimationFrame(tick)
+        }
+        loopRef.current = requestAnimationFrame(tick)
+      }
+
+      React.useEffect(function () {
+        if (!open) return undefined
+        setFailed(false)
+        let disposed = false
+        loadVendor('vial').then(function (lib) {
+          if (disposed || !canvasRef.current || typeof lib.mountPhysicalWaterVial !== 'function') return
+          controllerRef.current = lib.mountPhysicalWaterVial(canvasRef.current, {
+            fill: stateRef.current.fill,
+            maxTokens: stateRef.current.maxTokens,
+            isDark: stateRef.current.isDark,
+            accentTone: 'cobalt',
+            camp: 'gemini',
+            streaming: false,
+            reducedMotion: appearance.motion === 'off',
+            getState: function () { return stateRef.current },
+            onWake: function () { startLoop() },
+          })
+          startLoop()
+        }).catch(function () {
+          if (!disposed) setFailed(true)
+        })
+        return function () {
+          disposed = true
+          if (loopRef.current) {
+            cancelAnimationFrame(loopRef.current)
+            loopRef.current = 0
+          }
+          const controller = controllerRef.current
+          controllerRef.current = null
+          if (controller && typeof controller.dispose === 'function') {
+            try { controller.dispose() } catch { /* the canvas may already be gone */ }
+          }
+        }
+      }, [open])
+
+      // New numbers, palette or motion tier wake the settled simulator.
+      React.useEffect(function () {
+        if (!open) return
+        const controller = controllerRef.current
+        if (!controller) return
+        if (typeof controller.wake === 'function') controller.wake()
+        startLoop()
+      }, [open, meter && meter.used, appearance.palette, appearance.motion])
+
+      useMenuDismiss(open, closeVial, triggerRef, panelRef)
+
+      function closeVial() {
+        setOpen(false)
+        const node = triggerRef.current
+        if (node && typeof node.focus === 'function') {
+          try { node.focus() } catch { /* focus can fail while unmounting */ }
+        }
+      }
+
+      function toggle() {
+        if (open) {
+          closeVial()
+          return
+        }
+        const node = triggerRef.current
+        if (!node || typeof node.getBoundingClientRect !== 'function') return
+        placement.current = placeMenu(node, { minWidth: 392, extraWidth: 8, maxHeight: 380, align: 'end' })
+        setOpen(true)
+        if (typeof props.onPoke === 'function') {
+          try { props.onPoke() } catch { /* the mascot stage is optional */ }
+        }
+      }
+
+      const percentValue = meter ? Math.min(100, Math.round(meter.percent * 100)) : null
+      const percentText = percentValue === null ? '—' : percentValue + '%'
+      const ariaLabel = t('vialAria') + ' ' + (meter ? percentText : t('vialUnavailable'))
+      const fillRatio = meter ? Math.max(0.06, Math.min(1, meter.percent)) : 0
+      const liquidHeight = 15 * fillRatio
+      const liquidY = 16.5 - liquidHeight
+      const thresholdY = 16.5 - 15 * (meter ? meter.thresholdPercent : 0.6)
+
+      const trigger = h('button', {
+        key: 'vial-trigger',
+        type: 'button',
+        ref: triggerRef,
+        className: 'ct-vial',
+        'data-critical': meter && meter.critical ? 'true' : 'false',
+        'data-empty': meter ? 'false' : 'true',
+        'aria-haspopup': 'dialog',
+        'aria-expanded': open ? 'true' : 'false',
+        'aria-label': ariaLabel,
+        title: ariaLabel,
+        onClick: toggle,
+      },
+      h('svg', { className: 'ct-vial-mini', viewBox: '0 0 10 18', 'aria-hidden': 'true' },
+        h('rect', { className: 'ct-vial-track', x: '2', y: '1.5', width: '6', height: '15', rx: '2.4' }),
+        meter
+          ? h('rect', { className: 'ct-vial-liquid', x: '2.8', y: String(liquidY), width: '4.4', height: String(liquidHeight), rx: '1.6' })
+          : null,
+        meter
+          ? h('line', { className: 'ct-vial-threshold', x1: '1.2', x2: '8.8', y1: String(thresholdY), y2: String(thresholdY) })
+          : null),
+      h('span', { className: 'ct-vial-pct' }, percentText))
+
+      if (!open) return trigger
+
+      const usedParts = breakdown
+        ? {
+            system: Number(breakdown.systemTokens) || 0,
+            tools: Number(breakdown.toolsTokens) || 0,
+            messages: Number(breakdown.messageTokens) || 0,
+          }
+        : null
+      const usedTotal = usedParts ? usedParts.system + usedParts.tools + usedParts.messages : 0
+      const barSegments = usedParts && usedTotal > 0
+        ? [
+            { kind: 'system', width: usedParts.system / usedTotal * 100 },
+            { kind: 'tools', width: usedParts.tools / usedTotal * 100 },
+            { kind: 'messages', width: usedParts.messages / usedTotal * 100 },
+          ].filter(function (part) { return part.width > 0 })
+        : [{ kind: 'total', width: 100 }]
+
+      function row(key, label, value) {
+        return h('div', { className: 'ct-vial-row', key: key },
+          h('dt', null, label),
+          h('dd', null, value))
+      }
+
+      const body = meter
+        ? [
+            h('div', { className: 'ct-vial-stats', key: 'stats' },
+              h('div', { className: 'ct-vial-percent' }, percentText),
+              h('div', { className: 'ct-vial-numbers' }, tokenLabel(meter.used) + ' / ' + tokenLabel(meter.window)),
+              h('dl', { className: 'ct-vial-rows' },
+                row('used', t('vialUsed'), tokenLabel(meter.used)),
+                row('window', t('vialWindow'), tokenLabel(meter.window)),
+                row('threshold', t('vialThreshold'), tokenLabel(meter.threshold) + ' · ' + Math.round(meter.thresholdPercent * 100) + '%'),
+                row('retain', t('vialRetain'), tokenLabel(meter.retain)),
+                row('until', t('vialUntil'), tokenLabel(meter.until))),
+              h('div', { className: 'ct-vial-bar', role: 'presentation' },
+                barSegments.map(function (part) {
+                  return h('i', { key: part.kind, 'data-kind': part.kind, style: { width: part.width + '%' } })
+                })),
+              usedParts
+                ? h('div', { className: 'ct-vial-legend' },
+                    h('div', { className: 'ct-vial-legend-row' },
+                      h('span', { className: 'ct-vial-dot', 'data-kind': 'system' }),
+                      h('span', null, t('vialSystem')),
+                      h('span', null, tokenLabel(usedParts.system))),
+                    h('div', { className: 'ct-vial-legend-row' },
+                      h('span', { className: 'ct-vial-dot', 'data-kind': 'tools' }),
+                      h('span', null, t('vialTools')),
+                      h('span', null, tokenLabel(usedParts.tools))),
+                    h('div', { className: 'ct-vial-legend-row' },
+                      h('span', { className: 'ct-vial-dot', 'data-kind': 'messages' }),
+                      h('span', null, t('vialMessages')),
+                      h('span', null, tokenLabel(usedParts.messages))))
+                : null)
+          ]
+        : [
+            h('div', { className: 'ct-vial-stats', key: 'empty' },
+              h('div', { className: 'ct-vial-percent' }, '—'),
+              h('p', { className: 'ct-vial-empty' }, t('vialUnavailable')))
+          ]
+
+      const popover = h('div', {
+        key: 'vial-popover',
+        ref: panelRef,
+        className: 'ct-vial-popover ct-skin',
+        'data-palette': appearance.palette,
+        'data-motion': appearance.motion,
+        'data-side': placement.current && placement.current.up === false ? 'down' : 'up',
+        'data-critical': meter && meter.critical ? 'true' : 'false',
+        role: 'dialog',
+        'aria-label': t('vialTitle'),
+        tabIndex: -1,
+        style: menuStyle(placement.current),
+      },
+      h('div', { className: 'ct-vial-head' },
+        h('span', { className: 'ct-vial-head-title' },
+          h('span', null, t('vialTitle')),
+          h('span', { className: 'ct-vial-level' }, labelOf(t, props.level))),
+        h('button', {
+          type: 'button',
+          className: 'ct-vial-close',
+          'aria-label': t('vialClose'),
+          title: t('vialClose'),
+          onClick: closeVial,
+        }, '×')),
+      h('div', { className: 'ct-vial-body' },
+        h('canvas', { className: 'ct-vial-canvas', ref: canvasRef, width: 96, height: 220, 'aria-hidden': 'true' }),
+        body),
+      failed ? h('p', { className: 'ct-note', role: 'status' }, t('vialUnavailable')) : null)
+
+      return [
+        trigger,
+        typeof ReactDOM !== 'undefined' && ReactDOM && typeof ReactDOM.createPortal === 'function'
+          ? ReactDOM.createPortal(popover, document.body)
+          : popover,
+      ]
+    }
+
+    /**
+     * The vendored pixel companions, mounted into a fixed 220×84 stage. The
+     * stage owns its DOM (three mini crabs plus the cat/clawd pair); React only
+     * provides the host element and disposes the stage on unmount.
+     */
+    function MascotStage(props) {
+      const hostRef = React.useRef(null)
+      const stageRef = React.useRef(null)
+      const [state, setState] = React.useState('loading')
+
+      React.useEffect(function () {
+        let disposed = false
+        loadVendor('mascot').then(function (lib) {
+          if (disposed || !hostRef.current || typeof lib.mountDualMascotStage !== 'function') return
+          const stage = lib.mountDualMascotStage(hostRef.current, {
+            mascot: 'minis',
+            camp: 'gemini',
+            reducedMotion: props.motion === 'off',
+            // Do not write the rainbow easter egg into the host's localStorage.
+            storage: { getItem: function () { return null }, setItem: function () {}, removeItem: function () {} },
+          })
+          if (!stage) {
+            setState('failed')
+            return
+          }
+          stageRef.current = stage
+          if (props.stageRef) props.stageRef.current = stage
+          setState('ready')
+        }).catch(function () {
+          if (!disposed) setState('failed')
+        })
+        return function () {
+          disposed = true
+          const stage = stageRef.current
+          stageRef.current = null
+          if (props.stageRef) props.stageRef.current = null
+          if (stage && typeof stage.dispose === 'function') {
+            try { stage.dispose() } catch { /* the host may already be gone */ }
+          }
+        }
+      }, [])
+
+      React.useEffect(function () {
+        const stage = stageRef.current
+        if (stage && typeof stage.setState === 'function') {
+          stage.setState({ reducedMotion: props.motion === 'off' })
+        }
+      }, [props.motion])
+
+      return h('div', {
+        ref: hostRef,
+        className: 'ct-mascot-stage',
+        'data-state': state,
+        'aria-hidden': 'true',
+      })
+    }
+
+    /**
      * Composer dock row: which online repository this session publishes to.
      * The row sits above the input card, so a blank Session shows it too (the
      * title cluster is hidden there) and the listbox can open upward.
@@ -1307,13 +2461,29 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState(false)
       const [open, setOpen] = React.useState(false)
       const [active, setActive] = React.useState(0)
+      // The palette and mascot flag come from the same snapshot the panel uses.
+      const [settings, setSettings] = React.useState(settingsCache.body)
       const pillRef = React.useRef(null)
       const menuRef = React.useRef(null)
       const placement = React.useRef(null)
       const mounted = React.useRef(true)
+      const mascotRef = React.useRef(null)
+      // Official token-meter projections. The dock slot is session-scoped, so
+      // these stay live while the conversation runs; older hosts without the
+      // hook simply render the vial without a reading.
+      const useProjection = props && typeof props.useProjection === 'function' ? props.useProjection : null
+      const pressure = useProjection ? useProjection('contextPressure') : undefined
+      const breakdown = useProjection ? useProjection('contextBreakdown') : undefined
+      const appearance = normalizeAppearance(settings && settings.appearance)
+      const spec = levelSpecOf(settings)
+      const level = settings && settings.level ? settings.level : 'standard'
+      const meter = vialMeter(pressure, spec)
 
       React.useEffect(function () {
         mounted.current = true
+        loadSettingsSnapshot().then(function (body) {
+          if (mounted.current && body) setSettings(body)
+        })
         if (sessionId) {
           fetch(GH_BINDING_API + '?session=' + encodeURIComponent(sessionId), { credentials: 'same-origin' })
             .then(readJson)
@@ -1478,7 +2648,8 @@ window.__ModuleLoader__.load({
       const menu = open && ReactDOM && typeof ReactDOM.createPortal === 'function'
         ? ReactDOM.createPortal(h('div', {
           ref: menuRef,
-          className: 'ct-menu',
+          className: 'ct-menu ct-skin',
+          'data-palette': appearance.palette,
           role: 'listbox',
           tabIndex: -1,
           'data-side': at.up ? 'up' : 'down',
@@ -1489,11 +2660,35 @@ window.__ModuleLoader__.load({
         }, menuChildren), document.body)
         : null
 
-      // The dock row renders in place above the composer: note (if any), then
-      // the pill, both flush with the input card's right edge.
-      return h('div', { className: 'ct-repo-dock' },
+      // The dock row renders in place above the composer: the pixel companions
+      // on the left, then the vial, an optional network note and the repository
+      // pill, all flush with the input card's right edge.
+      return h('div', {
+        className: 'ct-repo-dock ct-skin',
+        'data-palette': appearance.palette,
+        'data-motion': appearance.motion,
+      },
+      appearance.mascots
+        ? h('div', { key: 'mascots', className: 'ct-dock-mascots' },
+            h(MascotStage, {
+              motion: appearance.motion,
+              stageRef: mascotRef,
+            }))
+        : null,
+      h('div', { key: 'tools', className: 'ct-dock-tools' },
+        h(ContextVial, {
+          t: t,
+          meter: meter,
+          breakdown: breakdown,
+          level: level,
+          appearance: appearance,
+          onPoke: function () {
+            const stage = mascotRef.current
+            if (stage && typeof stage.poke === 'function') stage.poke('cat')
+          },
+        }),
         note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
-        h('span', { className: 'ct-repo-group' }, pill, menu))
+        h('span', { className: 'ct-repo-group' }, pill, menu)))
     }
 
     /**
@@ -1580,7 +2775,8 @@ window.__ModuleLoader__.load({
       const menu = open && ReactDOM && typeof ReactDOM.createPortal === 'function'
         ? ReactDOM.createPortal(h('div', {
           ref: menuRef,
-          className: 'ct-menu',
+          className: 'ct-menu ct-skin',
+          'data-palette': props.palette || 'host',
           role: 'listbox',
           tabIndex: -1,
           'data-side': at.up ? 'up' : 'down',
@@ -1646,6 +2842,10 @@ window.__ModuleLoader__.load({
       const [workspaceText, setWorkspaceText] = React.useState('')
       const [workspaceMessage, setWorkspaceMessage] = React.useState('')
       const [workspaceBusy, setWorkspaceBusy] = React.useState(false)
+      // Appearance is applied optimistically; a failed write rolls the panel
+      // back to the last saved snapshot and says why.
+      const [appearanceBusy, setAppearanceBusy] = React.useState(false)
+      const [appearanceMessage, setAppearanceMessage] = React.useState('')
       // Which page of the shell is open. Declared last so the hook order above
       // stays stable for the test harness.
       const [section, setSection] = React.useState('levels')
@@ -1689,6 +2889,7 @@ window.__ModuleLoader__.load({
           .then(readJson)
           .then(function (body) {
             if (!mounted.current) return
+            rememberSettings(body)
             setState(body)
             setMessage('')
           })
@@ -1989,6 +3190,7 @@ window.__ModuleLoader__.load({
           .then(readJson)
           .then(function (body) {
             if (!mounted.current) return
+            rememberSettings(body)
             setState(body)
             setMessage(t('applied') + ' ' + labelOf(t, id))
           })
@@ -1998,6 +3200,43 @@ window.__ModuleLoader__.load({
           })
           .then(function () {
             if (mounted.current) setBusy(false)
+          })
+      }
+
+      /**
+       * Appearance writes go through the same settings route. The change is
+       * painted immediately (palette and mascots are local state), then the
+       * saved payload replaces it; a failed save restores the previous value.
+       */
+      function applyAppearance(patch) {
+        if (appearanceBusy || !state) return
+        const previous = state.appearance || DEFAULT_APPEARANCE
+        const optimistic = normalizeAppearance({ ...previous, ...patch })
+        setState({ ...state, appearance: optimistic })
+        setAppearanceBusy(true)
+        setAppearanceMessage('')
+        fetch(API, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ appearance: patch }),
+        })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            rememberSettings(body)
+            setState(body)
+            setAppearanceMessage(t('appearanceApplied'))
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setState(function (current) {
+              return current ? { ...current, appearance: previous } : current
+            })
+            setAppearanceMessage(t('appearanceFailed') + messageOf(error))
+          })
+          .then(function () {
+            if (mounted.current) setAppearanceBusy(false)
           })
       }
 
@@ -2388,6 +3627,7 @@ window.__ModuleLoader__.load({
               h('span', null, t('workspaceSelectLabel')),
               h(Select, {
                 t: t,
+                palette: normalizeAppearance(state && state.appearance).palette,
                 items: workspaceList.map(function (item) {
                   return { value: item.id, label: item.title }
                 }),
@@ -2420,6 +3660,61 @@ window.__ModuleLoader__.load({
           }),
         ]),
         h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, workspaceMessage))
+
+      // Appearance: four scoped optical palettes plus the host theme, a motion
+      // tier and the pixel companions. Values apply immediately; the page has no
+      // save button because there is nothing to type.
+      const appearance = normalizeAppearance(state && state.appearance)
+      const appearanceDisabled = appearanceBusy || !state
+      const appearancePanel = h('section', { className: 'ct-panel', key: 'appearance' },
+        h('div', { className: 'ct-rules-head' },
+          h('h3', null, t('appearanceTitle'))),
+        h('div', { className: 'ct-field' },
+          h('span', null, t('paletteLabel')),
+          h('div', { className: 'ct-swatches', role: 'radiogroup', 'aria-label': t('paletteLabel') },
+            PALETTES.map(function (choice) {
+              return h('button', {
+                key: choice.id,
+                type: 'button',
+                role: 'radio',
+                'aria-checked': appearance.palette === choice.id ? 'true' : 'false',
+                className: 'ct-swatch',
+                'data-choice': choice.id,
+                disabled: appearanceDisabled,
+                onClick: function () { applyAppearance({ palette: choice.id }) },
+              },
+              h('span', { className: 'ct-swatch-band', 'data-choice': choice.id }),
+              h('span', { className: 'ct-swatch-name' }, t(choice.labelKey)))
+            }))),
+        h('div', { className: 'ct-field' },
+          h('span', null, t('motionLabel')),
+          h('div', { className: 'ct-segments', role: 'radiogroup', 'aria-label': t('motionLabel') },
+            MOTIONS.map(function (choice) {
+              return h('button', {
+                key: choice.id,
+                type: 'button',
+                role: 'radio',
+                'aria-checked': appearance.motion === choice.id ? 'true' : 'false',
+                className: 'ct-segment',
+                'data-motion-choice': choice.id,
+                disabled: appearanceDisabled,
+                onClick: function () { applyAppearance({ motion: choice.id }) },
+              }, t(choice.labelKey))
+            }))),
+        h('div', { className: 'ct-field' },
+          h('span', null, t('mascotsLabel')),
+          actionRow([
+            h('button', {
+              key: 'mascots',
+              type: 'button',
+              className: 'ct-btn' + (appearance.mascots ? ' ct-btn--primary' : ''),
+              'data-action': 'appearanceMascots',
+              'aria-pressed': appearance.mascots ? 'true' : 'false',
+              disabled: appearanceDisabled,
+              onClick: function () { applyAppearance({ mascots: !appearance.mascots }) },
+            }, appearance.mascots ? t('mascotsOn') : t('mascotsOff')),
+          ])),
+        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, appearanceMessage))
 
       // Navigation rail: every page is always listed, so a page never disappears
       // just because its data is empty.
@@ -2473,10 +3768,15 @@ window.__ModuleLoader__.load({
         rules: [rulesPanel],
         workspace: [workspacePanel],
         components: [componentsPanel],
+        appearance: [appearancePanel],
         github: [ghAuthPanel],
       }
 
-      return h('section', { className: 'ct-page' },
+      return h('section', {
+        className: 'ct-page ct-skin',
+        'data-palette': appearance.palette,
+        'data-motion': appearance.motion,
+      },
         h('div', { className: 'ct-shell' },
           nav,
           h('div', { className: 'ct-content', key: activeSection }, pages[activeSection])))

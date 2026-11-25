@@ -1,6 +1,20 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.10.3`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.0.0`。
+
+## 2.0.0 — 2026-11-25
+
+- **移植 [Obsidian Prism](https://github.com/RMvdesi/obsidian-prism) 的光学界面**：`vendor/obsidian-prism/vial-core.js`（浅水波上下文试管）与 `dual-mascot-rig.js`（像素伙伴装配）是上游 `1.0.8-beta.1` 的 UMD 模块，逐字移植，只在文件头部加了出处与修改说明（2026-11-25）。它们不被打包进 `client.js`：新增同源路由 `GET /compression-tiers/vendor/<name>`（只服务这两个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`），客户端用普通 `<script src="…?v=2.0.0">` 按需加载，不用 `eval`、不背 300KB。
+- **许可证改为 `GPL-3.0-only`**：`LICENSE` 换成 GNU GPL v3 全文；新增 `NOTICE`（衍生作品声明 + 上游 NOTICE 全文）与 `THIRD_PARTY_NOTICES.md`（上游吸收的 MIT 项目完整声明）。`package.json` 的 `license`、`files`（`vendor` / `NOTICE` / `THIRD_PARTY_NOTICES.md`）与 `exports`（`./vendor/*`）同步。**1.10.3 及更早仍是 MIT。**
+- **输入框上方那一行重做**：原来只有仓库胶囊，现在是「像素伙伴 + 工具区」两段——伙伴占 220×84，工具区右对齐放试管触发器、状态小字与仓库胶囊。`.ct-repo-dock` 加 `container-type: inline-size`，`@container (max-width: 620px)` 时伙伴让位，只留控件（按行宽判断，不按窗口宽度）。
+- **上下文试管**：`ContextVial` 在工具区渲染一个 26px 胶囊（10×16 的 SVG 迷你试管 + 百分比），点开是 portal 到 body 的浮窗——96×220 的 canvas 交给移植模块跑物理，右侧列出已用 / 窗口 / 压缩阈值 / 保留原文 / 距阈值，下面是系统 / 工具 / 对话三段构成条与图例。数字全部来自官方投影 `contextPressure` 与 `contextBreakdown`，缺失时显示「—」而不是 0；浮窗上拉，Esc / 外部点击关闭并把焦点还给触发器。
+- **像素伙伴**：`MascotStage` 用 `'minis'` 编队（小紫猫 + Clawd + 三只迷你蟹）跑 canvas 像素画，点一下 `poke()`；模块加载失败时整块收起，不留空白框。**默认开启**——这是 2.0.0 算大版本的原因之一，不想要就在外观页关掉。
+- **外观页（第六个分页）**：配色 5 选 1（跟随宿主 / 深空黑曜 / 暖炭玄岩 / 白昼冷晶 / 暖白画册）、动效 3 档（完整 / 克制 / 关闭）、像素伙伴开关。点选即乐观 `POST /compression-tiers/api/settings`，失败回滚并在卡片底部报错；请求进行中三个控件一起置灰。`src/store.js` 新增 `APPEARANCE_PALETTES` / `APPEARANCE_MOTIONS` / `defaultAppearance()`（`host` / `full` / 伙伴开启）与 `normalizeAppearance()`，`settings.appearance` 在读写两侧都归一化，未知值回落默认。
+- **配色是整份 token 覆盖，但只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行、portal 菜单与试管浮窗上，四套值不渗到宿主界面；`host` 是空集。浅色两套同时设 `color-scheme: light`（否则原生滚动条与输入框还是深色），玻璃变量也跟着换（白底高透 + 冷/暖阴影）。
+- **动效档位**：`subtle` 去掉分页 / 菜单进场与液面过渡，`off` 再把 `reducedMotion` 传给试管与伙伴；实现只有两条 CSS 加一处 JS 传参，新增动效时必须三档都过一遍。
+- 新增 `test/vendor.test.js`（UMD 用 `node:vm` 装载、出处头、GPL 文件、vendor 路由、manifest 许可与 `files`）与外观 / 试管 / 伙伴 / 设置归一化用例；`test/client.test.js` 的 harness 跟着六页与新增 hooks 更新。测试 192 → **205** 条。
+- **README 按上游体例重写**：居中图标 + 标题 + 徽章 + 主图、非官方声明、亮点、界面预览（配色表 / 试管 / 伙伴 / 面板）、快速安装、使用、档位与组件表、`<details>` 技术细节、GPL 与上游致谢、开发与目录树；新增 `docs/screenshots/` 五张截图，`docs/DETAIL*.md` 的单图换成 `screenshots/hero.png`（`docs/preview.svg` 删除）。[docs/UI.md](docs/UI.md) 增补配色皮肤、外观页、输入框上方那一行、动效档位与检查清单；[AGENTS.md](AGENTS.md) 范围 / 事实来源 / 约束 / 验证 / 索引同步。
+- 渲染未验证：截图与几何结论来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库 `client.js` 与移植模块）；真实 DSH 窗口（当前安装的是 1.10.1）里的最终观感要装上新版本后刷新确认。
 
 ## 1.10.3 — 2026-11-25
 
