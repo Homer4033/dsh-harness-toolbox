@@ -9,6 +9,7 @@
 - **六套统一**：`COMPONENT_ORDER` / `TOOL_DIRS` / `componentRows()` / `componentsPayload` / `toolsStatus.running` 与整体迁移都改成六套；客户端 `COMPONENT_ROWS` 六行，版本位对非数字钉不加 `v`；`prependComponentPath()` 对没有 binary 的项直接返回 false，`parseComponentVersion()` 对没有 `versionPattern` 的项返回 null。
 - **顺便补上下载的空闲闸门**（`src/gh.js`，gh / ffmpeg / git / Python / 模型共用）：半开连接上 `fetch` 不会自己报错，ComfyUI 归档实测在 9.8 MB 处停住 8 分钟毫无反应，`pipeline` 就一直等着。现在 `downloadWithResume` 带 `idleTimeoutMs`（默认 `DOWNLOAD_IDLE_TIMEOUT_MS` 60 秒），超过没有新字节即按可重试错误处理，下一次尝试从 `.part` 续传——这也顺带治好了 16 GB 模型下载可能永远「下载中」的问题。测试覆盖「body 停住不来数据 → 重试并从 `.part` 续传」。
 - 测试 249 → **255**：`any` 资产在任意平台返回同一份归档、`archiveTree()` 只剥单层包裹、标记文件存在才算 installed、源码树不进 PATH、六行顺序与按钮一致性、迁移集合含新目录；README、AGENTS.md、docs/UI.md、locale 描述同步，2.4.6 / 2.4.7 的变更记录移入 docs/HISTORY.md（归档范围改为 1.0 – 2.4.7）。
+
 ## 2.5.1 — 2026-11-25
 
 - **模型下载在国内网络下必失败**（用户实测：`D:\Components\models\flux2-klein-4b` 报 `fetch failed (gave up after 4 attempts)`）：2.5.0 只认 `huggingface.co`，而这台机器上 `huggingface.co:443` 不可达、`hf-mirror.com:443` 可达。现在 `src/models.js` 新增 `MODEL_ENDPOINTS = ['https://hf-mirror.com', 'https://huggingface.co']`：逐个文件按顺序试，镜像失败再回落到上游；`.part` 跨端点共享（字节相同，换端点继续续传，不会重下已下的部分）；`DSH_HF_ENDPOINT` 可覆盖首选端点。两个端点都失败时错误信息列出每个 host 与原因（如 `hf-mirror.com: fetch failed (ENOTFOUND)`），不再只有一句 `fetch failed`。
@@ -370,6 +371,7 @@
 - 接口收敛：`/api/github` 只保留 `download` / `login` / `cancel`，`configure` / `push` / `create` / `view` 下线；`GET /api/github/repo` 删除；网络体检固定在本插件检出目录上跑（只为读 git 的 `http.proxy`）。
 - 设置里删掉 `github.repoPath`（升级后下一次写入即清掉），`resolveRepoPath` 一并移除；`github_push` 的目录选择变成「显式 `path` → 本会话工作目录」，不再有配置兜底。
 - 测试同步：`test/push-flow.test.js` 覆盖「显式 → 会话、无兜底」，`test/store.test.js` 断言 `repoPath` / `repos` 从内存与磁盘上一起消失；共 92 条。
+
 ## 1.5.0 — 2026-11-19
 
 - **删掉左侧栏「仓库」面板**：官方「变更请求与工作树」bundle 已经在管仓库与工作树 UI，自建面板与它重复。移除 `sidebar.panellist` / `main` 两个注册、面板组件与图标、`repos*` 文案、`GET /api/github/repos` 路由和 `configure` 的 `repos` 字段（现在返回 400 说明已下线）。
