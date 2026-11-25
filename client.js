@@ -23,7 +23,15 @@ window.__ModuleLoader__.load({
     const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.6.2'
+    const PLUGIN_VERSION = '2.6.3'
+    // `conversation.input.dock` is a list slot rendered top-to-bottom by
+    // ascending `order`. The host owns every row above this plugin's one: the
+    // todo/task bar an agent opens (`todo`, order 0), the worktree strip
+    // (`forge-panel.worktree`, 5), the goal bar (`goal`, 10) and the queue
+    // (`queue`, 20); the extension guide's own example uses 100. This row must
+    // stay the last one above the input card — 任务栏 → 仓库栏和试管 → 输入卡 —
+    // so it takes a sentinel instead of a competing small number.
+    const DOCK_ORDER_LAST = 1000
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -5571,11 +5579,13 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         })
         // Composer dock: which online repository this session publishes to.
         // The dock renders in a blank Session too, unlike the title cluster.
+        // DOCK_ORDER_LAST keeps this the last row above the input card, so the
+        // agent's task bar and every other host row stay above it.
         ctx.slots.inject('conversation.input.dock', function () {
           return ctx.slots.register({
             name: 'conversation.input.dock',
             id: 'compression-repo',
-            order: 90,
+            order: DOCK_ORDER_LAST,
             locale: NS,
           }, RepoBinding)
         })

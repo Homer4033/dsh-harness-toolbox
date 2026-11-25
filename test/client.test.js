@@ -372,7 +372,13 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   // and it renders in place instead of being portaled into the tab strip.
   const dock = registrations.find((item) => item.options.name === 'conversation.input.dock')
   assert.equal(dock.options.id, 'compression-repo')
-  assert.equal(dock.options.order, 90)
+  // The dock is a list slot sorted by ascending `order`: the agent's task bar
+  // is the host `todo` entry (0), the worktree strip is 5, the goal bar 10 and
+  // the queue 20, and the extension guide's example uses 100. A sentinel keeps
+  // this row the last one above the input card, so up-to-bottom stays
+  // 任务栏 → 仓库栏和试管 → 输入卡 instead of a row slipping in between.
+  assert.equal(dock.options.order, 1000)
+  assert.ok(dock.options.order > 100)
   assert.equal(dock.options.locale, 'compressionTiers')
   // The sheet is injected once, globally: the dock pill renders outside the
   // toolbox panel and must not depend on that panel having been opened.
@@ -521,6 +527,43 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
     Object.keys(dictionaries.dicts.en).sort(),
     'both locales carry the same keys',
   )
+})
+
+test('the repository row is the last composer dock row, below the agent task bar', () => {
+  const { module } = loadClient()
+  const registrations = []
+  const ctx = {
+    effect(fn) {
+      const dispose = fn()
+      return () => {
+        if (typeof dispose === 'function') dispose()
+      }
+    },
+    locale: {
+      register() { return () => {} },
+      bind() { return (key) => key },
+    },
+    slots: {
+      inject(_slot, callback) {
+        return callback()
+      },
+      register(options) {
+        registrations.push(options)
+        return () => {}
+      },
+    },
+  }
+  module.factory(() => fakeReact(null)).apply(ctx)
+  const dock = registrations.find((options) => options.name === 'conversation.input.dock')
+  // `conversation.input.dock` is a list slot the host renders by ascending
+  // `order`: the agent's task bar is `todo` (0), the worktree strip is
+  // `forge-panel.worktree` (5), the goal bar `goal` (10) and the queue `queue`
+  // (20); the extension guide's own example uses 100. Staying below the task
+  // bar and directly above the input card means clearing every one of them.
+  for (const hostOrder of [0, 5, 10, 20, 100]) {
+    assert.ok(dock.order > hostOrder, `the dock row must render after order ${hostOrder}`)
+  }
+  assert.equal(dock.order, 1000)
 })
 
 test('the tiers page renders five tier buttons and the current tier', () => {

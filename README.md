@@ -12,10 +12,10 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.6.2-0f172a?style=flat-square" alt="Version 2.6.2" />
+  <img src="https://img.shields.io/badge/Version-2.6.3-0f172a?style=flat-square" alt="Version 2.6.3" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-257%20passing-16a34a?style=flat-square" alt="257 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-258%20passing-16a34a?style=flat-square" alt="258 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -170,7 +170,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.6.2`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.6.3`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -193,7 +193,8 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **1.x → 2.0.0 / 2.2.0**：`settings.json` 里多一个 `appearance` 块（缺省即 `host` / `full` / 美术层开启），规则、组件、下载目录、会话仓库绑定都不动，不需要搬文件。
 - **2.4.x → 2.5.0**：像素伙伴整块删除，旧 `settings.json` 里的 `appearance.mascots` 会被直接忽略（不回写、不报错）；外观页只剩配色、动效与光学外观三组。新增「本地模型」一行，但不会自动下载任何东西。
 - **2.5.x → 2.6.0**：「模型和组件」页多出 ComfyUI 与 ComfyUI MCP 两行（GitHub 仓库归档，只下载解压，不建 venv、不启动）。设置、已装组件与下载目录都不动，也不会自动下载；点了才下。
-- **2.6.1 → 2.6.2**：「模型和组件」页从「一个组件一张卡」改成一张卡片里的两段列表（组件六行 + 本地模型一行），行尾两个按钮，路径 / 进度 / 错误横跨整行；数据与行为都不变，只是排版。（`hf-mirror.com` 的大文件实测只有约 150 KB/s，15.98 GB 要一天）；面板、设置与已下好的文件都不动，升级后再点「下载」会从原 `.part` 接着下。
+- **2.6.1 → 2.6.2**：「模型和组件」页从「一个组件一张卡」改成一张卡片里的两段列表（组件六行 + 本地模型一行），行尾两个按钮，路径 / 进度 / 错误横跨整行；数据与行为都不变，只是排版。面板、设置与已下好的文件都不动，升级后再点「下载」会从原 `.part` 接着下。
+- **2.6.2 → 2.6.3**：输入框上方那一行（仓库栏 + 试管）在 `conversation.input.dock` 里的 `order` 从 90 抬到 1000，明确它永远是输入卡正上方那一行；智能体的「任务」清单条（order 0）本来就在它上面，这次只是把次序写死并加了回归测试。数据、设置与界面布局都不动，升级后不需要任何操作。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
 - **卸载**：插件页移除即可，托管组件目录留在原处，删掉目录即彻底清理。
 
@@ -220,6 +221,8 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **试管触发器**：显示当前占用百分比，点开 `ContextVial` 浮窗；
 - **仓库胶囊**：给当前会话绑定一个在线仓库，`github_push` 默认推到它；空会话里也渲染，菜单向上弹出；
 - **状态小字**：胶囊还在读仓库列表、或保存绑定失败时，在胶囊左边写一行状态。
+
+槽里按 `order` 升序排队，宿主自己占着上面几行：智能体用 `todo_write` 起的「任务」清单条（`todo`，order 0，条目 1/2/3/4 排开）、工作树进度（5）、目标条（10）、队列（20）。本行取 `order: 1000`，所以上到下固定是 **任务栏 → 仓库栏和试管 → 输入卡**：仓库行永远是输入卡正上方那一行，任务栏永远在它上面；没有任务时这一行就直接贴着输入卡。
 
 ### 官方模型菜单里的推理滑块
 
@@ -283,10 +286,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.6.2`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.6.3`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.6.2` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.6.3` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」并禁用触发器（`title` 说明读不到），不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
@@ -298,7 +301,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍——但**只有完整下载才落成归档**（body 比 `content-length` 短算可重试的断点续传），归档解压不出二进制或暂存自检失败时会先删掉它，下一次重新下载而不是反复解压同一个坏文件。备份目录的清理失败不会回滚已经自检通过的安装。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 257 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块 / 整行围栏标记 400）、`gh` / 组件 / 下载位置（含短读重试、停住 60 秒的掉线重试、PowerShell 兜底、复制失败回滚后半程可重试）、源码树组件（仓库归档的 `any` 资产、剥掉 GitHub 的 `ComfyUI-0.46.0/` 外层目录、按标记文件判定安装、不参与 PATH、六行统一形状）、组件与模型的列表页（一张卡片、两段列表、七行、行尾两个按钮、不再有 `ct-component`）、本地模型（钉住的文件清单与总字节数、端点顺序与回落、`DSH_HF_ENDPOINT` 覆盖、三态、`.part` 续传、下载中 409、未知 id 404）、发布流程、移植模块的 UMD 装载与署名（白名单只剩 `vial-core.js`）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级、试管禁用态、设置快照推送、底光 `::before` 与 `--ct-glow-height`、宿主上下文环隐藏，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 258 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、全局规则与工作区受管块（创建 / 替换 / 保留正文 / 只读受管块 / 整行围栏标记 400）、`gh` / 组件 / 下载位置（含短读重试、停住 60 秒的掉线重试、PowerShell 兜底、复制失败回滚后半程可重试）、源码树组件（仓库归档的 `any` 资产、剥掉 GitHub 的 `ComfyUI-0.46.0/` 外层目录、按标记文件判定安装、不参与 PATH、六行统一形状、dock 次序（任务条在上、仓库行贴输入卡））、组件与模型的列表页（一张卡片、两段列表、七行、行尾两个按钮、不再有 `ct-component`）、本地模型（钉住的文件清单与总字节数、端点顺序与回落、`DSH_HF_ENDPOINT` 覆盖、三态、`.part` 续传、下载中 409、未知 id 404）、发布流程、移植模块的 UMD 装载与署名（白名单只剩 `vial-core.js`）、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、推理滑块的档位映射 / 轨道几何 / 语义锚点查找（含标签认行与多行时的不注入）/ 目录退避与重建 / 写入与回滚、三档动效 / `host` 撤下与渲染器降级、试管禁用态、设置快照推送、底光 `::before` 与 `--ct-glow-height`、宿主上下文环隐藏，manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 

@@ -242,6 +242,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - 行宽按输入卡几何收窄并居中（见上一节「胶囊必须正对输入卡」），`box-sizing: border-box`。
 - **2.5.0 按用户要求整块删除像素伙伴**：没有左段、没有 `.ct-dock-mascots` / `.ct-mascot-stage`、没有 `@container (max-width: 620px)` 的收伙伴规则，`.ct-repo-dock` 也不带 `container-type`。不要为了「以后可关」把舞台或开关加回来（产品决定，写进 [AGENTS.md](../AGENTS.md) 第 23 条）。
 - 这一行只有试管触发器、状态小字与胶囊三样东西；窄了就让胶囊自己缩，不要新增占位块把行撑宽。
+- **上到下固定是「任务栏 → 仓库栏和试管 → 输入卡」（2.6.3）**：`conversation.input.dock` 是 `list` 槽，宿主按 `order` **升序**渲染（`[...rows].sort((a, b) => a.order - b.order)`），宿主自己的行都占着上面——智能体 `todo_write` 起的「任务」清单条（`todo`，order 0，条目 1/2/3/4 排开）、工作树进度（5）、目标条（10）、队列（20），扩展文档自带的示例用 100。本行取 order **1000**（`client.js` 的 `DOCK_ORDER_LAST`），所以它永远是输入卡正上方那一行，「任务栏」永远在它上面。不要把 order 改小或改成负数，也不要去改宿主条目的 order。
 
 ## 推理滑块（注入官方模型菜单）
 
@@ -328,7 +329,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | `.ct-skin` | 插件自己的皮肤根：携带 `data-palette` / `data-motion`（面板页、dock 行、菜单、试管浮窗） |
 | `.ct-swatches` / `.ct-swatch` / `.ct-swatch-band` | 外观页配色栅格 / 单个色板（`role=radio`）/ 三段色带 |
 | `.ct-segments` / `.ct-segment` | 外观页动效分段组 / 单个分段按钮 |
-| `.ct-repo-dock` / `.ct-repo-pill` / `.ct-repo-note` | 输入框上方那一行（收窄到输入卡并居中、容器查询的容器）/ 仓库胶囊 / 状态小字 |
+| `.ct-repo-dock` / `.ct-repo-pill` / `.ct-repo-note` | 输入框上方那一行（收窄到输入卡并居中，order 1000 的 dock 最后一行）/ 仓库胶囊 / 状态小字 |
 | `.ct-list` / `.ct-list-head` | 「模型和组件」页的列表容器 / 分组标题（组件、本地模型） |
 | `.ct-item` / `.ct-item-main` / `.ct-item-name` / `.ct-item-pin` / `.ct-item-state` | 列表行 / 行首文本块 / 名称 / 钉住版本 / 状态 |
 | `.ct-item-path` / `.ct-item > .ct-actions` | 行内路径 / 住在行尾的两个按钮 |
