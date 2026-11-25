@@ -1,6 +1,17 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.3.0`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。
+
+## 2.4.0 — 2026-11-25
+
+- **补上上游真正的动效**：2.3.0 把美术层补成静态之后，用户问「跟 RMvdesi/obsidian-prism 一样吗？我感觉他有动效呢」。查上游仓库确认：它的动效不是 CSS keyframes，而是 `conv-aura.js` + `ripple-core.js` 里的 canvas 程序化渲染——逐像素画对话区底部的地平线辉光（两个正弦波叠出的 curtain、`valueNoise` 的 jitter、halftone 点阵、深色钴蓝→青 / 浅色宝蓝水彩）。`style.css` 里那批 keyframes 只是 Obsidian 自身 DOM（spinner、思考流、侧栏行）的微交互，DSH 没有对应结构。
+- **新增移植文件 `vendor/obsidian-prism/horizon-glow.js`**（2026-12-01 从 `ripple-core.js` 逐字抽出）：`createBrandHorizon2DRenderer` 加它的依赖（`hash` / `valueNoise` / `smooth` / `horizonPrismRgb` / `DEFAULT_HORIZON_AURA` / `clampFinite` / `isCanvasDocHidden`），带出处与抽取说明；**不含** WebGL 渲染器、glyph field、ripple 与 spectrum 检测路径。宿主白名单与客户端 `VENDOR_SCRIPTS` 同步加上这个名字（同源路由照旧、`?v=` 跟着版本走）。
+- **控制器在 `client.js`**（`auraRuntime` / `auraAllowed` / `auraMotion` / `syncAura` / `drawAuraFrame` / `watchAura`）：画布作为 `[data-conversation-region='chat']` 的第一个子节点挂在一个 `aria-hidden` 的 `.ct-aura-host` 里，绝对定位贴底 32%、`z-index: 0`，同时把 `[data-conversation-scroll]` 提到 `z-index: 1`——辉光在底色之上、正文之下，不接点击也不参与排版。`rAF` 上限 ~30fps（与上游一致），设备像素比按 `min(dpr, 1.5) × 0.72` 出图。
+- **三档动效直接管它**：`full` 原速；`subtle` 速度 ×0.45、强度 0.5；`off` 只画一帧静态图并停止排帧。渲染 `reach` 用 0.72（上游默认 0.47 是给没有输入卡遮挡的画布用的，DSH 的输入卡压住底部约 150px）。`document.hidden` 时不排帧；React 换掉对话区节点时每 1.2s 复核并重新挂载。
+- **闸门不变**：`host` 配色或 `art: false` 时连 canvas 都不挂（控制器与静态美术共用 `applyOptics()` 的两个 body 属性），vendor 脚本也是美术层开启后才取。
+- 测试 216 → **219** 条：`test/vendor.test.js` 新增出处头 / 抽取范围（不得把 GL、glyph、ripple 路径带进来）/ `mount` 的 resize-draw-clear / 无 2d context 的降级；`test/client.test.js` 新增「挂在对话区第一个子节点且 `aria-hidden`」「`subtle` / `off` / 未知值分档」「`off` 不再排帧」「`host` 切换后画布被移除」「vendor 就绪后先 sizing 再出帧」。
+- 文档：README 新增「界面预览 3. 会动的背景」小节与 `docs/screenshots/aura.png`，亮点 / 技术细节 / 测试数同步；[docs/UI.md](docs/UI.md) 新增「地平线辉光」一节（挂载点、三档、重建、为什么不加 keyframes）；[AGENTS.md](AGENTS.md) 第 23 条拆出「地平线辉光是美术层唯一的动效」、范围 / 事实来源 / 验证要求同步；`NOTICE` 补 `horizon-glow.js` 的衍生声明。
+- **渲染未验证**：`docs/screenshots/aura.png` 来自离线舞台（真实 `horizon-glow.js` + 按 DSH 语义属性搭的对话区 + 黑曜 token，由无头 Chrome 截图），真实窗口里的速度与浓度仍需装上后确认。
 
 ## 2.3.0 — 2026-11-25
 

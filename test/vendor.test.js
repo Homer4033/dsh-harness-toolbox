@@ -14,7 +14,7 @@ import vm from 'node:vm'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const vendorDir = join(root, 'vendor', 'obsidian-prism')
 
-function loadUmd(name) {
+function loadUmd(name, extra = {}) {
   const code = readFileSync(join(vendorDir, name), 'utf8')
   const sandbox = {
     module: { exports: {} },
@@ -23,9 +23,13 @@ function loadUmd(name) {
     Math,
     Date,
     Float32Array,
+    Uint32Array,
+    Uint8Array,
+    Uint8ClampedArray,
     performance: { now: () => 0 },
     setTimeout,
     clearTimeout,
+    ...extra,
   }
   sandbox.globalThis = sandbox
   vm.createContext(sandbox)
@@ -59,6 +63,44 @@ test('the vendored optical modules carry provenance headers and still expose the
   assert.equal(existsSync(join(vendorDir, 'motion-engine.js')), false, 'the unused motion module is not shipped')
 })
 
+test('the horizon glow keeps upstream provenance and paints through the 2D renderer', () => {
+  const path = join(vendorDir, 'horizon-glow.js')
+  assert.ok(existsSync(path), 'horizon-glow.js is shipped')
+  const source = readFileSync(path, 'utf8')
+  assert.match(source, /https:\/\/github\.com\/RMvdesi\/obsidian-prism/)
+  assert.match(source, /ripple-core\.js/)
+  assert.match(source, /GPL-3\.0-only/)
+  assert.match(source, /Modified: 2026-12-01/)
+  // The extracted module must not drag the rest of ripple-core in.
+  assert.doesNotMatch(source, /createBrandHorizonGLRenderer|glyphField|mountBrandHorizonGlow/)
+
+  let puts = 0
+  let clears = 0
+  const context = {
+    createImageData: (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+    clearRect: () => { clears += 1 },
+    putImageData: () => { puts += 1 },
+  }
+  const canvas = { width: 0, height: 0, getContext: () => context, ownerDocument: { hidden: false } }
+  const glowLib = loadUmd('horizon-glow.js', { document: { hidden: false } })
+  assert.equal(typeof glowLib.mount, 'function')
+  assert.equal(JSON.stringify(glowLib.DEFAULT_HORIZON_AURA), JSON.stringify({ reach: 0.47, prism: 0, surge: 0, speed: 1 }))
+  const glow = glowLib.mount(canvas)
+  assert.equal(glow.mode, '2d')
+  assert.equal(glow.resize(600, 160, 0.72), true)
+  assert.equal(canvas.width, 432)
+  assert.equal(canvas.height, 115)
+  assert.equal(glow.draw(1.5, true, 0.9, 1, 0.47), true)
+  assert.equal(glow.draw(2.5, false, 0.9, 1, 0.47), true)
+  assert.equal(puts, 2)
+  glow.clear()
+  assert.equal(clears, 1)
+  // No 2d context: the mount degrades to a no-op instead of throwing.
+  const dead = glowLib.mount({ width: 0, height: 0, getContext: () => null })
+  assert.equal(dead.mode, 'none')
+  assert.equal(dead.draw(1, true, 1, 1, 0.47), false)
+})
+
 test('license, notice and third-party notices are the GPL set upstream requires', () => {
   const license = readFileSync(join(root, 'LICENSE'), 'utf8')
   assert.match(license, /GNU GENERAL PUBLIC LICENSE/)
@@ -74,10 +116,10 @@ test('license, notice and third-party notices are the GPL set upstream requires'
   assert.match(third, /wp3171216237\/dsh-TUI/)
 })
 
-test('the vendor route serves exactly the two shipped scripts', () => {
+test('the vendor route serves exactly the three shipped scripts', () => {
   const source = readFileSync(join(root, 'index.js'), 'utf8')
-  assert.match(source, /new Set\(\['vial-core\.js', 'dual-mascot-rig\.js'\]\)/)
-  for (const name of ['vial-core.js', 'dual-mascot-rig.js']) {
+  assert.match(source, /new Set\(\['vial-core\.js', 'dual-mascot-rig\.js', 'horizon-glow\.js'\]\)/)
+  for (const name of ['vial-core.js', 'dual-mascot-rig.js', 'horizon-glow.js']) {
     assert.ok(source.includes(`/compression-tiers/vendor/`), 'vendor routes are registered')
   }
   assert.match(source, /text\/javascript; charset=utf-8/)
@@ -87,7 +129,7 @@ test('the vendor route serves exactly the two shipped scripts', () => {
 test('the package declares GPL-3.0-only and ships the optical modules', () => {
   const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   assert.equal(manifest.license, 'GPL-3.0-only')
-  assert.equal(manifest.version, '2.3.0')
+  assert.equal(manifest.version, '2.4.0')
   for (const entry of ['vendor', 'NOTICE', 'THIRD_PARTY_NOTICES.md']) {
     assert.ok(manifest.files.includes(entry), `files is missing ${entry}`)
   }

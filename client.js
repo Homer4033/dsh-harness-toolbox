@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.3.0'
+    const PLUGIN_VERSION = '2.4.0'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -386,7 +386,187 @@ window.__ModuleLoader__.load({
       const art = spec.art !== false && spec.palette !== 'host'
       document.body.setAttribute('data-ct-palette', spec.palette)
       document.body.setAttribute('data-ct-art', art ? 'on' : 'off')
+      auraRuntime.spec = spec
+      syncAura()
       return { palette: spec.palette, art: art }
+    }
+
+    /**
+     * The horizon aura is the one moving part of the art layer. Upstream paints
+     * a procedural glow behind the conversation (ripple-core's 2D renderer,
+     * driven by conv-aura's state machine); we vendored the renderer and keep
+     * the controller here, because the state that matters in DSH is "is the art
+     * layer on and how much motion did the user allow", not Obsidian's
+     * running / decision / error phases.
+     *
+     * The canvas lives in the chat region as an absolutely positioned sibling
+     * with `z-index: 0`, and `[data-conversation-scroll]` is lifted to `z-index:
+     * 1`, so the glow paints above the column background and below the
+     * transcript. Frames are capped at ~30fps (the upstream cap); the motion
+     * setting scales speed and intensity, `off` paints one still frame, and the
+     * vendor script is only fetched once the layer is actually enabled.
+     */
+    const AURA_HEIGHT_RATIO = 0.32
+    const AURA_FRAME_MS = 33
+    const AURA_HEALTH_MS = 1200
+    const auraRuntime = {
+      spec: null,
+      host: null,
+      canvas: null,
+      glow: null,
+      target: null,
+      raf: 0,
+      loading: false,
+      staticDrawn: false,
+      startedAt: 0,
+      lastDrawAt: 0,
+      timer: 0,
+    }
+
+    function auraMotion(spec) {
+      const motion = spec && spec.motion ? spec.motion : 'full'
+      if (motion === 'subtle' || motion === 'off') return motion
+      return 'full'
+    }
+
+    function auraAllowed(spec) {
+      return Boolean(spec && spec.art !== false && spec.palette && spec.palette !== 'host')
+    }
+
+    function auraRegion() {
+      if (typeof document === 'undefined' || !document.body
+        || typeof document.querySelector !== 'function') return null
+      return document.querySelector("[data-conversation-region='chat']")
+    }
+
+    function stopAuraFrames() {
+      if (auraRuntime.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(auraRuntime.raf)
+      auraRuntime.raf = 0
+    }
+
+    function detachAura() {
+      stopAuraFrames()
+      if (auraRuntime.host && auraRuntime.host.parentNode) {
+        auraRuntime.host.parentNode.removeChild(auraRuntime.host)
+      }
+      auraRuntime.host = null
+      auraRuntime.canvas = null
+      auraRuntime.glow = null
+      auraRuntime.target = null
+      auraRuntime.loading = false
+      auraRuntime.staticDrawn = false
+    }
+
+    function teardownAura() {
+      if (auraRuntime.timer && typeof clearInterval === 'function') clearInterval(auraRuntime.timer)
+      auraRuntime.timer = 0
+      detachAura()
+    }
+    /** Async vendor load: the canvas is in the DOM first, the renderer bites later. */
+    function ensureAuraGlow() {
+      if (auraRuntime.glow || auraRuntime.loading) return
+      auraRuntime.loading = true
+      loadVendor('horizon').then(function (lib) {
+        auraRuntime.loading = false
+        if (!auraRuntime.canvas || !lib || typeof lib.mount !== 'function') return
+        auraRuntime.glow = lib.mount(auraRuntime.canvas)
+        auraRuntime.startedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
+        auraRuntime.staticDrawn = false
+        sizeAura(auraRuntime.target)
+        if (auraMotion(auraRuntime.spec) === 'off') drawAuraFrame(auraRuntime.startedAt)
+        else startAuraFrames()
+      }).catch(function () {
+        auraRuntime.loading = false
+        detachAura()
+      })
+    }
+
+    function sizeAura(region) {
+      const glow = auraRuntime.glow
+      if (!glow || !region) return
+      const width = region.clientWidth || 0
+      const height = Math.round((region.clientHeight || 0) * AURA_HEIGHT_RATIO)
+      if (!width || !height) return
+      const rawDpr = (typeof window !== 'undefined' && Number(window.devicePixelRatio)) || 1
+      glow.resize(width, height, Math.min(rawDpr, 1.5) * 0.72)
+    }
+
+    function drawAuraFrame(now) {
+      auraRuntime.raf = 0
+      const glow = auraRuntime.glow
+      const spec = auraRuntime.spec
+      if (!glow || !auraRuntime.canvas || !auraAllowed(spec)) return
+      const motion = auraMotion(spec)
+      if (now - auraRuntime.lastDrawAt < AURA_FRAME_MS) {
+        if (motion !== 'off') scheduleAuraFrame()
+        return
+      }
+      auraRuntime.lastDrawAt = now
+      const speed = motion === 'subtle' ? 0.45 : 1
+      const intensity = motion === 'subtle' ? 0.5 : 0.85
+      const seconds = ((now - auraRuntime.startedAt) / 1000) * speed
+      try {
+        // 0.72, not the upstream 0.47: the host canvas is the same 32% band, but
+        // DSH's composer covers the lowest ~150px, so the glow has to reach
+        // higher or only its bottom sliver stays visible.
+        glow.draw(seconds, hostIsDark(), intensity, 1, 0.72)
+        if (auraRuntime.host) auraRuntime.host.setAttribute('data-ct-aura-ready', '1')
+      } catch { /* a lost 2d context must not break the page */ }
+      if (motion !== 'off') scheduleAuraFrame()
+      else auraRuntime.staticDrawn = true
+    }
+
+    function scheduleAuraFrame() {
+      if (auraRuntime.raf || typeof requestAnimationFrame !== 'function') return
+      auraRuntime.raf = requestAnimationFrame(drawAuraFrame)
+    }
+
+    function startAuraFrames() {
+      if (auraRuntime.raf || auraRuntime.staticDrawn) return
+      scheduleAuraFrame()
+    }
+
+    /** Mount, resize, or stand down — idempotent, safe to call on a timer. */
+    function syncAura() {
+      const spec = auraRuntime.spec
+      if (!auraAllowed(spec)) {
+        detachAura()
+        return
+      }
+      const region = auraRegion()
+      if (!region) {
+        detachAura()
+        return
+      }
+      if (auraRuntime.target !== region || !auraRuntime.host || !auraRuntime.host.isConnected) {
+        detachAura()
+        const host = document.createElement('div')
+        host.className = 'ct-aura-host'
+        host.setAttribute('aria-hidden', 'true')
+        host.setAttribute('data-ct-aura', '')
+        const canvas = document.createElement('canvas')
+        host.appendChild(canvas)
+        region.insertBefore(host, region.firstChild)
+        auraRuntime.host = host
+        auraRuntime.canvas = canvas
+        auraRuntime.target = region
+        ensureAuraGlow()
+      }
+      sizeAura(region)
+      if (auraMotion(spec) === 'off') {
+        stopAuraFrames()
+        if (auraRuntime.glow && !auraRuntime.staticDrawn) drawAuraFrame(
+          typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(),
+        )
+        return
+      }
+      startAuraFrames()
+    }
+
+    function watchAura() {
+      teardownAura()
+      if (typeof setInterval === 'function') auraRuntime.timer = setInterval(syncAura, AURA_HEALTH_MS)
+      syncAura()
     }
 
     /**
@@ -399,6 +579,7 @@ window.__ModuleLoader__.load({
     const VENDOR_SCRIPTS = {
       vial: { file: 'vial-core.js', global: '__agVialCore', pending: null },
       mascot: { file: 'dual-mascot-rig.js', global: '__agDualMascotRig', pending: null },
+      horizon: { file: 'horizon-glow.js', global: '__agHorizonGlow', pending: null },
     }
     // Host context budget: the same 65,536-token reserve the official
     // compaction-basic engine applies.
@@ -1714,6 +1895,41 @@ body[data-ct-art='on'][data-ds-dark-theme] [data-composer-card] {
 body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
   background-image: linear-gradient(rgba(255, 255, 255, 0.6) 0%, transparent 60%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 6px 20px -16px rgba(15, 23, 42, 0.28);
+}
+/* The moving part of the art: one canvas in the chat region. It sits above the
+   column background and below the transcript (z-index 0 under scroll z-index
+   1), never takes a click, and only exists while the art layer is on. */
+body[data-ct-art='on'] [data-conversation-region='chat'] {
+  position: relative;
+}
+body[data-ct-art='on'] [data-conversation-scroll] {
+  position: relative;
+  z-index: 1;
+}
+body[data-ct-art='on'] .ct-aura-host {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32%;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+body[data-ct-art='on'] .ct-aura-host[data-ct-aura-ready='1'] {
+  opacity: 1;
+}
+body[data-ct-art='on'] .ct-aura-host canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-ct-art='on'] .ct-aura-host {
+    transition: none;
+  }
 }
 /* ---- Appearance page ---------------------------------------------------- */
 .ct-swatches {
@@ -5076,6 +5292,15 @@ body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
         skinRuntime: skinRuntime,
         normalizeAppearance: normalizeAppearance,
         applyOptics: applyOptics,
+        // The aura controller: pure predicates plus the DOM mount it performs.
+        aura: {
+          allowed: auraAllowed,
+          motionOf: auraMotion,
+          runtime: auraRuntime,
+          sync: syncAura,
+          teardown: teardownAura,
+          mount: ensureAuraGlow,
+        },
         setSkinTheme: function (theme) {
           skinRuntime.theme = theme
           paintSkin()
@@ -5110,6 +5335,12 @@ body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
         ctx.effect(function () {
           return installStyles()
         }, 'compression-tiers: styles')
+        ctx.effect(function () {
+          watchAura()
+          return function () {
+            teardownAura()
+          }
+        }, 'compression-tiers: horizon aura')
         // Whole-app skin: the host's theme service composes our palette layer on
         // top of the active theme. Optional on purpose — a host without the
         // service keeps the panel and the dock, it just does not repaint.

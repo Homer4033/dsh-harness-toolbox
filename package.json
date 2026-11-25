@@ -1,6 +1,6 @@
 {
   "name": "dsh-harness-toolbox",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": false,
   "type": "module",
   "description": "Five-tier context compaction, an optical context vial and pixel companions above the composer, two appearance palettes that follow the host light/dark theme, global and workspace rules editing, managed installs for gh / git / ffmpeg / Python below one migratable root, and per-session repository publishing.",

@@ -6,6 +6,8 @@ Copyright (C) 2026 RMvdesi, used under GPL-3.0-only.
 This derivative was created on 2026-11-25. Modified upstream files:
   - vendor/obsidian-prism/vial-core.js
   - vendor/obsidian-prism/dual-mascot-rig.js
+  - vendor/obsidian-prism/horizon-glow.js (extracted on 2026-12-01 from
+    ripple-core.js: the 2D brand-horizon renderer only)
 Each carries a provenance/modification header. The DSH integration code
 (client.js, appearance settings, vendor HTTP routes) is original to this repository.
 Obsidian Prism is not affiliated with this project and does not endorse it.

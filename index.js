@@ -43,7 +43,7 @@ const PLUGIN_ROOT = dirname(fileURLToPath(import.meta.url))
  * client loads them same-origin and reads their `window.__ag*` globals. Only
  * these three names are served; nothing else below `vendor/` is reachable.
  */
-const VENDOR_SCRIPTS = new Set(['vial-core.js', 'dual-mascot-rig.js'])
+const VENDOR_SCRIPTS = new Set(['vial-core.js', 'dual-mascot-rig.js', 'horizon-glow.js'])
 const vendorCache = new Map()
 
 function vendorScript(name) {
