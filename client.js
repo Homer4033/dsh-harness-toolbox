@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.2.0'
+    const PLUGIN_VERSION = '2.2.1'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
