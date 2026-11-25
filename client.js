@@ -92,6 +92,7 @@ window.__ModuleLoader__.load({
         rulesLoading: '读取中…',
         rulesMissing: '不存在，保存后创建。',
         workspaceRulesTitle: '工作区规则',
+        workspaceNone: '目前无工作区',
         workspaceSelectLabel: '工作区',
         workspaceRulesPlaceholder: '例如：本工作区只改 src/；提交前跑测试。',
         workspaceRulesMissing: '不存在，保存后创建。',
@@ -209,6 +210,7 @@ window.__ModuleLoader__.load({
         rulesLoading: 'Loading…',
         rulesMissing: 'missing; saving creates it.',
         workspaceRulesTitle: 'Workspace rules',
+        workspaceNone: 'No workspace registered yet',
         workspaceSelectLabel: 'Workspace',
         workspaceRulesPlaceholder: 'For example: this workspace only touches src/; run the tests before committing.',
         workspaceRulesMissing: 'missing; saving creates it.',
@@ -1714,7 +1716,9 @@ window.__ModuleLoader__.load({
        */
       function applyWorkspaceRules(body) {
         const list = body && Array.isArray(body.workspaces) ? body.workspaces : []
-        setWorkspaceRules(list.length === 0 ? null : body)
+        // An empty registry is still a loaded registry: the page has to say
+        // "no workspace yet" instead of going back to its loading state.
+        setWorkspaceRules({ workspaces: list })
         if (list.length === 0) {
           setWorkspaceId('')
           setWorkspaceText('')
@@ -2351,60 +2355,67 @@ window.__ModuleLoader__.load({
         ghMessage ? h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, ghMessage) : null)
 
       // Workspace rules: the registry names the only workspaces this block may
-      // touch, and an empty registry hides the block instead of showing an
-      // empty picker.
+      // touch. The page is always in the rail; an empty registry says so instead
+      // of leaving the reader without a page (1.10.2).
       const workspaceList = workspaceRules && Array.isArray(workspaceRules.workspaces)
         ? workspaceRules.workspaces
         : []
+      const workspaceLoaded = workspaceRules !== null
+      const workspaceEmpty = workspaceLoaded && workspaceList.length === 0
+      const workspaceNote = !workspaceLoaded
+        ? t('loading')
+        : workspaceEmpty ? t('workspaceNone') : ''
       const workspaceRow = workspaceList.find(function (item) { return item.id === workspaceId }) || null
       const workspaceDirty = Boolean(workspaceRow)
         && (typeof workspaceRow.text === 'string' ? workspaceRow.text : '') !== workspaceText
-      const workspacePanel = workspaceList.length === 0
-        ? null
-        : h('section', { className: 'ct-panel', key: 'workspace' },
-          h('div', { className: 'ct-rules-head' },
-            h('h3', null, t('workspaceRulesTitle'))),
-          h('div', { className: 'ct-field' },
-            h('span', null, t('workspaceSelectLabel')),
-            h(Select, {
-              t: t,
-              items: workspaceList.map(function (item) {
-                return { value: item.id, label: item.title }
-              }),
-              value: workspaceId,
-              disabled: workspaceBusy,
-              onChange: pickWorkspace,
-            })),
-          h('label', { className: 'ct-field' },
-            h('span', null, t('rulesLabel') + ' · ' + workspaceText.length + ' ' + t('rulesChars')),
-            h('textarea', {
-              className: 'ct-textarea',
-              rows: 8,
-              spellCheck: false,
-              value: workspaceText,
-              placeholder: t('workspaceRulesPlaceholder'),
-              disabled: workspaceBusy,
-              onChange: function (event) { setWorkspaceText(event.target.value) },
-            })),
-          workspaceRow
-            ? h('p', { className: 'ct-note' }, t('rulesPathLabel') + t('sep') + workspaceRow.file
-              + (workspaceRow.exists === false ? ' — ' + t('workspaceRulesMissing') : ''))
-            : null,
-          actionRow([
-            actionButton('workspaceRulesSave', workspaceBusy ? t('rulesSaving') : t('rulesSave'), {
-              disabled: workspaceBusy || !workspaceRow || !workspaceDirty,
-              onClick: saveWorkspaceRules,
-              primary: true,
-            }),
-          ]),
-          h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, workspaceMessage))
+      const workspacePanel = h('section', { className: 'ct-panel', key: 'workspace' },
+        h('div', { className: 'ct-rules-head' },
+          h('h3', null, t('workspaceRulesTitle')),
+          workspaceNote ? h('p', { className: 'ct-note', role: 'status' }, workspaceNote) : null),
+        // Nothing to pick or type until the registry names a workspace.
+        workspaceList.length === 0
+          ? null
+          : [
+            h('div', { className: 'ct-field', key: 'picker' },
+              h('span', null, t('workspaceSelectLabel')),
+              h(Select, {
+                t: t,
+                items: workspaceList.map(function (item) {
+                  return { value: item.id, label: item.title }
+                }),
+                value: workspaceId,
+                disabled: workspaceBusy,
+                onChange: pickWorkspace,
+              })),
+            h('label', { className: 'ct-field', key: 'text' },
+              h('span', null, t('rulesLabel') + ' · ' + workspaceText.length + ' ' + t('rulesChars')),
+              h('textarea', {
+                className: 'ct-textarea',
+                rows: 8,
+                spellCheck: false,
+                value: workspaceText,
+                placeholder: t('workspaceRulesPlaceholder'),
+                disabled: workspaceBusy,
+                onChange: function (event) { setWorkspaceText(event.target.value) },
+              })),
+          ],
+        workspaceRow
+          ? h('p', { className: 'ct-note' }, t('rulesPathLabel') + t('sep') + workspaceRow.file
+            + (workspaceRow.exists === false ? ' — ' + t('workspaceRulesMissing') : ''))
+          : null,
+        actionRow([
+          actionButton('workspaceRulesSave', workspaceBusy ? t('rulesSaving') : t('rulesSave'), {
+            disabled: workspaceBusy || !workspaceRow || !workspaceDirty,
+            title: workspaceRow ? '' : (workspaceEmpty ? t('workspaceNone') : workspaceLoaded ? '' : t('loading')),
+            onClick: saveWorkspaceRules,
+            primary: true,
+          }),
+        ]),
+        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, workspaceMessage))
 
-      // Navigation rail. The workspace page only exists while the registry names
-      // at least one workspace: an empty registry keeps the page out of the rail
-      // instead of opening a blank one.
-      const sections = SECTIONS.filter(function (item) {
-        return item.id !== 'workspace' || workspaceList.length > 0
-      })
+      // Navigation rail: every page is always listed, so a page never disappears
+      // just because its data is empty.
+      const sections = SECTIONS
       const activeSection = sections.some(function (item) { return item.id === section })
         ? section
         : sections[0].id

@@ -114,7 +114,7 @@
 
 ## 分页导航
 
-1. 五个分页固定顺序：档位（`levels`）、规则（`rules`）、工作区（`workspace`）、组件（`components`）、GitHub（`github`）；没注册工作区时整个「工作区」页不出现在导航里（与旧版「整块不渲染」一致），当前页随之回落到第一项。
+1. 五个分页固定顺序：档位（`levels`）、规则（`rules`）、工作区（`workspace`）、组件（`components`）、GitHub（`github`）。**五个分页始终都在导航里**：某个页面没有数据（例如还没注册工作区）时页面照常打开、在页内说明状态，不能因为没数据就把页面或导航项拿掉——分页是固定的地图，不是可选清单。
 2. 导航栏 `.ct-nav`：`position: sticky; top: 18px`，玻璃底（`--ct-glass-rail`）+ 20px 圆角 + 内高光；品牌行是 14px 的 accent 图标 + 11px 大写文字。
 3. 导航项 `.ct-nav-item`：34px 高、12px 圆角、15px 图标 + 13px 文字、`justify-content: flex-start`；默认透明底 + 透明描边。
 4. 当前页用 `aria-current="page"` 标记，样式是 accent 16% 淡染 + 40% accent 描边 + `inset 2px 0 0` 左竖条 + 22px 柔光；图标转 accent。**不要**用右侧箭头或加粗字号来区分。
@@ -132,6 +132,7 @@
 样式：`border: 1px solid var(--ct-glass-edge)`、`border-radius: 20px`、`background: var(--ct-glass-fill)` + `--ct-glass-sheen`、`padding: 16px 18px`、内部 `gap: 12px`，配 `--ct-glass-shadow` 与 `--ct-glass-inner`。
 
 - **授权范围** `.ct-scopes`：GitHub 页在账号行下面单独一行显示 `gh auth status` 报出的 token scope（`repo · read:org · workflow`），12px `label-tertiary`，`overflow-wrap: anywhere`（scope 是一个长串标识符，不能把卡片撑宽）。缺 `repo` 时另起一条 `role="alert"` 状态行说明只能读不能推；scope 由 `gh` 报出，插件不读、不存 token 本身。
+- **空状态写在卡片里，不写进导航**：工作区页在没有注册工作区时仍然打开，标题行下面用一条 `.ct-note`（`role="status"`）写「目前无工作区」，不渲染选择器与文本域，保存按钮常显、置灰、`title` 与这条说明一致；还没读到时写「正在读取…」（不要拿「无工作区」冒充加载态）。任何页面都不得因为数据为空而整页消失。
 - 链接一律 `target="_blank" rel="noreferrer noopener"`；正文里不出现裸 URL 文本以外的装饰。
 - 空的状态行/说明行用 `:empty` 收起（`display: none`），面板底部不留空白。
 

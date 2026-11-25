@@ -23,7 +23,7 @@
 
 包名 `dsh-harness-toolbox`（已发布在 npmjs.com，版本见 `npm view dsh-harness-toolbox version`）：
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.10.1`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.10.2`）；
 2. 安装完成后打开新会话 → 左侧栏的 **压缩分档** 面板。
 
 也可以在会话里让智能体用 `plugin_manager` 安装这个包名。
@@ -44,7 +44,7 @@
 
 - **档位**：五个按钮，点一下立即写入所有已挂载的预设压缩引擎（在 `<DSH home>/compression-tiers/settings.json` 留档），不需要重启。
 - **规则**：直接编辑 `<DSH home>/AGENTS.md`，保存即原子写入；系统提示只带最新 2,000 字符摘要。
-- **工作区**：从已注册工作区里选一个，编辑它根目录的 `AGENTS.md`；工作区注册表为空时这一页连同导航项一起不出现。
+- **工作区**：从已注册工作区里选一个，编辑它根目录的 `AGENTS.md`；还没有注册工作区时这一页照常打开，只是提示「目前无工作区」（保存按钮置灰）。
 - **组件**：GitHub CLI、git、ffmpeg/ffprobe、Python 四行，每行「下载 / 重新检测」，底部是四套组件共用的下载目录。
 - **GitHub**：账号状态与 token 的授权范围（scopes）、`gh auth login --web` 设备码、网络体检。
 

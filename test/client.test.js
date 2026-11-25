@@ -972,18 +972,32 @@ test('a workspace with no rules file says so, and editing enables saving', () =>
   assert.ok(deepText({ props: { children: nodes } }).includes('workspaceRulesMissing'))
 })
 
-test('a workspace page leaves the rail when no workspace is registered', () => {
-  for (const workspaceRules of [null, workspaceRulesPayload([])]) {
-    const nodes = renderSection('workspace', { workspaceRules })
-    const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-    // No dead tab: the page only exists while the registry names a workspace.
-    assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
-    // The rail falls back to the first page instead of an empty content area.
-    const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
-    assert.match(deepText(content), /levelsTitle/)
-    assert.equal(pickerOf(nodes), null, 'no picker without a registry')
-    assert.equal(buttonOf(nodes, 'workspaceRulesSave'), null)
-  }
+test('the workspace page stays in the rail and says there is no workspace yet', () => {
+  const nodes = renderSection('workspace', { workspaceRules: workspaceRulesPayload([]) })
+  const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
+  // Five pages, always: an empty registry is a state, not a missing page.
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'github'])
+  const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
+  assert.match(deepText(content), /workspaceRulesTitle/)
+  assert.match(deepText(content), /workspaceNone/)
+  // Nothing to pick or type, and the save button still renders - disabled and
+  // explaining why, exactly like every other action button.
+  assert.equal(pickerOf(nodes), null, 'no picker without a registry')
+  assert.equal(nodes.filter((node) => node.type === 'textarea').length, 0)
+  const save = buttonOf(nodes, 'workspaceRulesSave')
+  assert.ok(save, 'the save button stays rendered')
+  assert.equal(save.props.disabled, true)
+  assert.equal(save.props.title, 'workspaceNone')
+})
+
+test('a workspace page that has not loaded says it is loading, not that the registry is empty', () => {
+  const nodes = renderSection('workspace', { workspaceRules: null })
+  const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
+  assert.match(deepText(content), /levelsTitle|workspaceRulesTitle/)
+  assert.ok(deepText({ props: { children: nodes } }).includes('loading'))
+  assert.equal(deepText({ props: { children: nodes } }).includes('workspaceNone'), false)
+  assert.equal(buttonOf(nodes, 'workspaceRulesSave').props.disabled, true)
+  assert.equal(buttonOf(nodes, 'workspaceRulesSave').props.title, 'loading')
 })
 
 test('the panel is a shell: one navigation rail and one page at a time', () => {
@@ -993,8 +1007,8 @@ test('the panel is a shell: one navigation rail and one page at a time', () => {
   assert.equal(nav.type, 'nav')
   assert.equal(nav.props['aria-label'], 'navAria')
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
-  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navGithub'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'workspace', 'components', 'github'])
+  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navGithub'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1, 'exactly one page is current')
   assert.equal(current[0].props['data-section'], 'components')
