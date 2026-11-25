@@ -45,20 +45,6 @@ window.__ModuleLoader__.load({
       { id: 'workspace', navLabel: 'navWorkspace', icon: 'M2.5 5.5h4l1.2 1.5h5.8v5.5h-11z' },
       { id: 'components', navLabel: 'navComponents', icon: 'M6 2.5h4v3H6zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z' },
       { id: 'github', navLabel: 'navGithub', icon: 'M8 2.5a5.5 5.5 0 0 0-1.7 10.7c.3.1.4-.1.4-.3v-1c-1.5.3-1.9-.7-1.9-.7-.2-.6-.6-.8-.6-.8-.5-.3 0-.3 0-.3.5 0 .8.5.8.5.5.9 1.3.6 1.6.5 0-.4.2-.6.3-.7-1.2-.1-2.5-.6-2.5-2.7 0-.6.2-1.1.5-1.5-.1-.1-.2-.7 0-1.4 0 0 .5-.2 1.5.5a5 5 0 0 1 2.8 0c1-.7 1.5-.5 1.5-.5.3.7.1 1.3.1 1.4.3.4.5.9.5 1.5 0 2.1-1.3 2.6-2.5 2.7.2.2.4.5.4 1v1.5c0 .2.1.4.4.3A5.5 5.5 0 0 0 8 2.5z' },
-      { id: 'license', navLabel: 'navLicense', icon: 'M4 2.5h8v11H4zM6 6h4M6 8.5h4' },
-    ]
-
-    /** The plugin's own work plus the third-party programs the panel installs. */
-    const PLUGIN_LICENSE = {
-      name: 'dsh-harness-toolbox',
-      license: 'MIT',
-      url: 'https://github.com/Homer4033/dsh-harness-toolbox/blob/main/LICENSE',
-    }
-    const LICENSE_ROWS = [
-      { name: 'GitHub CLI', license: 'MIT', url: 'https://github.com/cli/cli/blob/trunk/LICENSE' },
-      { name: 'Git for Windows (MinGit)', license: 'GPL-2.0', url: 'https://github.com/git-for-windows/git/blob/main/COPYING' },
-      { name: 'FFmpeg', license: 'GPL-2.0-or-later', url: 'https://ffmpeg.org/legal.html' },
-      { name: 'Python (python-build-standalone)', license: 'PSF-2.0 · MIT', url: 'https://github.com/astral-sh/python-build-standalone/blob/main/LICENSE' },
     ]
 
     const DICTIONARIES = {
@@ -72,12 +58,9 @@ window.__ModuleLoader__.load({
         navWorkspace: '工作区',
         navComponents: '组件',
         navGithub: 'GitHub',
-        navLicense: '许可',
         levelsTitle: '档位',
-        licenseTitle: '许可',
-        licenseOwn: '本插件以 MIT 许可发布，源码与许可全文在仓库里。',
-        licenseComponentsTitle: '托管组件',
-        licenseNotice: '这些程序不随插件分发：面板下载的是各自发行方的构建，许可证随安装目录附带。',
+        ghScopesLabel: '授权范围',
+        ghScopesNone: '未报告',
         levelGentle: '极轻',
         levelLight: '轻量',
         levelStandard: '标准',
@@ -192,12 +175,9 @@ window.__ModuleLoader__.load({
         navWorkspace: 'Workspace',
         navComponents: 'Components',
         navGithub: 'GitHub',
-        navLicense: 'License',
         levelsTitle: 'Tiers',
-        licenseTitle: 'License',
-        licenseOwn: 'This plugin is released under the MIT license; the source and the full text live in the repository.',
-        licenseComponentsTitle: 'Managed components',
-        licenseNotice: 'These programs are not bundled: the panel downloads each vendor build and its license ships with the install directory.',
+        ghScopesLabel: 'Token scopes',
+        ghScopesNone: 'not reported',
         levelGentle: 'Gentle',
         levelLight: 'Light',
         levelStandard: 'Standard',
@@ -552,6 +532,11 @@ window.__ModuleLoader__.load({
   line-height: 18px;
   color: var(--dsw-alias-label-secondary);
 }
+/* Scope names are one long run of identifiers: wrap on any boundary so a full
+   token never pushes the panel sideways. */
+.ct-scopes {
+  overflow-wrap: anywhere;
+}
 /* An empty status or note line is dead space at the bottom of a panel: hide it
    while there is nothing to say, and let it appear together with the message. */
 .ct-status:empty,
@@ -575,58 +560,6 @@ window.__ModuleLoader__.load({
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.01em;
-}
-/* License page: one row per work, license id on the right, source link under
-   it. Legal text is allowed here; it is not teaching copy. */
-.ct-license {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.ct-license-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 12px;
-  align-items: baseline;
-  padding-top: 10px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
-}
-.ct-license-row:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-.ct-license-name {
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.ct-license-tag {
-  justify-self: end;
-  padding: 1px 7px;
-  border: 1px solid var(--dsw-alias-border-l3);
-  border-radius: 999px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
-  line-height: 15px;
-  white-space: nowrap;
-}
-.ct-license-link {
-  grid-column: 1 / -1;
-  color: var(--dsw-alias-link);
-  font-size: 12px;
-  line-height: 18px;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-.ct-license-link:hover {
-  text-decoration: underline;
-}
-.ct-license-link:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
 }
 .ct-field {
   display: grid;
@@ -2337,6 +2270,14 @@ window.__ModuleLoader__.load({
           : auth.authenticated
             ? t('ghLoggedIn') + (auth.account || 'GitHub')
             : t('ghNotLoggedIn')
+      // The token's scopes are read from `gh auth status`; the token itself never
+      // leaves gh. A signed-in account without `repo` can list but not push.
+      const scopeList = auth && Array.isArray(auth.scopes)
+        ? auth.scopes.filter(function (scope) { return typeof scope === 'string' && scope })
+        : []
+      const scopeText = auth && auth.available && auth.authenticated
+        ? t('ghScopesLabel') + t('sep') + (scopeList.length > 0 ? scopeList.join(' · ') : t('ghScopesNone'))
+        : ''
       // The sign-in block is always rendered: a button that only exists while a
       // condition holds makes the panel jump. Unusable actions go disabled with
       // the reason in `title` instead.
@@ -2394,6 +2335,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ct-rules-head' },
           h('h3', null, t('ghAuthTitle'))),
         h('p', { className: 'ct-note' }, authText),
+        scopeText ? h('p', { className: 'ct-note ct-scopes' }, scopeText) : null,
         actionRow([
           actionButton('ghLogin', auth && auth.authenticated ? t('ghRelogin') : t('ghLogin'), {
             disabled: ghBusy || loggingIn || !auth || !auth.available,
@@ -2498,29 +2440,6 @@ window.__ModuleLoader__.load({
           h('span', null, t(item.navLabel)))
         }))
 
-      // License page: the plugin itself and the programs this panel can
-      // install. Legal text only, no usage instructions.
-      function licenseRow(row) {
-        return h('li', { className: 'ct-license-row', key: row.name },
-          h('span', { className: 'ct-license-name' }, row.name),
-          h('span', { className: 'ct-license-tag' }, row.license),
-          h('a', {
-            className: 'ct-license-link',
-            href: row.url,
-            target: '_blank',
-            rel: 'noreferrer noopener',
-          }, row.url))
-      }
-      const licensePanel = h('section', { className: 'ct-panel', key: 'license' },
-        h('div', { className: 'ct-rules-head' },
-          h('h3', null, t('licenseTitle'))),
-        h('p', { className: 'ct-note' }, t('licenseOwn')),
-        h('ul', { className: 'ct-license' }, licenseRow(PLUGIN_LICENSE)),
-        h('div', { className: 'ct-rules-head' },
-          h('h3', null, t('licenseComponentsTitle'))),
-        h('ul', { className: 'ct-license' }, LICENSE_ROWS.map(licenseRow)),
-        h('p', { className: 'ct-note' }, t('licenseNotice')))
-
       const meta = state
         ? h('div', { className: 'ct-meta', key: 'meta' },
           h('span', null, t('engines') + t('sep') + engineCount),
@@ -2536,7 +2455,6 @@ window.__ModuleLoader__.load({
         workspace: [workspacePanel],
         components: [componentsPanel],
         github: [ghAuthPanel],
-        license: [licensePanel],
       }
 
       return h('section', { className: 'ct-page' },

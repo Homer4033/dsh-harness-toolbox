@@ -23,7 +23,7 @@
 
 - 只用主题 token（`--dsw-alias-*`），不写死主题色；阴影、高光与玻璃高光允许 `rgba(0,0,0,…)` / `rgba(255,255,255,…)`。
 - 面板与弹层必须在深色、浅色两套主题下都能读：任何「深色底 + 继承浅色字」的组合都不算可用设计。
-- 界面只放控件标签、当前值、路径与错误；教学性说明按 [AGENTS.md](../AGENTS.md) 第 15 条写进文档，不写进面板。许可页只放许可事实（名称、标识、全文链接、是否随包分发），不放解释性段落。
+- 界面只放控件标签、当前值、路径与错误；教学性说明按 [AGENTS.md](../AGENTS.md) 第 15 条写进文档，不写进面板。
 
 ## 表面与颜色
 
@@ -81,7 +81,7 @@
 | 14px | 档位按钮、文本域 |
 | 16px | 弹层、窄面板的横向导航栏 |
 | 20px | 卡片、导航栏（宽面板） |
-| 999px | 胶囊、许可标识 |
+| 999px | 胶囊 |
 
 | 高度 | 用途 |
 | --- | --- |
@@ -98,7 +98,7 @@
 | 正文、按钮、字段标签 | 13 / 20 / 400 |
 | 状态行、次要说明 | 12 / 18 / 400 |
 | 弹层分组标题 | 11 / 15 / 600，`letter-spacing: .1em`，大写 |
-| 弹层元信息、许可标识 | 10–11 / 14–16 / 400 |
+| 弹层元信息、scope 列表 | 10–11 / 14–16 / 400 |
 
 等宽字体只用于二进制名与验证码（`ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`）。
 
@@ -114,7 +114,7 @@
 
 ## 分页导航
 
-1. 六个分页固定顺序：档位（`levels`）、规则（`rules`）、工作区（`workspace`）、组件（`components`）、GitHub（`github`）、许可（`license`）；没注册工作区时整个「工作区」页不出现在导航里（与旧版「整块不渲染」一致），当前页随之回落到第一项。
+1. 五个分页固定顺序：档位（`levels`）、规则（`rules`）、工作区（`workspace`）、组件（`components`）、GitHub（`github`）；没注册工作区时整个「工作区」页不出现在导航里（与旧版「整块不渲染」一致），当前页随之回落到第一项。
 2. 导航栏 `.ct-nav`：`position: sticky; top: 18px`，玻璃底（`--ct-glass-rail`）+ 20px 圆角 + 内高光；品牌行是 14px 的 accent 图标 + 11px 大写文字。
 3. 导航项 `.ct-nav-item`：34px 高、12px 圆角、15px 图标 + 13px 文字、`justify-content: flex-start`；默认透明底 + 透明描边。
 4. 当前页用 `aria-current="page"` 标记，样式是 accent 16% 淡染 + 40% accent 描边 + `inset 2px 0 0` 左竖条 + 22px 柔光；图标转 accent。**不要**用右侧箭头或加粗字号来区分。
@@ -125,13 +125,13 @@
 
 每张卡片三段，顺序固定：
 
-1. **标题行**：`.ct-rules-head > h3`；档位卡片标题为「档位」，许可页有两个标题（本插件 / 托管组件）。
-2. **内容**：字段（`.ct-field`）、状态行（`.ct-status`）、说明或路径（`.ct-note`）、许可行（`.ct-license-row`）。
+1. **标题行**：`.ct-rules-head > h3`；档位卡片标题为「档位」。
+2. **内容**：字段（`.ct-field`）、状态行（`.ct-status`）、说明或路径（`.ct-note`）。
 3. **动作行**：`.ct-actions`，一行只放按钮；状态文字另起一行。
 
 样式：`border: 1px solid var(--ct-glass-edge)`、`border-radius: 20px`、`background: var(--ct-glass-fill)` + `--ct-glass-sheen`、`padding: 16px 18px`、内部 `gap: 12px`，配 `--ct-glass-shadow` 与 `--ct-glass-inner`。
 
-- **许可行** `.ct-license-row`：`名称 · 标识 pill` 在一行（名称 `13/20/500`、标识右侧 10–11px `label-tertiary` + `border-l2` 描边 + 999px 圆角），下一行是许可全文链接（`label-secondary`，换行时 `word-break: break-all`）。
+- **授权范围** `.ct-scopes`：GitHub 页在账号行下面单独一行显示 `gh auth status` 报出的 token scope（`repo · read:org · workflow`），12px `label-tertiary`，`overflow-wrap: anywhere`（scope 是一个长串标识符，不能把卡片撑宽）。缺 `repo` 时另起一条 `role="alert"` 状态行说明只能读不能推；scope 由 `gh` 报出，插件不读、不存 token 本身。
 - 链接一律 `target="_blank" rel="noreferrer noopener"`；正文里不出现裸 URL 文本以外的装饰。
 - 空的状态行/说明行用 `:empty` 收起（`display: none`），面板底部不留空白。
 
@@ -196,9 +196,8 @@
 | `.ct-field` / `.ct-textarea` / `.ct-input` | 字段 / 文本域 / 路径输入 |
 | `.ct-select` / `.ct-select-value` | 下拉触发器 / 当前值 |
 | `.ct-menu` / `.ct-menu-head` / `.ct-menu-option` | 弹层 / 分组标题 / 选项 |
-| `.ct-license` / `.ct-license-row` / `.ct-license-tag` / `.ct-license-link` | 许可列表 / 单条 / 标识 / 全文链接 |
 | `.ct-repo-dock` / `.ct-repo-pill` | 输入框上方的行（收窄到输入卡并居中）/ 仓库胶囊 |
-| `.ct-status` / `.ct-note` / `.ct-meta` | 状态行 / 弱化说明 / 页脚元信息 |
+| `.ct-status` / `.ct-note` / `.ct-meta` / `.ct-scopes` | 状态行 / 弱化说明 / 页脚元信息 / 授权范围 |
 
 ## 检查清单
 
@@ -213,5 +212,5 @@
 - [ ] 键盘：↑ / ↓ / Home / End / Enter / Esc 与外部点击都能走通。
 - [ ] 仓库胶囊右缘与输入卡右缘对齐（`min()` + `margin: 0 auto`，没有负 margin）。
 - [ ] 空状态行不占位。
-- [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、许可行与自绘下拉）。
+- [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、授权范围行与自绘下拉）。
 - [ ] 视觉效果无法在真实窗口确认时，交付说明写「渲染未验证」。

@@ -397,7 +397,8 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.match(panelCss[0], /backdrop-filter: blur/)
   // The old single-scroll two-column page is gone on purpose.
   assert.equal(/\.ct-page-inner|\.ct-columns|\.ct-col \{/.test(styles[0].textContent), false, 'the two-column page is gone')
-  assert.match(styles[0].textContent, /\.ct-license-row \{/)
+  // The removed license page leaves no stylesheet or dictionary behind.
+  assert.equal(/\.ct-license/.test(styles[0].textContent), false, 'the license page is gone')
   // Menus share one surface, one step above the card fill, and the workspace
   // picker is self-drawn: a native select popup paints light-on-light.
   assert.match(styles[0].textContent, /\.ct-menu \{/)
@@ -427,10 +428,14 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'downloadRunning', 'downloadDone', 'downloadUnsupported',
       'stateMissing', 'statePartial', 'stateFailed', 'stateSystem',
       'repoSelectLabel', 'repoNone', 'repoTitle',
-      'navAria', 'navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navGithub', 'navLicense',
-      'levelsTitle', 'licenseTitle', 'licenseOwn', 'licenseComponentsTitle', 'licenseNotice',
+      'navAria', 'navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navGithub',
+      'levelsTitle', 'ghScopesLabel', 'ghScopesNone',
     ]) {
       assert.ok(keys.includes(key), `${locale} is missing ${key}`)
+    }
+    // The license page is gone: its labels must not come back.
+    for (const key of ['navLicense', 'licenseTitle', 'licenseOwn', 'licenseComponentsTitle', 'licenseNotice']) {
+      assert.equal(keys.includes(key), false, `${locale} still carries ${key}`)
     }
     // The settings page carries controls, state and errors only; teaching copy
     // lives in AGENTS.md, so these keys must stay gone.
@@ -756,6 +761,39 @@ test('the sign-in page shows the account and never a download button', () => {
   assert.deepEqual(downloads, [], 'the sign-in page renders no component buttons')
 })
 
+test('the GitHub page lists the token scopes and hides the row while signed out', () => {
+  const scoped = {
+    available: true,
+    authenticated: true,
+    account: 'Homer4033',
+    scopes: ['repo', 'read:org', 'workflow'],
+    missingRepoScope: false,
+  }
+  const nodes = renderSection('github', { login: idleLogin, auth: scoped })
+  const rows = nodes.filter((node) => String(node.props.className || '').includes('ct-scopes'))
+  assert.equal(rows.length, 1, 'one scope row')
+  // The scope names come from `gh auth status`; the panel shows them verbatim.
+  const scopeText = textOf(rows[0])
+  assert.match(scopeText, /^ghScopesLabel/)
+  assert.ok(scopeText.includes('repo · read:org · workflow'), 'every scope is listed')
+
+  // An older gh that reports no scopes still gets the line, with a marker.
+  const silent = renderSection('github', {
+    login: idleLogin,
+    auth: { available: true, authenticated: true, account: 'Homer4033', scopes: [], missingRepoScope: false },
+  })
+  assert.ok(textOf(silent.filter((node) => String(node.props.className || '').includes('ct-scopes'))[0]).includes('ghScopesNone'))
+
+  // Signed out, or without a gh binary, there is no scope row at all.
+  for (const auth of [
+    { available: true, authenticated: false, account: null, scopes: [], missingRepoScope: false },
+    { available: false, authenticated: false, account: null, scopes: [], missingRepoScope: false },
+  ]) {
+    const bare = renderSection('github', { login: idleLogin, auth })
+    assert.equal(bare.filter((node) => String(node.props.className || '').includes('ct-scopes')).length, 0)
+  }
+})
+
 test('the composer dock renders a repository pill that opens a listbox', () => {
   const repos = [
     { nameWithOwner: 'Homer4033/dsh-compression-tiers', private: false },
@@ -939,7 +977,7 @@ test('a workspace page leaves the rail when no workspace is registered', () => {
     const nodes = renderSection('workspace', { workspaceRules })
     const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
     // No dead tab: the page only exists while the registry names a workspace.
-    assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github', 'license'])
+    assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
     // The rail falls back to the first page instead of an empty content area.
     const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
     assert.match(deepText(content), /levelsTitle/)
@@ -955,8 +993,8 @@ test('the panel is a shell: one navigation rail and one page at a time', () => {
   assert.equal(nav.type, 'nav')
   assert.equal(nav.props['aria-label'], 'navAria')
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github', 'license'])
-  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navGithub', 'navLicense'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
+  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navGithub'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1, 'exactly one page is current')
   assert.equal(current[0].props['data-section'], 'components')
@@ -1034,7 +1072,6 @@ test('each page renders only its own card', () => {
     ['workspace', { workspaceRules: workspaceRulesPayload([workspaceOne]), workspaceId: 'w1' }, ['workspaceRulesTitle']],
     ['components', { components: componentsPayload([]) }, ['componentsTitle']],
     ['github', {}, ['ghAuthTitle']],
-    ['license', {}, ['licenseTitle', 'licenseComponentsTitle']],
   ]
   for (const [section, overrides, headings] of cases) {
     const nodes = renderSection(section, overrides)
@@ -1050,30 +1087,3 @@ test('each page renders only its own card', () => {
   assert.equal(renderSection('rules').filter((node) => node.type === 'input').length, 0)
 })
 
-test('the license page lists the plugin and every managed component', () => {
-  const nodes = renderSection('license')
-  const rows = nodes.filter((node) => String(node.props.className || '') === 'ct-license-row')
-  // The plugin's own MIT row plus the four programs the panel can install.
-  assert.equal(rows.length, 5)
-  const text = rows.map((row) => deepText(row))
-  assert.match(text[0], /^dsh-harness-toolboxMIT/)
-  assert.match(text[0], /github\.com\/Homer4033\/dsh-harness-toolbox.*LICENSE/)
-  const names = ['GitHub CLI', 'Git for Windows (MinGit)', 'FFmpeg', 'Python (python-build-standalone)']
-  names.forEach((name, index) => {
-    assert.ok(text[index + 1].startsWith(name), 'row ' + index + ' names ' + name)
-  })
-  assert.match(text[1], /MIT/)
-  assert.match(text[2], /GPL-2\.0/)
-  assert.match(text[3], /GPL-2\.0-or-later/)
-  assert.match(text[4], /PSF-2\.0/)
-  // Every row links to the license text it names.
-  const links = nodes.filter((node) => node.type === 'a' && String(node.props.className || '') === 'ct-license-link')
-  assert.equal(links.length, 5)
-  for (const link of links) {
-    assert.match(link.props.href, /^https:\/\//)
-    assert.equal(link.props.target, '_blank')
-    assert.match(link.props.rel, /noreferrer/)
-  }
-  // Legal notice is allowed on the panel; usage instructions are not.
-  assert.ok(deepText({ props: { children: nodes } }).includes('licenseNotice'))
-})

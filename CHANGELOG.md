@@ -1,6 +1,12 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.10.0`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.10.1`。
+
+## 1.10.1 — 2026-11-25
+
+- **删掉 1.10.0 的「许可」页**：那一页列的是本插件与四套托管组件的软件许可（MIT / GPL / PSF），不是要的东西。许可页、`PLUGIN_LICENSE` / `LICENSE_ROWS` 常量、`.ct-license*` 样式与五个字典键全部删除，导航回到五个分页（档位 / 规则 / 工作区 / 组件 / GitHub）。
+- **GitHub 页改为显示 GitHub 的授权范围**：账号行下面新增一行 `.ct-scopes`，直接显示 `gh auth status` 报出的 token scope（`授权范围：repo · read:org · workflow`），`overflow-wrap: anywhere` 防止长 scope 撑宽卡片；`gh` 不报 scope 时写「未报告」；未登录或没有 `gh` 时不渲染这一行。缺 `repo` 时仍照旧给一条 `role="alert"` 说明只能读不能推。scope 是 `gh` 的输出，插件不读、不存 token 本身。
+- 测试仍 191 条：许可页用例换成「授权范围行」用例（有 scope / 无 scope / 未登录三种），并加了「`navLicense`、`licenseTitle` 等五个键不得回到字典里」「样式表里不得再出现 `.ct-license`」两条回归断言。
 
 ## 1.10.0 — 2026-11-25
 

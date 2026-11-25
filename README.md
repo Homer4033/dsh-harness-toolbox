@@ -23,7 +23,7 @@
 
 包名 `dsh-harness-toolbox`（已发布在 npmjs.com，版本见 `npm view dsh-harness-toolbox version`）：
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.10.0`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.10.1`）；
 2. 安装完成后打开新会话 → 左侧栏的 **压缩分档** 面板。
 
 也可以在会话里让智能体用 `plugin_manager` 安装这个包名。
@@ -40,14 +40,13 @@
 
 ## 使用
 
-左侧栏的 **压缩分档** 面板（不再占用系统设置页）是「左侧导航 + 一次一页」的外壳，六个分页：
+左侧栏的 **压缩分档** 面板（不再占用系统设置页）是「左侧导航 + 一次一页」的外壳，五个分页：
 
 - **档位**：五个按钮，点一下立即写入所有已挂载的预设压缩引擎（在 `<DSH home>/compression-tiers/settings.json` 留档），不需要重启。
 - **规则**：直接编辑 `<DSH home>/AGENTS.md`，保存即原子写入；系统提示只带最新 2,000 字符摘要。
 - **工作区**：从已注册工作区里选一个，编辑它根目录的 `AGENTS.md`；工作区注册表为空时这一页连同导航项一起不出现。
 - **组件**：GitHub CLI、git、ffmpeg/ffprobe、Python 四行，每行「下载 / 重新检测」，底部是四套组件共用的下载目录。
-- **GitHub**：账号状态、`gh auth login --web` 设备码、网络体检。
-- **许可**：本插件（MIT）与四套托管组件（GitHub CLI MIT、MinGit GPL-2.0、FFmpeg GPL-2.0-or-later、python-build-standalone PSF-2.0 · MIT）的标识与许可全文链接；这些程序不随插件分发，面板下载的是各自发行方的构建。
+- **GitHub**：账号状态与 token 的授权范围（scopes）、`gh auth login --web` 设备码、网络体检。
 
 面板是液体玻璃外壳：导航栏与卡片共用一套玻璃配方，画布用三段强调色渐变，卡片 20px 圆角。面板宽度不足 720px 时导航栏变成页面上方的横向条并自动换行。表面层级、间距、分页与下拉的规范见 [docs/UI.md](docs/UI.md)。
 
@@ -142,4 +141,4 @@ test/                 node:test 用例与 manifest 检查
 
 ## 许可
 
-本插件以 [MIT](LICENSE) 发布。面板「许可」页同时列出四套托管组件的许可：GitHub CLI（MIT）、Git for Windows / MinGit（GPL-2.0）、FFmpeg（GPL-2.0-or-later）、python-build-standalone（PSF-2.0 · MIT）。这些程序不随插件分发，面板下载的是各自发行方的构建，许可证随安装目录附带。
+本插件以 [MIT](LICENSE) 发布。四套托管组件不随插件分发，面板下载的是各自发行方的构建，它们的许可证随安装目录附带：GitHub CLI（MIT）、Git for Windows / MinGit（GPL-2.0）、FFmpeg（GPL-2.0-or-later）、python-build-standalone（PSF-2.0 · MIT）。
