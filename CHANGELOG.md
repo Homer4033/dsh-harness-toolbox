@@ -1,13 +1,24 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.0.0`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.2.0`。
+
+## 2.2.0 — 2026-11-25
+
+- **配色只留两套，并且跟随 DSH 自己的深浅**：外观页剩「跟随宿主 / 深空黑曜 / 白昼冷晶」。两套配色各自带亮、暗两份 token，宿主切深浅时皮肤跟着切；**删掉了 2.1.0 的 `theme.setTheme()` 写入**——选配色不再改用户的外观偏好（浅色用户不会被一套皮肤掰成深色）。
+- **深空黑曜与白昼冷晶现在是两套真的不同的配色**：共享同一条结构色阶（深色近黑石板 / 浅色冷纸白），差在色调——黑曜是靛蓝 accent，冷晶把同一色阶压得更冷（冰青 accent、表面带蓝，深色端 `#070B12`、浅色端 `#EEF6FF`）。因为两套都带两种模式、且模式由宿主决定，所以它们在深色和浅色下都互不相同，不会出现「两个选项看起来一样」。
+- **本地皮肤也跟着宿主模式走**：`.ct-skin[data-palette='…']` 每套写两段——默认块给浅色宿主，`body[data-ds-dark-theme] .ct-skin[data-palette='…']` 给深色宿主（`data-ds-dark-theme` 是官方主题 presenter 自己写的属性）。`.ct-skin` 里不再写 `color-scheme`：`html` 上已经有宿主设的那一份，本地再写会打架。
+- **下线暖炭玄岩 / 暖白画册**：`APPEARANCE_PALETTES` 变 `host` / `obsidian` / `crystal`，`LEGACY_PALETTES` 把旧值按冷暖性格迁移（`warm → obsidian`、`alabaster → crystal`）；`src/store.js` 与 `client.js` 各留一份同表，升级后旧配置不会白丢皮肤、也不会静默回落成「跟随宿主」。
+- 试管不再按配色猜深浅：`paletteIsDark(palette)` 换成 `hostIsDark()`（先读 `body[data-ds-dark-theme]`，再读 CSS `color-scheme`，最后才是 `prefers-color-scheme`）。
+- 测试 207 → 208 条：外观页断言改成 3 个色板；皮肤用例改成「两套配色都在主题服务里装成对值、晶体与黑曜的 accent 不同、旧 id 迁移、`host` 只卸载不加层」，并新增「tint 只能覆盖已存在的 token」（拼错的名字会被静默丢弃，这条拦住它）；`test/store.test.js` 新增旧配色迁移用例。
+- 文档：README 亮点 / 界面预览 / 配色表 / 技术细节改写，[docs/UI.md](docs/UI.md) 的「配色皮肤」（两段式、不再写 `color-scheme`）与「全局皮肤」（删除「选深色会改偏好」那条）、禁止项、检查清单同步，[AGENTS.md](AGENTS.md) 事实来源与第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.2.0（vendor 路由的 `?v=` 跟着换）。
+- 渲染未验证：截图仍来自离线渲染舞台；两套配色在真实 DSH 窗口里切换深浅的实际观感要装上新版本后确认。
 
 ## 2.1.0 — 2026-11-25
 
 - **配色改成换整个 DSH 界面**：原来 `.ct-skin[data-palette]` 只覆盖插件自己的节点（面板页、dock 行、portal 菜单、试管浮窗）。现在另外接宿主的主题服务——`ctx.inject(['theme'], …)` 后调 `scope.theme.overrideTokens('compression-tiers', tokens)`，宿主把这一层写成 `<body>` 上的内联 CSS 变量，侧栏、消息气泡、输入框、菜单、卡片、代码块、滚动条、焦点环、阴影一并换色，视觉上就是「整个 GUI 换了一套」。
 - **皮肤表**：两套色族 × 两种模式（冷调 / 暖调 × 深 / 浅），四套配色各 62 个 token，全部是 `{ light, dark }` 成对值——主题服务故意拒绝裸字符串，因为单个值在用户切换亮暗后必然读不清；同族的另一模式随皮肤一起装好，事后在「设置 → 外观」手切亮暗也不会花。
 - **选深色配色会一并把宿主外观偏好切到深色**（`theme.setTheme('dark'|'light')`，「深空黑曜」在浅色宿主里名不副实）；这是可见、可回退的一次写入。服务缺席（旧宿主）时静默降级，只保留插件自己的皮肤。
-- **不做推理滑块与切工水晶**：这两样在上游是给 Antigravity 的模型菜单做的，依赖宿主有「推理等级 / effort」。DSH 的客户端包（chat / conversation / theme / layout / settings 等）里没有任何 `effort`、`reasoningEffort`、`thinkingBudget` 标识，没有可挂的宿主控件；按「不显示假数据」的规矩，不添加拨动后无效果的装饰控件，等宿主暴露真实推理强度再移植。
+- **不做推理滑块与切工水晶**：这两样在上游是给 Antigravity 的模型菜单做的，依赖宿主有「推理等级 / effort」。DSH 的客户端包（chat / conversation / theme / layout / settings 等）里没有任何 `effort`、`reasoningEffort`、`thinkingBudget` 标识，没有可挂的宿主控件；按「不显示假数据」的规矩，不添加拨动后无效果的装饰控件，等宿主暴露真实推理强度再移植。**（本节结论后来被证伪：判断源于一份不完整的 `app.asar` 解包，漏了 `dsh-client-ui-model-selection` 与 `dsh-llm-deepseek`；DSH 确实有真实推理等级，2.2.0 已按官方数据通路移植滑块。）**
 - 设置即皮肤：插件启动时读自己的 `settings.json` 把上次的配色装回去，不必先打开外观页；写入失败仍回滚到上一个配色（连同全局层一起回滚）。
 - 测试 205 → 207 条：新增「四套配色经主题服务重绘整个界面」用例（每个 token 必须是 `--dsw-*` 且带 light/dark、`host` 只卸载不加层、暖调 / 暖白取到对应底色）。
 - 文档：README 的亮点、外观页与技术细节补上全局换肤，兼容性里写明为什么没有推理滑块与切工水晶；[docs/UI.md](docs/UI.md) 增「全局皮肤（宿主主题服务）」小节；[AGENTS.md](AGENTS.md) 第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.1.0（vendor 路由的 `?v=` 跟着换，旧缓存不会跨版本存活）。

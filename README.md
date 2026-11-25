@@ -6,16 +6,16 @@
 
 **为 DeepSeek Harness 打造的五档上下文压缩与光学工具箱**
 
-五档压缩 · 会流动的上下文试管 · 输入框上方的像素伙伴 · 四套深浅配色 · 全局与工作区规则 · 四套托管组件 · 会话仓库发布
+五档压缩 · 会流动的上下文试管 · 输入框上方的像素伙伴 · 两套跟随宿主深浅的配色 · 全局与工作区规则 · 四套托管组件 · 会话仓库发布
 
 [**更新日志 (CHANGELOG)**](./CHANGELOG.md) · [**问题反馈 (Issues)**](https://github.com/Homer4033/dsh-harness-toolbox/issues) · [**npm 包**](https://www.npmjs.com/package/dsh-harness-toolbox) · [**插件详情**](./docs/DETAIL.zh.md)
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.1.0-0f172a?style=flat-square" alt="Version 2.0.0" />
+  <img src="https://img.shields.io/badge/Version-2.2.0-0f172a?style=flat-square" alt="Version 2.2.0" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-207%20passing-16a34a?style=flat-square" alt="207 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-208%20passing-16a34a?style=flat-square" alt="208 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -53,7 +53,7 @@
 - **五档压缩，点一下写进去**：`gentle` / `light` / `standard` / `aggressive` / `max` 五档，选中即同步进所有已挂载的预设压缩引擎并留档，不重启；每档都保留官方自动压力压缩。
 - **看得见的上下文**：输入框上方的小试管实时显示占用——液面就是 `已用 / 窗口`，刻度线是对应的压缩阈值；点开能读到已用、窗口、压缩阈值、保留原文、距阈值，以及系统 / 工具 / 对话三段构成。
 - **桌面上的像素伙伴**：小紫猫、Clawd 与三只迷你蟹蹲在试管左边，点一下会跳；动效可降到「克制」或直接关掉，也可以把伙伴整个收起。默认开启。
-- **四套配色，换的是整个界面**：深空黑曜、暖炭玄岩两套深色，白昼冷晶、暖白画册两套浅色，另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。选中一套时，侧栏、消息气泡、输入框、菜单、卡片与代码块一起换，不只是插件自己的面板。
+- **两套配色，换的是整个界面，跟着 DSH 走**：深空黑曜偏靛蓝，白昼冷晶偏冰青；每套都带亮、暗两份 token，DSH 切深色就用深色那份、切浅色就用浅色那份，皮肤不会把宿主的外观偏好掰到另一边。另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。选中一套时，侧栏、消息气泡、输入框、菜单、卡片与代码块一起换，不只是插件自己的面板。
 - **规则只有一份**：全局规则写 `<DSH home>/AGENTS.md`，工作区规则写各工作区根目录的 `AGENTS.md`；插件不复制、不缓存，智能体没有改写它们的工具，只能由人在面板里保存。
 - **四套组件一个根目录**：GitHub CLI、git、ffmpeg / ffprobe、Python 都能检测系统 PATH 副本或下载托管版，断点续传、自检后原子替换、失败回滚；整个根目录可在面板里迁移。
 - **发布只有一个入口**：`github_push` 依次做网络体检 → 密钥扫描 → 60 秒超时推送 → 失败分类；输入框上方的「仓库」胶囊决定当前会话推到哪里，胶囊在空会话里也在。
@@ -63,29 +63,27 @@
 
 ## 界面预览
 
-### 1. 四套配色与外观页
+### 1. 两套配色与外观页
 
-外观页把配色、动效与像素伙伴放在一张卡里，选完立刻生效（乐观写入，失败回滚）。配色走宿主官方的主题服务（`overrideTokens`）：面板页、输入框上方那一行、portal 到 body 的菜单照旧各带一份皮肤，同时把整套 token 叠加到宿主主题上，于是侧栏、气泡、输入框、菜单与代码块一起换色。选深色配色时会把宿主的外观偏好一并切到深色，「深空黑曜」不会在浅色宿主里读成白底。
+外观页把配色、动效与像素伙伴放在一张卡里，选完立刻生效（乐观写入，失败回滚）。配色走宿主官方的主题服务（`overrideTokens`）：面板页、输入框上方那一行、portal 到 body 的菜单照旧各带一份皮肤，同时把整套 token 叠加到宿主主题上，于是侧栏、气泡、输入框、菜单与代码块一起换色。两套配色都同时提供亮色与暗色两份值，**深色 / 浅色由 DSH 自己决定**——切一下官方主题，皮肤跟着切，不用回面板再点一次。
 
 <p align="center">
-  <img src="docs/screenshots/palettes.png" width="100%" alt="四套深浅配色方案" />
+  <img src="docs/screenshots/palettes.png" width="100%" alt="深空黑曜 / 白昼冷晶两套配色，各带亮暗两种模式" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/skins.png" width="100%" alt="暖炭玄岩把侧栏、消息气泡、输入框与按钮一起换色" />
+  <img src="docs/screenshots/skins.png" width="100%" alt="白昼冷晶把侧栏、消息气泡、输入框与按钮一起换色" />
 </p>
 
 换掉的不是某个面板，而是整块画面：侧栏选中态、消息气泡、输入框、发送键、试管图例都跟着配色走。
 
-| 主题预设 | 配置键值 | 侧栏底色 | 主画布 | 说明 |
+| 主题预设 | 配置键值 | 深色画布 | 浅色画布 | 说明 |
 | :--- | :--- | :--- | :--- | :--- |
 | **跟随宿主** | `appearance.palette: "host"` | 宿主 token | 宿主 token | 默认；不覆盖颜色，深浅随官方主题 |
-| **深空黑曜** | `appearance.palette: "obsidian"` | `#17171B` | `#0A0A0C` | 冷调深灰，高对比代码阅读配色 |
-| **暖炭玄岩** | `appearance.palette: "warm"` | `#201D19` | `#12110F` | 暖炭褐底色，低蓝光夜间配色 |
-| **白昼冷晶** | `appearance.palette: "crystal"` | `#F7FAFD` | `#E6EDF6` | 冷调浅灰蓝，高明度浅色配色 |
-| **暖白画册** | `appearance.palette: "alabaster"` | `#FFFDF8` | `#F4F1EA` | 暖白纸色，柔和对比度浅色配色 |
+| **深空黑曜** | `appearance.palette: "obsidian"` | `#0A0A0C` | `#E6EDF6` | 靛蓝 accent，近黑石板深色 / 冷灰蓝浅色 |
+| **白昼冷晶** | `appearance.palette: "crystal"` | `#070B12` | `#EEF6FF` | 冰青 accent，冷蓝黑深色 / 冰白浅色 |
 
-两套浅色把 `color-scheme: light` 一起设上，原生滚动条、输入框与 `Select` 弹层才不会沿用深色。
+2.0.0 的暖炭玄岩与暖白画册已下线：旧配置里的 `warm` / `alabaster` 会按冷暖性格迁移到深空黑曜 / 白昼冷晶，升级后不会白丢皮肤、也不会回落成「跟随宿主」。
 
 ### 2. 光学细节：上下文试管
 
@@ -227,21 +225,22 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 ## 技术细节
 
 <details>
-<summary><strong>分层、试管物理、阈值、配色隔离与安全边界（点击展开）</strong></summary>
+<summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.0.0`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.2.0`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）与 `dual-mascot-rig.js`（约 231 KB）是上游 1.0.8-beta.1 的 UMD 模块，走同源路由 `GET /compression-tiers/vendor/<name>`（只服务这两个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.0.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）与 `dual-mascot-rig.js`（约 231 KB）是上游 1.0.8-beta.1 的 UMD 模块，走同源路由 `GET /compression-tiers/vendor/<name>`（只服务这两个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.2.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」，不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
-- **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的整份 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都定义好，用户事后在设置里手切亮暗也不会读不清。
-- **配色是整份 token 覆盖，但只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行与 portal 出去的菜单上，这四套值不会渗到宿主界面；`host` 是空集，保持官方主题不变。浅色两套同时设 `color-scheme: light`。
+- **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
+- **配色只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行与 portal 出去的菜单上，这些值不会渗到宿主界面；`host` 是空集，保持官方主题不变。两个配色的本地 token 也按宿主模式分两份：默认块是浅色宿主读到的值，`body[data-ds-dark-theme]`（官方主题 presenter 自己写的属性）下换成深色那份；这里不写 `color-scheme`，`html` 上已经有宿主设的那一份。
+- **皮肤不掰用户的主题**：2.0.0 选深色配色会把宿主外观偏好一并切到深色，2.2.0 去掉了这次写入——配色自带亮暗两份值，用户切官方主题时皮肤跟着走。
 - **状态只落一个文件**：`<DSH home>/compression-tiers/settings.json`，所有写入是「临时文件 + rename」；手改坏的 JSON 回落到默认值，不让插件崩。`appearance` 在读写两侧都归一化，未知配色 / 动效值直接回落默认而不是报错。
 - **规则写入**：去 BOM、CRLF 归一 LF、保留单个结尾换行，单次上限 100,000 字符（超出 413 且不落盘）；系统提示只带最新 2,000 字符摘要，从不整份注入，也不把摘要写回文件。
 - **托管安装**：下载 → `.staging` → 自检 → `moveIntoPlace()` 原子替换 → 失败回滚；已下载完的归档在下一次重试时复用，不再白下第二遍。PATH 前插只影响本进程，且去重。
 - **发布边界**：会话绑定的仓库只改 `github_push` 的推送目标，不克隆、不切分支、不动会话工作区；绑定归一化为 `owner/name`，非法值丢弃，最多 200 条。
-- **测试**：`npm test` 205 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、规则与工作区规则、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名、manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
+- **测试**：`npm test` 208 条 `node:test` 用例，覆盖档位与公式、路由、引擎同步、规则与工作区规则、`gh` / 组件 / 下载位置、发布流程、移植模块的 UMD 装载与署名、配色的成对值 / 旧配色迁移 / 皮肤只叠一层、manifest 与 locale；CI 在 Windows 与 Linux 两侧跑同一套。
 
 </details>
 
@@ -253,7 +252,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **宿主平面**：只更新预设隔离域里的引擎；如果别的插件也管同一批引擎，两边会互相覆盖，只留一个。
 - **网络**：GitHub 与 npm 相关操作要能访问 `github.com`；代理死掉或 DNS 被污染时用「网络体检」定位。ffmpeg 需要能访问 `www.gyan.dev`，git / Python 需要能访问 `github.com`。
 - **托管副本会盖过系统版本**：装了托管 git / Python 后，本进程内的 `git` / `python` 优先用托管副本；删掉 `<root>/git`、`<root>/python` 并重启即回退。
-- **没有推理等级滑块，也没有切工水晶**：这两样在上游是给 Antigravity 的模型菜单做的，依赖宿主有「推理等级 / effort」这个概念。DSH 的客户端包里没有任何 `effort` / `reasoningEffort` / `thinkingBudget` 标识，没有可挂的宿主控件；插件不做一个拨动后什么都不影响的装饰滑块。切工水晶同理，等宿主暴露真实的推理强度再移植。
+- **推理滑块与切工水晶还没移植**：它们要挂宿主官方模型菜单里的「推理等级」行（根面板第二行，`button[role="menuitem"]`）。DSH 有真实的推理等级——读 `directoryFor(sessionId).store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，档位表见 `dsh-llm-deepseek` 的 `REASONING_EFFORTS`；参考实现是 [`dsh-codex-effort-slider`](https://github.com/Microqian2th/dsh-codex-effort-slider)。本版只做了换肤，滑块排在下一版；在那之前不做一个拨动后什么都不影响的装饰控件。
 - **伙伴的开销**：像素伙伴挂 `dual-mascot-rig.js`（约 231 KB，按需加载一次）；不想要就在外观页关掉，关掉后 dock 只留试管触发器与仓库胶囊。
 - **渲染未验证**：README 里的画面来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库的 `client.js`），**真实 DSH 窗口里的最终观感仍需刷新页面后确认**。
 - **仓库 UI**：没有仓库列表，也没有推送按钮。多仓库由智能体在各自会话里调用 `github_push`；胶囊只决定当前会话的目标。
@@ -283,7 +282,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 ### 2. 上游项目与致谢 (Upstream Credits)
 
-- **[RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism)** (`1.0.8-beta.1`) — `GPL-3.0-only`, `Copyright (C) 2026 RMvdesi`：本项目移植了 `vial-core.js`（浅水波试管）与 `dual-mascot-rig.js`（像素伙伴装配），并沿用它那套光学界面语言重做了本插件的面板外壳、四套配色与动效档位。两份文件头部都写有出处与修改说明。
+- **[RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism)** (`1.0.8-beta.1`) — `GPL-3.0-only`, `Copyright (C) 2026 RMvdesi`：本项目移植了 `vial-core.js`（浅水波试管）与 `dual-mascot-rig.js`（像素伙伴装配），并沿用它那套光学界面语言重做了本插件的面板外壳、两套配色与动效档位。两份文件头部都写有出处与修改说明。
 - 上游本身又吸收了若干 MIT 项目（与 GPL-3.0 兼容），完整版权与许可全文保留在 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)，其中与本插件直接相关的有：
   - **[0DNANCY/agy-claude-style](https://github.com/0DNANCY/agy-claude-style)** — `MIT`, `Copyright (c) 2026 0DNANCY`（配色框架与像素宠物底座）。
   - **[wp3171216237/dsh-TUI](https://github.com/wp3171216237/dsh-TUI)** — `MIT`, `Copyright (c) 2026 chimney (@wp3171216237)`（Deepy 桌宠轮廓配色参考）。

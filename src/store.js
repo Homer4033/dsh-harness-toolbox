@@ -25,8 +25,20 @@ export function defaultGithubSettings() {
   }
 }
 
-/** The four optical palettes plus the host theme. */
-export const APPEARANCE_PALETTES = ['host', 'obsidian', 'warm', 'crystal', 'alabaster']
+/**
+ * The host theme plus the two optical palettes. Both palettes carry a light and
+ * a dark token set, so neither of them pins the colour scheme: whichever one is
+ * picked, the app follows whatever light/dark the user has DSH on.
+ */
+export const APPEARANCE_PALETTES = ['host', 'obsidian', 'crystal']
+
+/**
+ * 2.0.0 shipped 深空黑曜 / 暖炭玄岩 / 白昼冷晶 / 暖白画册. 2.2.0 keeps the two
+ * cool ones (the warm pair was dropped by request), and the retired ids map to
+ * the survivor with the same character — deep to deep, bright to bright — so an
+ * upgraded install keeps a skin instead of silently reverting to the host theme.
+ */
+export const LEGACY_PALETTES = { warm: 'obsidian', alabaster: 'crystal' }
 
 /** Motion tiers, from the full optical choreography to reduced motion. */
 export const APPEARANCE_MOTIONS = ['full', 'subtle', 'off']
@@ -34,8 +46,9 @@ export const APPEARANCE_MOTIONS = ['full', 'subtle', 'off']
 export function defaultAppearance() {
   return {
     // `host` keeps the official theme tokens the panel always used; the other
-    // four scope a complete light/dark palette to the plugin's own surfaces
-    // (panel, dock, portalled popovers).
+    // two scope a complete light/dark palette to the plugin's own surfaces
+    // (panel, dock, portalled popovers) and repaint the app through the theme
+    // service — always in the host's own light/dark mode.
     palette: 'host',
     motion: 'full',
     // Pixel companions above the composer. Opt-out, not opt-in: the 2.0.0
@@ -52,8 +65,12 @@ export function defaultAppearance() {
 export function normalizeAppearance(value) {
   const base = defaultAppearance()
   const next = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  const legacy = LEGACY_PALETTES[next.palette]
+  const palette = APPEARANCE_PALETTES.includes(next.palette)
+    ? next.palette
+    : (legacy || base.palette)
   return {
-    palette: APPEARANCE_PALETTES.includes(next.palette) ? next.palette : base.palette,
+    palette,
     motion: APPEARANCE_MOTIONS.includes(next.motion) ? next.motion : base.motion,
     mascots: next.mascots === false ? false : true,
   }

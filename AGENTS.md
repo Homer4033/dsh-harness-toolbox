@@ -13,9 +13,9 @@
 
 ## 范围
 
-- 本仓库只负责五档上下文压缩、全局与工作区规则编辑、组件管理、发布流程与会话发布仓库：档位参数、左侧栏「压缩分档」面板（`sidebar.panellist` + `main`）、`compression_tiers` / `compression_context` / `compression_compact` / `github_push` 四个工具、把档位同步进预设隔离域的 `compaction-basic` 引擎、面板里对 `<DSH home>/AGENTS.md` 与已注册工作区 `AGENTS.md` 的读取与原子写入、四套托管组件（GitHub CLI / git / ffmpeg+ffprobe / Python）的 PATH 检测与托管下载、`gh` 的设备码登录与网络体检、`github_push` 的发布流程、输入框上方按会话绑定的在线仓库胶囊，以及四套托管文件共用的下载根目录与整体迁移。2.0.0 起还负责输入框上方那一行的光学层（上下文试管浮窗、像素伙伴）与外观页的三套设置（配色 / 动效 / 伙伴开关），以及四套运行期皮肤。
+- 本仓库只负责五档上下文压缩、全局与工作区规则编辑、组件管理、发布流程与会话发布仓库：档位参数、左侧栏「压缩分档」面板（`sidebar.panellist` + `main`）、`compression_tiers` / `compression_context` / `compression_compact` / `github_push` 四个工具、把档位同步进预设隔离域的 `compaction-basic` 引擎、面板里对 `<DSH home>/AGENTS.md` 与已注册工作区 `AGENTS.md` 的读取与原子写入、四套托管组件（GitHub CLI / git / ffmpeg+ffprobe / Python）的 PATH 检测与托管下载、`gh` 的设备码登录与网络体检、`github_push` 的发布流程、输入框上方按会话绑定的在线仓库胶囊，以及四套托管文件共用的下载根目录与整体迁移。2.0.0 起还负责输入框上方那一行的光学层（上下文试管浮窗、像素伙伴）与外观页的三套设置（配色 / 动效 / 伙伴开关），以及两套运行期皮肤（每套都带亮暗两份 token，跟随宿主深浅）。
 - 不负责：`dsh-compaction-basic` 本身的压缩算法、会话历史、摘要模型选择、官方 `/compact` 命令；不解析或改写规则内容，只把它当作文本原样保存；不实现 PR/检查/评审/工作树面板本身（官方 `dsh-experimental-forge-bundle` 负责），只保证它找得到已登录的 `gh`。
-- 不实现上游 Obsidian Prism 的其余能力（推理等级滑块、切工水晶、思考过程转译、动静态壁纸、Omni 检视台等）：只移植试管核心与像素伙伴装配两份 UMD 模块，其余光学观感（外壳、配色、动效）是本插件自己按上游语言重画的。
+- 不实现上游 Obsidian Prism 的其余能力（思考过程转译、动静态壁纸、Omni 检视台等）：只移植试管核心与像素伙伴装配两份 UMD 模块，其余光学观感（外壳、配色、动效）是本插件自己按上游语言重画的。2.2.0 起推理滑块与切工水晶是本插件自己写的（`client.js` 纯函数 + DOM 桥），不移植上游代码。
 - 不做仓库列表面板：1.4.x 的左侧栏「仓库」面板在 1.5.0 删除，1.5.1 又删掉设置页里的默认仓库与推送/建仓/查看动作；1.6.0 只增加按会话绑定的单个在线仓库选择器，1.9.0 把它从会话头移到输入框上方（`conversation.input.dock`）。多仓库场景由智能体在各自会话里调用 `github_push`，不要再加仓库列表或推送按钮。
 - 不提供改写全局规则或工作区规则的智能体工具：高优先级契约只能由人在面板里保存。
 - 不维护 `homerdsh-workbench` 的其它子系统（会话、GitHub、记忆、视频、投研终端）。
@@ -35,7 +35,7 @@
 - 组件行唯一来源：`src/component-rows.js` 的 `COMPONENT_ORDER` 与四个 mapper（gh / git / ffmpeg / python → 统一行）。面板不得自行拼装某一个组件的状态、版本或路径，也不得再为单个组件加一套状态行。
 - 运行时兼容声明：`package.json` 的 `engines.dsh`（当前 `>=0.2.2-rc.3 <0.3.0`），DSH 加载器据此拒绝不兼容版本。
 - 官方阈值公式：`floor(min(W × thresholdRatio, W − O − 65,536))`，逐字保留 `(W − O) × retainRatio`。
-- 外观取值域唯一来源：`src/store.js` 的 `APPEARANCE_PALETTES`（`host` / `obsidian` / `warm` / `crystal` / `alabaster`）、`APPEARANCE_MOTIONS`（`full` / `subtle` / `off`）与 `defaultAppearance()`（`host` / `full` / 伙伴开启）；面板、dock 行与试管都从这里取，不得另写一套。
+- 外观取值域唯一来源：`src/store.js` 的 `APPEARANCE_PALETTES`（`host` / `obsidian` / `crystal`）、`APPEARANCE_MOTIONS`（`full` / `subtle` / `off`）与 `defaultAppearance()`（`host` / `full` / 伙伴开启）；`LEGACY_PALETTES`（`warm` → `obsidian`、`alabaster` → `crystal`）负责把 2.0.0 已下线的两套配色迁移到现存的深 / 亮两套，`client.js` 里保留同一张表；面板、dock 行与试管都从这里取，不得另写一套。
 - 移植模块唯一来源：`vendor/obsidian-prism/` 的两份 UMD（上游 `1.0.8-beta.1`），文件名集合由 `index.js` 与 `client.js` 的 `VENDOR_SCRIPTS` 共同限定；新增或删除文件必须两边同步并补 `test/vendor.test.js`。
 - 许可与署名：`LICENSE`（GPL-3.0 全文）、`NOTICE`（衍生作品声明 + 上游 NOTICE 全文）、`THIRD_PARTY_NOTICES.md`（上游吸收的 MIT 项目）。三份文件不得删改署名段；两份 vendor 文件的出处头必须保留上游仓库、版权年份与修改日期。
 
@@ -65,11 +65,11 @@
 22. 面板与弹层遵守 [docs/UI.md](docs/UI.md)：面板是**液体玻璃外壳 + 左侧分页导航**——`.ct-page` 是滚动容器、玻璃画布与容器查询的容器（`container-type: inline-size`，不能放在 `.ct-shell` 上，元素不会被自己的容器查询命中），`.ct-shell` 为 `196px minmax(0,1fr)` 栅格、最大 980px，左列 `.ct-nav`（6 个分页：档位 / 规则 / 工作区 / 组件 / 外观 / GitHub，`aria-current='page'`），右列 `.ct-content` 一次只渲染一页（导航栏 `position: sticky; top: 0`——正的 `top` 会在静止状态把它推离第一张卡片，实测 18px 时差 10–18px；`.ct-page` 带 `scrollbar-gutter: stable`，否则长短页切换时出现/消失的滚动条会让居中外壳横向位移；分页进场只淡入，不位移不缩放）；面板宽度 ≤720px 时导航栏变横向条并**换行**（不得用 `overflow-x` 横滚，被裁掉的页面等于没有入口）。卡片 20px 圆角、共用 `.ct-page` 上的玻璃变量（`--ct-glass-fill` / `-rail` / `-sheen` / `-edge` / `-shadow` / `-inner`）+ 三段结构（标题行 → 内容 → 动作行）；导航栏比卡片低一层（layer-2 混合）。下拉与菜单一律自绘（`Select` 组件 + `.ct-menu`：portal 到 body、`placeMenu()` 定位、`data-side` 决定上拉/翻下、↑ / ↓ / Home / End / Enter / Esc 与 `aria-activedescendant`），不得再出现原生 `<select>`（系统弹层是浅底 + 继承来的浅字）。弹层表面用 `--dsw-alias-bg-layer-3` 加玻璃与阴影，**不得**用 layer-2（那是卡片色，菜单会读成浮着的一行文字）；accent 只做 12–20% 淡染与 2px 竖条。GitHub 页用一行 `.ct-scopes` 显示 `gh auth status` 报出的 token scope（缺 `repo` 时另给一条 alert 状态），插件不读、不存 token 本身；不另设许可页（1.10.1 已删除）。改控件先改规范，再改样式。
 23. 光学层（2.0.0）：
     - **移植模块只走同源脚本**：`vial-core.js` / `dual-mascot-rig.js` 由 `GET /compression-tiers/vendor/<name>` 提供（白名单只放这两个名字、`text/javascript; charset=utf-8`、`cache-control: public, max-age=3600`），客户端用普通 `<script src="…?v=<PLUGIN_VERSION>">` 加载。`client.js` 不得 `import` 它们，也不得把 UMD 内容复制进来；宿主侧与客户端各有一份 `VENDOR_SCRIPTS`，增删要两边同步。
-    - **配色只写在 `.ct-skin[data-palette='…']` 上**（面板页、dock 行、portal 菜单、试管浮窗），禁止写 `:root` / `body`；`host` 是空集，浅色两套必须同时设 `color-scheme: light`，四套都要给全量 token（含 `--dsw-alias-chart-*` 与玻璃变量）。
+    - **配色只写在 `.ct-skin[data-palette='…']` 上**（面板页、dock 行、portal 菜单、试管浮窗），禁止写 `:root` / `body`；`host` 是空集。每套配色两段：默认块是浅色宿主读到的值，`body[data-ds-dark-theme] .ct-skin[data-palette='…']` 是深色宿主的值——2.2.0 起配色跟随宿主深浅，不在 `.ct-skin` 里写 `color-scheme`（`html` 上已有宿主设的那份），也**不得**在选配色时调 `theme.setTheme()` 改用户的外观偏好。两套都要给全量 token（含 `--dsw-alias-chart-*` 与玻璃变量）。
     - **数字只能来自官方投影**：`useProjection('contextPressure')` 与 `useProjection('contextBreakdown')`；取不到就渲染「—」并禁用触发器，不许用 0 或估算值冒充。阈值与保留量按「事实来源」里的官方阈值公式算。
     - **外观写入走一个字段**：`POST /compression-tiers/api/settings` 的 `appearance`，服务端用 `normalizeAppearance()` 归一回默认、非法值 400；客户端乐观更新，失败必须回滚并写 `.ct-status`。
     - **整个界面换肤只走宿主主题服务**：`ctx.inject(['theme'], scope => scope.theme.overrideTokens('compression-tiers', tokens))`，每个 token 是 `{ light, dark }` 成对值（服务拒绝裸字符串），只保留一层（换色先 dispose），`theme` 缺席时静默降级；不得用宿主哈希类名改结构，只用 `--dsw-*` token 换色。
-    - **不做假的推理滑块**：DSH 客户端没有 effort / reasoningEffort / thinkingBudget 之类的概念，没有可挂的宿主控件；在宿主暴露真实推理强度之前，不添加拨动后无效果的装饰控件（切工水晶同理）。
+    - **推理滑块挂在官方「推理等级」行上**：DSH 有真实档位——读 `directoryFor(sessionId).store.getSnapshot()` 的 `groups[].models[].reasoning.efforts`，写 `directory.select({ provider, model, reasoningEffort })`，订阅 `store.subscribe()`；DOM 锚点只用语义属性（`button[aria-haspopup="menu"][aria-expanded]` + `aria-controls` → 菜单、`button[role="menuitem"]` 第 2 行、`[data-composer-card]` 判归属），认不出就 fail-open 什么都不做；不得只用哈希 class 认锚点，也不得做拨动后无效果的装饰控件（切工水晶挂在同一条轨道上）。
     - **伙伴默认开启但必须可关**：关掉后不渲染 `.ct-dock-mascots`、不留占位；动效 `off` 必须把 `reducedMotion` 传给试管与伙伴。移植模块加载失败时舞台整块收起（`data-state='failed'`），不得留空白框。
 
 ## 验证要求

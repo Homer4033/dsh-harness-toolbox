@@ -22,13 +22,11 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.1.0'
+    const PLUGIN_VERSION = '2.2.0'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
-      { id: 'warm', labelKey: 'paletteWarm' },
       { id: 'crystal', labelKey: 'paletteCrystal' },
-      { id: 'alabaster', labelKey: 'paletteAlabaster' },
     ]
     const MOTIONS = [
       { id: 'full', labelKey: 'motionFull' },
@@ -47,9 +45,9 @@ window.__ModuleLoader__.load({
      * must be a { light, dark } pair because the service rejects bare strings:
      * a single value goes illegible the moment the user flips the colour scheme.
      *
-     * The four palettes are two colour families × two modes. Picking one also
-     * pins the host scheme (see `setHostScheme`), and the other mode of the same
-     * family is carried along as the fallback for a later manual switch.
+     * The palettes are a structural ramp plus a tint (see `SKIN_TINTS`). Every
+     * palette ships both modes and the host service picks the one matching the
+     * active theme, so nothing here decides light or dark for the user.
      */
     const SKIN_FAMILIES = {
       cool: {
@@ -214,174 +212,106 @@ window.__ModuleLoader__.load({
           '--dsw-elevation-stroke': '1px solid rgba(23, 40, 64, 0.18)',
         },
       },
-      warm: {
+    }
+    /**
+     * 深空黑曜 and 白昼冷晶 share the structural ramp above — near-black slate
+     * when the host is dark, cool paper when it is light — and differ by tint:
+     * obsidian is the ramp as authored (indigo accent), crystal runs the same
+     * ramp colder (ice-cyan accent, blue-cast surfaces). Neither palette pins a
+     * scheme, which is the 2.2.0 change: both install a light and a dark set and
+     * the host picks, so a palette survives the user flipping DSH's theme.
+     */
+    const SKIN_TINTS = {
+      obsidian: { dark: {}, light: {} },
+      crystal: {
         dark: {
-          '--dsw-alias-bg-base': '#12110f',
-          '--dsw-alias-bg-layer-1': '#181613',
-          '--dsw-alias-bg-layer-2': '#201d19',
-          '--dsw-alias-bg-layer-3': '#2a2520',
-          '--dsw-alias-bg-module-platform': '#342e27',
-          '--dsw-alias-bg-overlay': 'rgba(12, 11, 9, 0.74)',
-          '--dsw-alias-bg-mask-1': 'rgba(0, 0, 0, 0.26)',
-          '--dsw-alias-bg-mask-2': 'rgba(0, 0, 0, 0.42)',
-          '--dsw-alias-bg-mask-3': 'rgba(0, 0, 0, 0.58)',
-          '--dsw-alias-bg-skeleton': '#252119',
-          '--dsw-alias-border-l1': 'rgba(255, 235, 210, 0.07)',
-          '--dsw-alias-border-l2': 'rgba(255, 235, 210, 0.12)',
-          '--dsw-alias-border-l3': 'rgba(255, 235, 210, 0.2)',
-          '--dsw-alias-border-l4': 'rgba(255, 235, 210, 0.28)',
-          '--dsw-alias-border-selected': '#e0a45c',
-          '--dsw-alias-label-primary': '#f5eee3',
-          '--dsw-alias-label-secondary': '#d3c6b4',
-          '--dsw-alias-label-tertiary': '#a59784',
-          '--dsw-alias-label-caption': '#9a8c79',
-          '--dsw-alias-label-dimmed': '#8b7e6c',
-          '--dsw-alias-label-on-color': '#12110f',
-          '--dsw-alias-link': '#f0bd7a',
-          '--dsw-alias-interactive-bg-hover': 'rgba(255, 235, 210, 0.08)',
-          '--dsw-alias-interactive-bg-active': 'rgba(255, 235, 210, 0.13)',
-          '--dsw-alias-interactive-bg-hover-solid': '#352f28',
-          '--dsw-alias-button-primary-fill': '#e0a45c',
-          '--dsw-alias-button-primary-hover': '#ecb877',
-          '--dsw-alias-button-contrast-fill': '#f5eee3',
-          '--dsw-alias-button-elevated-fill': '#2f2923',
-          '--dsw-alias-button-tool-bar-fill': 'rgba(255, 235, 210, 0.06)',
-          '--dsw-alias-button-tool-bar-hover': 'rgba(255, 235, 210, 0.12)',
-          '--dsw-alias-card-fill': 'rgba(42, 37, 32, 0.66)',
-          '--dsw-alias-card-fill-hover': 'rgba(52, 46, 39, 0.8)',
-          '--dsw-alias-settings-card-fill': 'rgba(32, 29, 25, 0.74)',
-          '--dsw-alias-settings-card-stroke': 'rgba(255, 235, 210, 0.16)',
-          '--dsw-alias-menu-group-header-fill': 'rgba(255, 235, 210, 0.04)',
-          '--dsw-alias-state-business-primary': '#e0a45c',
-          '--dsw-alias-state-success-primary': '#7fc8a9',
-          '--dsw-alias-state-success-secondary': 'rgba(127, 200, 169, 0.16)',
-          '--dsw-alias-state-warn-primary': '#e0a45c',
-          '--dsw-alias-state-warn-secondary': 'rgba(224, 164, 92, 0.16)',
-          '--dsw-alias-state-error-primary': '#ff8a7a',
-          '--dsw-alias-state-error-secondary': 'rgba(255, 138, 122, 0.16)',
-          '--dsw-alias-state-done-primary': '#e0a45c',
-          '--dsw-alias-state-idle-primary': '#a59784',
-          '--dsw-alias-chart-system': '#e0a45c',
-          '--dsw-alias-chart-tools': '#c58bff',
-          '--dsw-alias-chart-messages': '#7fc8a9',
-          '--dsw-alias-markdown-code-block': '#181613',
-          '--dsw-alias-markdown-code-block-banner': '#221e19',
-          '--dsw-alias-markdown-inline-code': 'rgba(255, 235, 210, 0.08)',
-          '--dsw-alias-markdown-citation': 'rgba(224, 164, 92, 0.16)',
-          '--dsw-alias-markdown-tag': 'rgba(255, 235, 210, 0.08)',
-          '--dsw-specific-sidebar-fill': '#181613',
-          '--dsw-specific-sidebar-glass-fill': 'rgba(32, 29, 25, 0.72)',
-          '--dsw-specific-sidebar-glass-hover': 'rgba(42, 37, 32, 0.84)',
-          '--dsw-specific-sidebar-nav-item-active': 'rgba(224, 164, 92, 0.16)',
-          '--dsw-specific-sidebar-nav-item-active-accent': '#e0a45c',
-          '--dsw-specific-sidebar-tint': 'rgba(224, 164, 92, 0.06)',
-          '--dsw-specific-bubble': 'rgba(42, 37, 32, 0.92)',
-          '--dsw-specific-bubble-highlight': 'rgba(255, 235, 210, 0.06)',
-          '--dsw-specific-menu': '#2a2520',
-          '--dsw-specific-input-major': '#201d19',
-          '--dsw-specific-selector': '#2a2520',
-          '--dsw-specific-tip': 'rgba(255, 235, 210, 0.06)',
-          '--dsw-alias-tooltip-bg': '#352f28',
-          '--dsw-alias-tooltip-label': '#f5eee3',
-          '--dsw-alias-tooltip-key-bg': 'rgba(255, 235, 210, 0.1)',
-          '--dsw-alias-toast-bg': '#352f28',
-          '--dsw-alias-toast-label': '#f5eee3',
-          '--dsw-alias-toast-action': '#f0bd7a',
-          '--dsw-alias-scrollbar-bg-l1': 'rgba(255, 235, 210, 0.07)',
-          '--dsw-alias-scrollbar-hover-l1': 'rgba(255, 235, 210, 0.18)',
-          '--dsw-focus-ring-color': '#e0a45c',
-          '--dsw-elevation-panel': '0 28px 64px rgba(0, 0, 0, 0.5)',
-          '--dsw-elevation-prominent': '0 20px 48px rgba(0, 0, 0, 0.45)',
-          '--dsw-elevation-soft': '0 8px 24px rgba(0, 0, 0, 0.32)',
-          '--dsw-elevation-stroke': '1px solid rgba(255, 235, 210, 0.16)',
+          '--dsw-alias-bg-base': '#070b12',
+          '--dsw-alias-bg-layer-1': '#0b1119',
+          '--dsw-alias-bg-layer-2': '#111925',
+          '--dsw-alias-bg-layer-3': '#182333',
+          '--dsw-alias-bg-module-platform': '#1f2a38',
+          '--dsw-alias-bg-skeleton': '#141d29',
+          '--dsw-alias-border-l3': 'rgba(196, 228, 255, 0.2)',
+          '--dsw-alias-border-l4': 'rgba(196, 228, 255, 0.28)',
+          '--dsw-alias-border-selected': '#7ad6ff',
+          '--dsw-alias-label-primary': '#eef7ff',
+          '--dsw-alias-label-secondary': '#b8ccdd',
+          '--dsw-alias-label-tertiary': '#8299ac',
+          '--dsw-alias-label-on-color': '#070b12',
+          '--dsw-alias-link': '#8ad9ff',
+          '--dsw-alias-interactive-bg-hover-solid': '#1d2839',
+          '--dsw-alias-button-primary-fill': '#3fb4ec',
+          '--dsw-alias-button-primary-hover': '#5ec8ff',
+          '--dsw-alias-button-elevated-fill': '#1c2736',
+          '--dsw-alias-state-business-primary': '#48c6f5',
+          '--dsw-alias-state-done-primary': '#48c6f5',
+          '--dsw-alias-state-success-primary': '#4fd6c0',
+          '--dsw-alias-state-success-secondary': 'rgba(79, 214, 192, 0.16)',
+          '--dsw-alias-chart-system': '#48c6f5',
+          '--dsw-alias-chart-tools': '#9db8ff',
+          '--dsw-alias-chart-messages': '#5fe3d0',
+          '--dsw-alias-markdown-code-block': '#0b1119',
+          '--dsw-alias-markdown-code-block-banner': '#131d2a',
+          '--dsw-alias-markdown-citation': 'rgba(72, 198, 245, 0.16)',
+          '--dsw-specific-sidebar-fill': '#0b1119',
+          '--dsw-specific-sidebar-glass-fill': 'rgba(17, 25, 37, 0.7)',
+          '--dsw-specific-sidebar-glass-hover': 'rgba(24, 35, 51, 0.82)',
+          '--dsw-specific-sidebar-nav-item-active': 'rgba(72, 198, 245, 0.16)',
+          '--dsw-specific-sidebar-nav-item-active-accent': '#48c6f5',
+          '--dsw-specific-sidebar-tint': 'rgba(72, 198, 245, 0.06)',
+          '--dsw-specific-bubble': 'rgba(24, 35, 51, 0.92)',
+          '--dsw-specific-menu': '#182333',
+          '--dsw-specific-input-major': '#111925',
+          '--dsw-specific-selector': '#182333',
+          '--dsw-alias-tooltip-bg': '#1f2a38',
+          '--dsw-alias-toast-bg': '#1f2a38',
+          '--dsw-alias-toast-action': '#8ad9ff',
+          '--dsw-focus-ring-color': '#7ad6ff',
+          '--dsw-elevation-stroke': '1px solid rgba(196, 228, 255, 0.16)',
         },
         light: {
-          '--dsw-alias-bg-base': '#f4f1ea',
-          '--dsw-alias-bg-layer-1': '#faf8f3',
-          '--dsw-alias-bg-layer-2': '#fffdf8',
+          '--dsw-alias-bg-base': '#eef6ff',
+          '--dsw-alias-bg-layer-1': '#f5faff',
+          '--dsw-alias-bg-layer-2': '#fbfdff',
           '--dsw-alias-bg-layer-3': '#ffffff',
-          '--dsw-alias-bg-module-platform': '#ede7db',
-          '--dsw-alias-bg-overlay': 'rgba(250, 248, 243, 0.84)',
-          '--dsw-alias-bg-mask-1': 'rgba(74, 55, 35, 0.12)',
-          '--dsw-alias-bg-mask-2': 'rgba(74, 55, 35, 0.2)',
-          '--dsw-alias-bg-mask-3': 'rgba(74, 55, 35, 0.32)',
-          '--dsw-alias-bg-skeleton': '#ece5d9',
-          '--dsw-alias-border-l1': 'rgba(74, 55, 35, 0.09)',
-          '--dsw-alias-border-l2': 'rgba(74, 55, 35, 0.15)',
-          '--dsw-alias-border-l3': 'rgba(74, 55, 35, 0.24)',
-          '--dsw-alias-border-l4': 'rgba(74, 55, 35, 0.32)',
-          '--dsw-alias-border-selected': '#b4653a',
-          '--dsw-alias-label-primary': '#2a241c',
-          '--dsw-alias-label-secondary': '#5c5244',
-          '--dsw-alias-label-tertiary': '#857967',
-          '--dsw-alias-label-caption': '#8d8171',
-          '--dsw-alias-label-dimmed': '#9a8f7f',
-          '--dsw-alias-label-on-color': '#ffffff',
-          '--dsw-alias-link': '#9a4f2a',
-          '--dsw-alias-interactive-bg-hover': 'rgba(74, 55, 35, 0.07)',
-          '--dsw-alias-interactive-bg-active': 'rgba(74, 55, 35, 0.11)',
-          '--dsw-alias-interactive-bg-hover-solid': '#ebe4d8',
-          '--dsw-alias-button-primary-fill': '#b4653a',
-          '--dsw-alias-button-primary-hover': '#c6764a',
-          '--dsw-alias-button-contrast-fill': '#2a241c',
-          '--dsw-alias-button-elevated-fill': '#ffffff',
-          '--dsw-alias-button-tool-bar-fill': 'rgba(74, 55, 35, 0.05)',
-          '--dsw-alias-button-tool-bar-hover': 'rgba(74, 55, 35, 0.1)',
-          '--dsw-alias-card-fill': 'rgba(255, 255, 255, 0.7)',
-          '--dsw-alias-card-fill-hover': '#ffffff',
-          '--dsw-alias-settings-card-fill': 'rgba(255, 255, 255, 0.78)',
-          '--dsw-alias-settings-card-stroke': 'rgba(74, 55, 35, 0.16)',
-          '--dsw-alias-menu-group-header-fill': 'rgba(74, 55, 35, 0.04)',
-          '--dsw-alias-state-business-primary': '#b4653a',
-          '--dsw-alias-state-success-primary': '#2f8f72',
-          '--dsw-alias-state-success-secondary': 'rgba(47, 143, 114, 0.14)',
-          '--dsw-alias-state-warn-primary': '#a15c12',
-          '--dsw-alias-state-warn-secondary': 'rgba(161, 92, 18, 0.14)',
-          '--dsw-alias-state-error-primary': '#b3261e',
-          '--dsw-alias-state-error-secondary': 'rgba(179, 38, 30, 0.14)',
-          '--dsw-alias-state-done-primary': '#b4653a',
-          '--dsw-alias-state-idle-primary': '#857967',
-          '--dsw-alias-chart-system': '#b4653a',
-          '--dsw-alias-chart-tools': '#8a6bbf',
-          '--dsw-alias-chart-messages': '#2f8f72',
-          '--dsw-alias-markdown-code-block': '#f6f2ea',
-          '--dsw-alias-markdown-code-block-banner': '#efe9de',
-          '--dsw-alias-markdown-inline-code': 'rgba(74, 55, 35, 0.07)',
-          '--dsw-alias-markdown-citation': 'rgba(180, 101, 58, 0.12)',
-          '--dsw-alias-markdown-tag': 'rgba(74, 55, 35, 0.07)',
-          '--dsw-specific-sidebar-fill': '#f0ebe2',
-          '--dsw-specific-sidebar-glass-fill': 'rgba(255, 255, 255, 0.6)',
-          '--dsw-specific-sidebar-glass-hover': 'rgba(255, 255, 255, 0.8)',
-          '--dsw-specific-sidebar-nav-item-active': 'rgba(180, 101, 58, 0.12)',
-          '--dsw-specific-sidebar-nav-item-active-accent': '#b4653a',
-          '--dsw-specific-sidebar-tint': 'rgba(180, 101, 58, 0.06)',
+          '--dsw-alias-bg-module-platform': '#e4effc',
+          '--dsw-alias-bg-skeleton': '#e7f1fc',
+          '--dsw-alias-border-selected': '#0f96c8',
+          '--dsw-alias-link': '#0a76a8',
+          '--dsw-alias-interactive-bg-hover-solid': '#e2f0fb',
+          '--dsw-alias-button-primary-fill': '#0f96c8',
+          '--dsw-alias-button-primary-hover': '#28b0e0',
+          '--dsw-alias-state-business-primary': '#0f96c8',
+          '--dsw-alias-state-done-primary': '#0f96c8',
+          '--dsw-alias-state-success-primary': '#0d9a86',
+          '--dsw-alias-state-success-secondary': 'rgba(13, 154, 134, 0.14)',
+          '--dsw-alias-chart-system': '#0f96c8',
+          '--dsw-alias-chart-tools': '#6f7cff',
+          '--dsw-alias-chart-messages': '#0e9f8f',
+          '--dsw-alias-markdown-code-block': '#f2f9ff',
+          '--dsw-alias-markdown-code-block-banner': '#e8f3fd',
+          '--dsw-alias-markdown-citation': 'rgba(15, 150, 200, 0.12)',
+          '--dsw-specific-sidebar-fill': '#f0f7ff',
+          '--dsw-specific-sidebar-glass-fill': 'rgba(255, 255, 255, 0.62)',
+          '--dsw-specific-sidebar-glass-hover': 'rgba(255, 255, 255, 0.82)',
+          '--dsw-specific-sidebar-nav-item-active': 'rgba(15, 150, 200, 0.13)',
+          '--dsw-specific-sidebar-nav-item-active-accent': '#0f96c8',
+          '--dsw-specific-sidebar-tint': 'rgba(15, 150, 200, 0.06)',
           '--dsw-specific-bubble': 'rgba(255, 255, 255, 0.94)',
-          '--dsw-specific-bubble-highlight': 'rgba(74, 55, 35, 0.05)',
-          '--dsw-specific-menu': '#fffdf8',
-          '--dsw-specific-input-major': '#faf8f3',
-          '--dsw-specific-selector': '#fffdf8',
-          '--dsw-specific-tip': 'rgba(74, 55, 35, 0.05)',
-          '--dsw-alias-tooltip-bg': '#2a241c',
-          '--dsw-alias-tooltip-label': '#faf8f3',
-          '--dsw-alias-tooltip-key-bg': 'rgba(255, 255, 255, 0.14)',
-          '--dsw-alias-toast-bg': '#2a241c',
-          '--dsw-alias-toast-label': '#faf8f3',
-          '--dsw-alias-toast-action': '#f0bd7a',
-          '--dsw-alias-scrollbar-bg-l1': 'rgba(74, 55, 35, 0.16)',
-          '--dsw-alias-scrollbar-hover-l1': 'rgba(74, 55, 35, 0.3)',
-          '--dsw-focus-ring-color': '#b4653a',
-          '--dsw-elevation-panel': '0 26px 56px rgba(74, 55, 35, 0.14)',
-          '--dsw-elevation-prominent': '0 20px 44px rgba(74, 55, 35, 0.12)',
-          '--dsw-elevation-soft': '0 8px 22px rgba(74, 55, 35, 0.09)',
-          '--dsw-elevation-stroke': '1px solid rgba(74, 55, 35, 0.18)',
+          '--dsw-specific-menu': '#fbfdff',
+          '--dsw-specific-input-major': '#f5faff',
+          '--dsw-specific-selector': '#fbfdff',
+          '--dsw-alias-tooltip-bg': '#0b2b3f',
+          '--dsw-alias-toast-bg': '#0b2b3f',
+          '--dsw-alias-toast-action': '#7fd0ff',
+          '--dsw-focus-ring-color': '#0f96c8',
+          '--dsw-elevation-stroke': '1px solid rgba(12, 60, 90, 0.18)',
         },
       },
     }
     const SKIN_PALETTES = {
-      obsidian: { family: 'cool', mode: 'dark' },
-      crystal: { family: 'cool', mode: 'light' },
-      warm: { family: 'warm', mode: 'dark' },
-      alabaster: { family: 'warm', mode: 'light' },
+      obsidian: { family: 'cool', tint: 'obsidian' },
+      crystal: { family: 'cool', tint: 'crystal' },
     }
 
     /** One palette as the { light, dark } pairs the theme service requires. */
@@ -389,11 +319,15 @@ window.__ModuleLoader__.load({
       const meta = SKIN_PALETTES[palette]
       if (!meta) return null
       const family = SKIN_FAMILIES[meta.family]
+      const tint = SKIN_TINTS[meta.tint] || { dark: {}, light: {} }
       const tokens = {}
       for (const name of Object.keys(family.dark)) {
-        tokens[name] = { light: family.light[name], dark: family.dark[name] }
+        tokens[name] = {
+          light: tint.light[name] || family.light[name],
+          dark: tint.dark[name] || family.dark[name],
+        }
       }
-      return { id: palette, mode: meta.mode, tokens }
+      return { id: palette, tokens }
     }
 
     /**
@@ -439,16 +373,9 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * A dark palette in a light host would read as "deep obsidian, but white",
-     * so picking one also pins the host scheme. The palette's other mode stays
-     * installed as the fallback for a later manual switch in Settings → 外观.
+     * A palette never moves the host theme: both install every mode, so flipping
+     * DSH's light/dark keeps the chosen skin instead of fighting it.
      */
-    function setHostScheme(palette) {
-      const spec = skinSpec(palette)
-      const theme = skinRuntime.theme
-      if (!spec || !theme || typeof theme.setTheme !== 'function') return
-      try { theme.setTheme(spec.mode) } catch { /* preference row may reject it */ }
-    }
     // The two UMD modules vendored from Obsidian Prism. A classic <script>
     // tag keeps client.js from having to carry 300KB or use eval; the vial
     // only loads when its window opens, the rig when the dock renders.
@@ -502,9 +429,7 @@ window.__ModuleLoader__.load({
         paletteLabel: '配色',
         paletteHost: '跟随宿主',
         paletteObsidian: '深空黑曜',
-        paletteWarm: '暖炭玄岩',
         paletteCrystal: '白昼冷晶',
-        paletteAlabaster: '暖白画册',
         motionLabel: '动效',
         motionFull: '完整',
         motionSubtle: '克制',
@@ -650,10 +575,8 @@ window.__ModuleLoader__.load({
         appearanceTitle: 'Appearance',
         paletteLabel: 'Palette',
         paletteHost: 'Host theme',
-        paletteObsidian: 'Obsidian',
-        paletteWarm: 'Warm ember',
-        paletteCrystal: 'Crystal',
-        paletteAlabaster: 'Alabaster',
+        paletteObsidian: 'Deep obsidian',
+        paletteCrystal: 'Daylight crystal',
         motionLabel: 'Motion',
         motionFull: 'Full',
         motionSubtle: 'Subtle',
@@ -1576,64 +1499,17 @@ window.__ModuleLoader__.load({
   line-height: 18px;
 }
 /* ---- Optical skins -------------------------------------------------------
-   Each palette defines a complete token set on the plugin's own roots (panel
-   page, composer dock, portalled menus). The host UI never sees these values:
-   the attributes only exist on our elements. "host" is the empty case and
-   keeps the official theme untouched. */
+   Each palette defines a token set on the plugin's own roots (panel page,
+   composer dock, portalled menus). The host UI never sees these values: the
+   attributes only exist on our elements. "host" is the empty case and keeps the
+   official theme untouched.
+
+   Both palettes follow the host scheme. The first block of each pair is the
+   light-host reading, and body[data-ds-dark-theme] — the attribute the official
+   theme presenter sets — swaps in the dark one. color-scheme is deliberately
+   absent: html already carries the host's, and a local value here would fight
+   it. */
 .ct-skin[data-palette='obsidian'] {
-  color-scheme: dark;
-  --dsw-alias-bg-base: #0a0a0c;
-  --dsw-alias-bg-layer-1: #101013;
-  --dsw-alias-bg-layer-2: #17171b;
-  --dsw-alias-bg-layer-3: #202026;
-  --dsw-alias-bg-module-platform: #292930;
-  --dsw-alias-border-l2: rgba(255, 255, 255, 0.1);
-  --dsw-alias-border-l3: rgba(255, 255, 255, 0.18);
-  --dsw-alias-border-selected: #8fa6ff;
-  --dsw-alias-label-primary: #f4f5f9;
-  --dsw-alias-label-secondary: #c3c8d4;
-  --dsw-alias-label-tertiary: #8a91a0;
-  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.08);
-  --dsw-alias-state-business-primary: #6f9bff;
-  --dsw-alias-link: #8fb4ff;
-  --dsw-alias-chart-system: #6f9bff;
-  --dsw-alias-chart-tools: #b18cff;
-  --dsw-alias-chart-messages: #5fd0c8;
-  --dsw-alias-state-warn-primary: #f0b45c;
-  --dsw-alias-state-error-primary: #ff7b72;
-  --ct-glass-fill: rgba(32, 32, 38, 0.6);
-  --ct-glass-rail: rgba(23, 23, 27, 0.7);
-  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 38%, transparent 64%);
-  --ct-glass-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-.ct-skin[data-palette='warm'] {
-  color-scheme: dark;
-  --dsw-alias-bg-base: #12110f;
-  --dsw-alias-bg-layer-1: #181613;
-  --dsw-alias-bg-layer-2: #201d19;
-  --dsw-alias-bg-layer-3: #2a2520;
-  --dsw-alias-bg-module-platform: #342e27;
-  --dsw-alias-border-l2: rgba(255, 235, 210, 0.12);
-  --dsw-alias-border-l3: rgba(255, 235, 210, 0.2);
-  --dsw-alias-border-selected: #e0a45c;
-  --dsw-alias-label-primary: #f5eee3;
-  --dsw-alias-label-secondary: #d3c6b4;
-  --dsw-alias-label-tertiary: #a59784;
-  --dsw-alias-interactive-bg-hover: rgba(255, 235, 210, 0.08);
-  --dsw-alias-state-business-primary: #e0a45c;
-  --dsw-alias-link: #f0bd7a;
-  --dsw-alias-chart-system: #e0a45c;
-  --dsw-alias-chart-tools: #c58bff;
-  --dsw-alias-chart-messages: #7fc8a9;
-  --dsw-alias-state-warn-primary: #e0a45c;
-  --dsw-alias-state-error-primary: #ff8a7a;
-  --ct-glass-fill: rgba(42, 37, 32, 0.6);
-  --ct-glass-rail: rgba(24, 22, 19, 0.72);
-  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 240, 220, 0.14), rgba(255, 240, 220, 0.03) 38%, transparent 64%);
-  --ct-glass-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-.ct-skin[data-palette='crystal'] {
-  color-scheme: light;
   --dsw-alias-bg-base: #e6edf6;
   --dsw-alias-bg-layer-1: #eef4fb;
   --dsw-alias-bg-layer-2: #f7fafd;
@@ -1659,37 +1535,88 @@ window.__ModuleLoader__.load({
   --ct-glass-shadow: 0 26px 56px rgba(31, 54, 93, 0.16), 0 2px 8px rgba(31, 54, 93, 0.1);
   --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(31, 54, 93, 0.06);
 }
-.ct-skin[data-palette='alabaster'] {
-  color-scheme: light;
-  --dsw-alias-bg-base: #f4f1ea;
-  --dsw-alias-bg-layer-1: #faf8f3;
-  --dsw-alias-bg-layer-2: #fffdf8;
+.ct-skin[data-palette='crystal'] {
+  --dsw-alias-bg-base: #eef6ff;
+  --dsw-alias-bg-layer-1: #f5faff;
+  --dsw-alias-bg-layer-2: #fbfdff;
   --dsw-alias-bg-layer-3: #ffffff;
-  --dsw-alias-bg-module-platform: #ede7db;
-  --dsw-alias-border-l2: rgba(74, 55, 35, 0.15);
-  --dsw-alias-border-l3: rgba(74, 55, 35, 0.24);
-  --dsw-alias-border-selected: #b4653a;
-  --dsw-alias-label-primary: #2a241c;
-  --dsw-alias-label-secondary: #5c5244;
-  --dsw-alias-label-tertiary: #857967;
-  --dsw-alias-interactive-bg-hover: rgba(74, 55, 35, 0.07);
-  --dsw-alias-state-business-primary: #b4653a;
-  --dsw-alias-link: #9a4f2a;
-  --dsw-alias-chart-system: #b4653a;
-  --dsw-alias-chart-tools: #8a6bbf;
-  --dsw-alias-chart-messages: #2f8f72;
-  --dsw-alias-state-warn-primary: #a15c12;
-  --dsw-alias-state-error-primary: #b3261e;
-  --ct-glass-fill: rgba(255, 255, 255, 0.62);
-  --ct-glass-rail: rgba(255, 253, 248, 0.56);
-  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.16) 40%, transparent 66%);
-  --ct-glass-shadow: 0 26px 56px rgba(74, 55, 35, 0.14), 0 2px 8px rgba(74, 55, 35, 0.08);
-  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(74, 55, 35, 0.06);
+  --dsw-alias-bg-module-platform: #e4effc;
+  --dsw-alias-border-l2: rgba(12, 60, 90, 0.14);
+  --dsw-alias-border-l3: rgba(12, 60, 90, 0.24);
+  --dsw-alias-border-selected: #0f96c8;
+  --dsw-alias-label-primary: #0a2233;
+  --dsw-alias-label-secondary: #35566c;
+  --dsw-alias-label-tertiary: #5f7f96;
+  --dsw-alias-interactive-bg-hover: rgba(12, 60, 90, 0.07);
+  --dsw-alias-state-business-primary: #0f96c8;
+  --dsw-alias-link: #0a76a8;
+  --dsw-alias-chart-system: #0f96c8;
+  --dsw-alias-chart-tools: #6f7cff;
+  --dsw-alias-chart-messages: #0e9f8f;
+  --dsw-alias-state-warn-primary: #a35a08;
+  --dsw-alias-state-error-primary: #b8272a;
+  --ct-glass-fill: rgba(255, 255, 255, 0.7);
+  --ct-glass-rail: rgba(255, 255, 255, 0.58);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.16) 40%, transparent 66%);
+  --ct-glass-shadow: 0 26px 56px rgba(12, 60, 90, 0.14), 0 2px 8px rgba(12, 60, 90, 0.08);
+  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.94), inset 0 -1px 0 rgba(12, 60, 90, 0.06);
+}
+body[data-ds-dark-theme] .ct-skin[data-palette='obsidian'] {
+  --dsw-alias-bg-base: #0a0a0c;
+  --dsw-alias-bg-layer-1: #101013;
+  --dsw-alias-bg-layer-2: #17171b;
+  --dsw-alias-bg-layer-3: #202026;
+  --dsw-alias-bg-module-platform: #292930;
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.1);
+  --dsw-alias-border-l3: rgba(255, 255, 255, 0.18);
+  --dsw-alias-border-selected: #8fa6ff;
+  --dsw-alias-label-primary: #f4f5f9;
+  --dsw-alias-label-secondary: #c3c8d4;
+  --dsw-alias-label-tertiary: #8a91a0;
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.08);
+  --dsw-alias-state-business-primary: #6f9bff;
+  --dsw-alias-link: #8fb4ff;
+  --dsw-alias-chart-system: #6f9bff;
+  --dsw-alias-chart-tools: #b18cff;
+  --dsw-alias-chart-messages: #5fd0c8;
+  --dsw-alias-state-warn-primary: #f0b45c;
+  --dsw-alias-state-error-primary: #ff7b72;
+  --ct-glass-fill: rgba(32, 32, 38, 0.6);
+  --ct-glass-rail: rgba(23, 23, 27, 0.7);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 38%, transparent 64%);
+  --ct-glass-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
+  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
+  --dsw-alias-bg-base: #070b12;
+  --dsw-alias-bg-layer-1: #0b1119;
+  --dsw-alias-bg-layer-2: #111925;
+  --dsw-alias-bg-layer-3: #182333;
+  --dsw-alias-bg-module-platform: #1f2a38;
+  --dsw-alias-border-l2: rgba(196, 228, 255, 0.12);
+  --dsw-alias-border-l3: rgba(196, 228, 255, 0.2);
+  --dsw-alias-border-selected: #7ad6ff;
+  --dsw-alias-label-primary: #eef7ff;
+  --dsw-alias-label-secondary: #b8ccdd;
+  --dsw-alias-label-tertiary: #8299ac;
+  --dsw-alias-interactive-bg-hover: rgba(196, 228, 255, 0.08);
+  --dsw-alias-state-business-primary: #48c6f5;
+  --dsw-alias-link: #8ad9ff;
+  --dsw-alias-chart-system: #48c6f5;
+  --dsw-alias-chart-tools: #9db8ff;
+  --dsw-alias-chart-messages: #5fe3d0;
+  --dsw-alias-state-warn-primary: #f0b45c;
+  --dsw-alias-state-error-primary: #ff8a7a;
+  --ct-glass-fill: rgba(24, 35, 51, 0.6);
+  --ct-glass-rail: rgba(17, 25, 37, 0.72);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(200, 235, 255, 0.14), rgba(200, 235, 255, 0.03) 38%, transparent 64%);
+  --ct-glass-shadow: 0 28px 64px rgba(0, 4, 10, 0.56), 0 2px 10px rgba(0, 4, 10, 0.34);
+  --ct-glass-inner: inset 0 1px 0 rgba(200, 235, 255, 0.09), inset 0 -1px 0 rgba(0, 0, 0, 0.34);
 }
 /* ---- Appearance page ---------------------------------------------------- */
 .ct-swatches {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 @container (max-width: 640px) {
@@ -1746,25 +1673,17 @@ window.__ModuleLoader__.load({
   --sw-mid: var(--dsw-alias-bg-layer-2);
   --sw-accent: var(--dsw-alias-state-business-primary);
 }
+/* A palette follows the host scheme, so its band shows both ends: the dark
+   surface on the left, the light one in the middle, the accent on the right. */
 .ct-swatch-band[data-choice='obsidian'] {
   --sw-bg: #0a0a0c;
-  --sw-mid: #202026;
+  --sw-mid: #e6edf6;
   --sw-accent: #6f9bff;
 }
-.ct-swatch-band[data-choice='warm'] {
-  --sw-bg: #12110f;
-  --sw-mid: #2a2520;
-  --sw-accent: #e0a45c;
-}
 .ct-swatch-band[data-choice='crystal'] {
-  --sw-bg: #e6edf6;
-  --sw-mid: #ffffff;
-  --sw-accent: #2f6fed;
-}
-.ct-swatch-band[data-choice='alabaster'] {
-  --sw-bg: #f4f1ea;
-  --sw-mid: #ffffff;
-  --sw-accent: #b4653a;
+  --sw-bg: #070b12;
+  --sw-mid: #eef6ff;
+  --sw-accent: #2fb8e8;
 }
 .ct-swatch-name {
   overflow: hidden;
@@ -2276,11 +2195,20 @@ window.__ModuleLoader__.load({
       return t('repoFailed')
     }
 
-    /** The client half of `normalizeAppearance` in `src/store.js`. */
+    /**
+     * The client half of `normalizeAppearance` in `src/store.js`, including the
+     * 2.0.0 palette migration: the server rewrites the stored value on read, so
+     * this only matters for a payload that predates that rewrite.
+     */
+    const LEGACY_PALETTES = { warm: 'obsidian', alabaster: 'crystal' }
     function normalizeAppearance(value) {
       const next = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+      const legacy = LEGACY_PALETTES[next.palette]
+      const palette = PALETTES.some(function (item) { return item.id === next.palette })
+        ? next.palette
+        : (legacy || DEFAULT_APPEARANCE.palette)
       return {
-        palette: PALETTES.some(function (item) { return item.id === next.palette }) ? next.palette : DEFAULT_APPEARANCE.palette,
+        palette: palette,
         motion: MOTIONS.some(function (item) { return item.id === next.motion }) ? next.motion : DEFAULT_APPEARANCE.motion,
         mascots: next.mascots === false ? false : DEFAULT_APPEARANCE.mascots,
       }
@@ -2341,10 +2269,21 @@ window.__ModuleLoader__.load({
       return String(Math.round(number))
     }
 
-    function paletteIsDark(palette) {
-      if (palette === 'obsidian' || palette === 'warm') return true
-      if (palette === 'crystal' || palette === 'alabaster') return false
+    /**
+     * Whether the host theme is dark. A palette no longer decides this: the two
+     * palettes carry both modes and ride whatever DSH is set to, so the vial
+     * reads the document instead of the setting. `body[data-ds-dark-theme]` is
+     * the presenter's own attribute, so it wins when present; the CSS
+     * `color-scheme` and the media query are the fallbacks for a host without
+     * the presenter.
+     */
+    function hostIsDark() {
       try {
+        if (typeof document !== 'undefined' && document.body
+          && typeof document.body.hasAttribute === 'function'
+          && document.body.hasAttribute('data-ds-dark-theme')) {
+          return true
+        }
         const scheme = typeof window !== 'undefined' && window.getComputedStyle
           ? window.getComputedStyle(document.documentElement).colorScheme
           : ''
@@ -2580,13 +2519,13 @@ window.__ModuleLoader__.load({
       stateRef.current = {
         fill: meter ? Math.max(0.06, Math.min(0.95, meter.percent)) : 0.06,
         maxTokens: meter ? meter.window : 512000,
-        isDark: paletteIsDark(appearance.palette),
+        isDark: hostIsDark(),
         critical: Boolean(meter && meter.critical),
         streaming: false,
         hoveredSlice: -1,
         ratios: ratios,
         accentTone: 'cobalt',
-        lightPreset: appearance.palette === 'alabaster' ? 'alabaster' : 'crystal',
+        lightPreset: 'crystal',
       }
 
       function startLoop() {
@@ -3627,7 +3566,6 @@ window.__ModuleLoader__.load({
         const optimistic = normalizeAppearance({ ...previous, ...patch })
         setState({ ...state, appearance: optimistic })
         setSkinPalette(optimistic.palette)
-        if (patch.palette) setHostScheme(optimistic.palette)
         setAppearanceBusy(true)
         setAppearanceMessage('')
         fetch(API, {
@@ -4243,6 +4181,7 @@ window.__ModuleLoader__.load({
       // two things a fake renderer cannot reach.
       __test: {
         skinSpec: skinSpec,
+        skinTints: SKIN_TINTS,
         setSkinPalette: setSkinPalette,
         skinRuntime: skinRuntime,
         setSkinTheme: function (theme) {

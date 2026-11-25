@@ -453,8 +453,8 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'stateMissing', 'statePartial', 'stateFailed', 'stateSystem',
       'repoSelectLabel', 'repoNone', 'repoTitle',
       'navAria', 'navLevels', 'navRules', 'navWorkspace', 'navComponents', 'navAppearance', 'navGithub',
-      'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian', 'paletteWarm',
-      'paletteCrystal', 'paletteAlabaster', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff',
+      'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian',
+      'paletteCrystal', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff',
       'mascotsLabel', 'mascotsOn', 'mascotsOff', 'appearanceApplied', 'appearanceFailed',
       'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
       'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
@@ -1132,14 +1132,14 @@ test('each page renders only its own card', () => {
   assert.equal(renderSection('rules').filter((node) => node.type === 'input').length, 0)
 })
 
-test('the appearance page paints the four palettes, motion tiers and companions', () => {
+test('the appearance page paints the two palettes, motion tiers and companions', () => {
   const nodes = renderSection('appearance')
   const page = nodes.find((node) => hasClass(node, 'ct-page'))
   assert.ok(page, 'the page carries the skin root')
   assert.equal(page.props['data-palette'], 'host')
   assert.equal(page.props['data-motion'], 'full')
   const palettes = nodes.filter((node) => node.props.role === 'radio' && hasClass(node, 'ct-swatch'))
-  assert.deepEqual(palettes.map((node) => node.props['data-choice']), ['host', 'obsidian', 'warm', 'crystal', 'alabaster'])
+  assert.deepEqual(palettes.map((node) => node.props['data-choice']), ['host', 'obsidian', 'crystal'])
   assert.equal(palettes.filter((node) => node.props['aria-checked'] === 'true').length, 1)
   assert.equal(palettes[0].props['aria-checked'], 'true')
   const motions = nodes.filter((node) => node.props.role === 'radio' && hasClass(node, 'ct-segment'))
@@ -1277,15 +1277,15 @@ test('a vial without a reading says so instead of inventing zero', () => {
 
 
 
-test('a palette repaints the whole app through the host theme service', () => {
+test('a palette repaints the whole app through the host theme service in both schemes', () => {
   const { module } = loadClient()
   const applied = []
+  const disposed = []
   const theme = {
     overrideTokens(source, tokens) {
       applied.push({ source, tokens })
-      return () => {}
+      return () => { disposed.push(source) }
     },
-    setTheme() {},
   }
   const ctx = {
     effect(fn) { fn() },
@@ -1305,31 +1305,58 @@ test('a palette repaints the whole app through the host theme service', () => {
   // The default "host" palette installs no layer: the official theme stays.
   assert.equal(applied.length, 0)
 
+  // A retired 2.0.0 id still resolves: 暖炭玄岩 was the deep warm palette, so it
+  // lands on the deep survivor instead of silently reverting to the host theme.
   skin.setSkinPalette('warm')
   assert.equal(applied.length, 1)
   assert.equal(applied[0].source, 'compression-tiers')
+  assert.equal(applied[0].tokens['--dsw-alias-bg-base'].dark, '#0a0a0c')
+
   const names = Object.keys(applied[0].tokens)
   assert.ok(names.length > 60, 'the skin covers the app surface tokens')
   for (const name of names) {
     // The service rejects bare strings for a reason: one value cannot serve both
-    // colour schemes. Every token must carry an explicit { light, dark } pair.
+    // colour schemes. Every token must carry both modes, because the palette now
+    // follows the host's light/dark instead of pinning it.
     assert.match(name, /^--dsw-/)
     const value = applied[0].tokens[name]
-    assert.equal(typeof value.light, 'string')
-    assert.equal(typeof value.dark, 'string')
+    assert.equal(typeof value.light, 'string', name + ' has a light value')
+    assert.equal(typeof value.dark, 'string', name + ' has a dark value')
+    assert.notEqual(value.light, '', name + ' has an empty light value')
+    assert.notEqual(value.dark, '', name + ' has an empty dark value')
   }
-  assert.equal(applied[0].tokens['--dsw-alias-bg-base'].dark, '#12110f')
-  assert.equal(applied[0].tokens['--dsw-specific-sidebar-fill'].dark, '#181613')
 
-  skin.setSkinPalette('alabaster')
-  assert.equal(applied.length, 2)
-  assert.equal(applied[1].tokens['--dsw-alias-bg-base'].light, '#f4f1ea')
+  // 白昼冷晶 is the same ramp run colder: it installs its own two modes and
+  // swaps the accent family, which is what keeps the two palettes distinct in
+  // *both* schemes.
+  skin.setSkinPalette('crystal')
+  assert.equal(applied.length, 2, 'a palette change replaces the layer')
+  assert.equal(disposed.length, 1, 'the previous layer is disposed, never stacked')
+  const crystal = applied[1].tokens
+  assert.deepEqual(Object.keys(crystal), names)
+  assert.equal(crystal['--dsw-alias-bg-base'].dark, '#070b12')
+  assert.equal(crystal['--dsw-alias-bg-base'].light, '#eef6ff')
+  assert.notEqual(crystal['--dsw-alias-link'].light, applied[0].tokens['--dsw-alias-link'].light)
+  assert.notEqual(crystal['--dsw-alias-link'].dark, applied[0].tokens['--dsw-alias-link'].dark)
 
-  // Going back to "host" removes the layer instead of stacking another one.
+  // A tint that names a token the ramp does not carry would be dropped without
+  // a word, so every tint key has to exist in the installed set.
+  for (const [palette, tint] of Object.entries(skin.skinTints)) {
+    const known = Object.keys(skin.skinSpec(palette).tokens)
+    for (const mode of ['light', 'dark']) {
+      for (const name of Object.keys(tint[mode])) {
+        assert.ok(known.includes(name), palette + '/' + mode + ' tints an unknown token: ' + name)
+      }
+    }
+  }
+
+  // Back to the host theme: the layer goes away instead of a third one landing.
   skin.setSkinPalette('host')
   assert.equal(applied.length, 2)
   assert.equal(skin.skinRuntime.applied, null)
-  assert.equal(skin.skinSpec('obsidian').mode, 'dark')
-  assert.equal(skin.skinSpec('crystal').mode, 'light')
+  assert.equal(disposed.length, 2)
+  // Neither palette carries a scheme to pin: following DSH is the whole point.
+  assert.equal('mode' in skin.skinSpec('obsidian'), false)
+  assert.equal('mode' in skin.skinSpec('crystal'), false)
   assert.equal(skin.skinSpec('host'), null)
 })

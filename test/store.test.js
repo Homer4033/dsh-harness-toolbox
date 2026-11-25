@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { APPEARANCE_MOTIONS, APPEARANCE_PALETTES, defaultAppearance, normalizeAppearance, normalizeRepoName, normalizeSessionRepos, readSettings, settingsPaths, writeJson, writeSettings, writeText } from '../src/store.js'
+import { APPEARANCE_MOTIONS, APPEARANCE_PALETTES, LEGACY_PALETTES, defaultAppearance, normalizeAppearance, normalizeRepoName, normalizeSessionRepos, readSettings, settingsPaths, writeJson, writeSettings, writeText } from '../src/store.js'
 
 function tempHome() {
   return mkdtempSync(join(tmpdir(), 'compression-tiers-'))
@@ -183,8 +183,25 @@ test('appearance defaults to the host theme, full motion and companions on', () 
   assert.deepEqual(normalizeAppearance(undefined), defaultAppearance())
   assert.deepEqual(normalizeAppearance(null), defaultAppearance())
   assert.deepEqual(normalizeAppearance('warm'), defaultAppearance())
-  assert.deepEqual(APPEARANCE_PALETTES, ['host', 'obsidian', 'warm', 'crystal', 'alabaster'])
+  assert.deepEqual(APPEARANCE_PALETTES, ['host', 'obsidian', 'crystal'])
   assert.deepEqual(APPEARANCE_MOTIONS, ['full', 'subtle', 'off'])
+})
+
+test('the retired warm palettes migrate instead of vanishing on upgrade', () => {
+  // 2.0.0 also shipped 暖炭玄岩 (warm) and 暖白画册 (alabaster). Both are gone;
+  // an install that had one keeps a skin with the same character rather than
+  // snapping back to the host theme.
+  assert.deepEqual(LEGACY_PALETTES, { warm: 'obsidian', alabaster: 'crystal' })
+  assert.equal(normalizeAppearance({ palette: 'warm' }).palette, 'obsidian')
+  assert.equal(normalizeAppearance({ palette: 'alabaster' }).palette, 'crystal')
+  // The migration keeps the rest of the appearance untouched.
+  assert.deepEqual(normalizeAppearance({ palette: 'warm', motion: 'off', mascots: false }), {
+    palette: 'obsidian',
+    motion: 'off',
+    mascots: false,
+  })
+  // A value nobody shipped still falls back to the default.
+  assert.equal(normalizeAppearance({ palette: 'neon' }).palette, 'host')
 })
 
 test('appearance drops unknown palettes and keeps explicit booleans', () => {

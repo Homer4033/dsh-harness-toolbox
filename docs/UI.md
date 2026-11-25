@@ -1,6 +1,6 @@
 # 面板 UI 规范（dsh-harness-toolbox）
 
-> 本文件约束本插件**自己画**的那部分界面：左侧栏「压缩分档」面板（液体玻璃外壳 + 左侧分页导航）、输入框上方那一行（上下文试管、像素伙伴与仓库胶囊）、外观页的四套皮肤，以及全部自绘弹层。宿主主题与官方组件（侧边栏、输入框、标题栏）不在范围内，也不要试图改它们。
+> 本文件约束本插件**自己画**的那部分界面：左侧栏「压缩分档」面板（液体玻璃外壳 + 左侧分页导航）、输入框上方那一行（上下文试管、像素伙伴与仓库胶囊）、外观页的两套皮肤，以及全部自绘弹层。宿主主题与官方组件（侧边栏、输入框、标题栏）不在范围内，也不要试图改它们。
 
 ## 目录
 
@@ -24,7 +24,7 @@
 
 ## 范围
 
-- 只用主题 token（`--dsw-alias-*`），不写死主题色；阴影、高光与玻璃高光允许 `rgba(0,0,0,…)` / `rgba(255,255,255,…)`。整份覆盖 token 的只有四套配色皮肤（见下一节），它们也只作用在插件自己的根节点上。
+- 只用主题 token（`--dsw-alias-*`），不写死主题色；阴影、高光与玻璃高光允许 `rgba(0,0,0,…)` / `rgba(255,255,255,…)`。整份覆盖 token 的只有两套配色皮肤（见下一节），它们也只作用在插件自己的根节点上。
 - 面板、外观页、输入框上方那一行与弹层必须在深色、浅色两套主题下都能读：任何「深色底 + 继承浅色字」的组合都不算可用设计。
 - 界面只放控件标签、当前值、路径与错误；教学性说明按 [AGENTS.md](../AGENTS.md) 第 15 条写进文档，不写进面板。
 
@@ -65,25 +65,24 @@
 
 ## 配色皮肤
 
-「跟随宿主」是默认值，也是唯一不覆盖任何颜色的皮肤；另外四套在 `.ct-skin[data-palette='…']` 上定义**整份** token（不是只改一两个），因为半套覆盖会在另一套主题下漏出宿主的值。
+「跟随宿主」是默认值，也是唯一不覆盖任何颜色的皮肤；另外两套在 `.ct-skin[data-palette='…']` 上定义 token，且**每套都写亮暗两份**——皮肤跟随 DSH 自己的深浅，配色不再左右宿主的外观偏好。
 
-| 皮肤 | `data-palette` | `color-scheme` | 画布 `bg-base` | 卡片 `bg-layer-2` | 弹层 `bg-layer-3` | accent |
-| --- | --- | --- | --- | --- | --- | --- |
-| 跟随宿主 | （属性缺省或 `host`） | 宿主 | 宿主 | 宿主 | 宿主 | 宿主 |
-| 深空黑曜 | `obsidian` | `dark` | `#0a0a0c` | `#17171b` | `#202026` | `#6f9bff` |
-| 暖炭玄岩 | `warm` | `dark` | `#12110f` | `#201d19` | `#2a2520` | `#e0a45c` |
-| 白昼冷晶 | `crystal` | `light` | `#e6edf6` | `#f7fafd` | `#ffffff` | `#2f6fed` |
-| 暖白画册 | `alabaster` | `light` | `#f4f1ea` | `#fffdf8` | `#ffffff` | `#b4653a` |
+| 皮肤 | `data-palette` | 模式来源 | 深色画布 `bg-base` | 浅色画布 `bg-base` | accent（深 / 浅） |
+| --- | --- | --- | --- | --- | --- |
+| 跟随宿主 | （属性缺省或 `host`） | 宿主 | 宿主 | 宿主 | 宿主 |
+| 深空黑曜 | `obsidian` | `body[data-ds-dark-theme]` | `#0a0a0c` | `#e6edf6` | `#6f9bff` / `#2f6fed` |
+| 白昼冷晶 | `crystal` | `body[data-ds-dark-theme]` | `#070b12` | `#eef6ff` | `#48c6f5` / `#0f96c8` |
 
-1. **只挂在 `.ct-skin` 上**：面板页根、输入框上方那一行、portal 到 body 的菜单与试管浮窗各带一个 `.ct-skin` 与 `data-palette`。绝不往 `:root` / `body` 写变量——那会改到宿主界面。
-2. **浅色皮肤必须设 `color-scheme: light`**：原生滚动条、输入框光标、`Select` 弹层的默认底色都由它决定；漏了就会出现「白卡片 + 深色滚动条」。
-3. **玻璃变量跟着皮肤走**：深色两套的 `--ct-glass-fill` / `-rail` / `-sheen` / `-shadow` 用白高光 + 重阴影，浅色两套换成白底高透 + 冷/暖色阴影，并补 `--ct-glass-inner` 的白色内高光。换皮肤等于换一整套玻璃配方，不是只换底色。
+1. **只挂在 `.ct-skin` 上**：面板页根、输入框上方那一行、portal 到 body 的菜单与试管浮窗各带一个 `.ct-skin` 与 `data-palette`。绝不往 `:root` / `body` 写变量——那会改到宿主界面（`body[data-ds-dark-theme]` 只作为**选择器条件**读，不写）。
+2. **每个皮肤两段**：默认块是浅色宿主读到的值，`body[data-ds-dark-theme] .ct-skin[data-palette='…']` 是深色宿主的值。官方主题 presenter 自己会设这个属性，所以它是唯一可靠的「宿主当前是深色」信号；不要用 `@media (prefers-color-scheme)`（系统偏好与 DSH 主题不是一回事），也不要在这里写 `color-scheme`（`html` 上已有宿主设的那份，本地再写会打架）。
+3. **玻璃变量跟着皮肤走**：深色那段的 `--ct-glass-fill` / `-rail` / `-sheen` / `-shadow` 用白高光 + 重阴影，浅色那段换成白底高透 + 冷色阴影，并补 `--ct-glass-inner` 的白色内高光。换皮肤等于换一整套玻璃配方，不是只换底色。
 4. **图表三色**（`--dsw-alias-chart-system` / `-tools` / `-messages`）每套皮肤都要给，试管的三段构成条与图例直接用它们。
-5. **新增皮肤要同时改三处**：`PALETTES`（外观页选项）、`.ct-swatch-band[data-choice='…']`（色带）、`.ct-skin[data-palette='…']`（整份 token），再补一条 `test/client.test.js` 断言。
+5. **新增皮肤要同时改四处处**：`PALETTES`（外观页选项）、`.ct-swatch-band[data-choice='…']`（色带）、`.ct-skin[data-palette='…']` 的浅色与深色两段，再补一条 `test/client.test.js` 断言。
+6. **旧配色要迁移，不要静默丢弃**：`src/store.js` 的 `LEGACY_PALETTES` 把 2.0.0 的 `warm` / `alabaster` 映射到现存的深 / 亮两套；`client.js` 里也保留同一张表，任何一侧改了都要改另一边。
 
 ### 全局皮肤（宿主主题服务）
 
-上面四套 token 只作用在插件自己的节点上；要让**整个 DSH 界面**一起换，走宿主官方的主题服务：
+上面那两套 token 只作用在插件自己的节点上；要让**整个 DSH 界面**一起换，走宿主官方的主题服务：
 
 ```js
 ctx.inject(['theme'], (scope) => {
@@ -92,9 +91,9 @@ ctx.inject(['theme'], (scope) => {
 })
 ```
 
-1. **成对值**：每个 token 必须是 `{ light, dark }`，服务会直接拒绝裸字符串——一个值在用户切换亮暗后必然读不清。两套模式都要给。
+1. **成对值**：每个 token 必须是 `{ light, dark }`，服务会直接拒绝裸字符串——一个值在用户切换亮暗后必然读不清。两套模式都要给，宿主自己挑那一半。
 2. **只叠一层**：`overrideTokens` 是命令式且返回自己的 disposer；换配色时先 dispose 旧的再装新的，不要在同一 source 上反复叠加。
-3. **换配色别偷偷改用户的偏好**：深色配色点击时会把宿主外观偏好切到深色（否则「深空黑曜」在浅色宿主里名不副实）；这是用户可见、可回退的一次写入，属于交互决定，不是样式细节。
+3. **别偷偷改用户的主题偏好**：2.0.0 选深色配色会把宿主外观偏好切到深色，2.2.0 去掉了这次 `setTheme` 写入。皮肤自带两套模式就够了，掰用户偏好的副作用（浅色用户被迫变深色）比收益大。
 4. **服务缺席要降级**：`theme` 是可选的，`ctx.inject` 拿不到时插件照常工作，只是不重绘整个界面。
 5. **不要用宿主 class 名硬改结构**：DSH 的界面是 CSS Modules 哈希类名，只有 token 是稳定契约；气泡、侧栏这类结构只用 `--dsw-specific-*` 换色，不改几何。
 
@@ -191,9 +190,9 @@ ctx.inject(['theme'], (scope) => {
 
 ## 外观页
 
-一张卡片三段：配色（5 个色板）→ 动效（3 个分段按钮）→ 像素伙伴（1 个开关）。
+一张卡片三段：配色（3 个色板）→ 动效（3 个分段按钮）→ 像素伙伴（1 个开关）。
 
-1. **配色用色板，不用下拉**：`.ct-swatches` 是 5 列栅格（`@container (max-width: 640px)` 时 2 列），每个选项是 `role="radio"` + `aria-checked` 的按钮；顶部 `.ct-swatch-band` 是一条 22px 的三段渐变色带（画布 / 卡片 / accent），下面 12px 名称。色带只用作预览，颜色写死在各 `data-choice` 里——它展示的**不是**当前主题的 token。
+1. **配色用色板，不用下拉**：`.ct-swatches` 是 3 列栅格（`@container (max-width: 640px)` 时 2 列），每个选项是 `role="radio"` + `aria-checked` 的按钮；顶部 `.ct-swatch-band` 是一条 22px 的三段渐变色带（深色端 / 浅色端 / accent），下面 12px 名称。两套配色都跟随宿主深浅，所以色带同时露出深色端与浅色端；色带只用作预览，颜色写死在各 `data-choice` 里——它展示的**不是**当前主题的 token。
 2. **动效用分段按钮**：`.ct-segment` 34px 高，`role="radiogroup"` 包住三个 `role="radio"`；选中态 accent 16% 淡染 + 50% 描边。
 3. **像素伙伴用开关式动作按钮**：`actionButton()` 渲染，`aria-pressed` 表示状态，开启时加 `ct-btn--primary`；标签随状态在「已开启 / 已关闭」之间切换，不用复选框、不用开关滑块。
 4. **写入是乐观的**：点选立刻改本地状态并发 `POST /compression-tiers/api/settings`；失败回滚到上一个值，并在卡片底部的 `.ct-status`（`role="status"`）写一条失败提示。请求进行中三个控件一起 `disabled`，避免连点打架。
@@ -259,7 +258,8 @@ ctx.inject(['theme'], (scope) => {
 - ❌ 用 `overflow-x` 横滚的导航条（窄面板必须换行）。
 - ❌ 给同一个面板换第二套卡片圆角或第二套玻璃配方。
 - ❌ 给 `.ct-nav` 写正的 `sticky` `top`（导航栏会离第一张卡片一个偏移），或在分页进场里加位移/缩放。
-- ❌ 往 `:root` / `body` 写配色变量，或给浅色皮肤漏设 `color-scheme: light`。
+- ❌ 往 `:root` / `body` 写配色变量，或在 `.ct-skin` 里写 `color-scheme`（皮肤靠 `body[data-ds-dark-theme]` 跟随宿主，自己设会打架）。
+- ❌ 选配色时顺手 `theme.setTheme()` 改用户的外观偏好（2.2.0 已删除这次写入）。
 - ❌ 让 `client.js` import 移植模块（它们是 UMD，只能走同源 `<script src="/compression-tiers/vendor/…">`）。
 - ❌ 用条件渲染隐藏试管触发器（投影缺失时也要渲染，显示「—」并禁用）。
 - ❌ 在输入框上方那一行用 `@media` 判断伙伴显隐（要按行宽，用容器查询）。
@@ -300,7 +300,7 @@ ctx.inject(['theme'], (scope) => {
 - [ ] 没有原生 `<select>`；弹层是 layer-3 + portal + `data-side`，表面不是 layer-2。
 - [ ] 键盘：↑ / ↓ / Home / End / Enter / Esc 与外部点击都能走通。
 - [ ] 仓库胶囊右缘与输入卡右缘对齐（`min()` + `margin: 0 auto`，没有负 margin）。
-- [ ] 四套皮肤的 token 只写在 `.ct-skin[data-palette='…']` 上，浅色两套带 `color-scheme: light`；「跟随宿主」是空集。
+- [ ] 两套皮肤的 token 只写在 `.ct-skin[data-palette='…']` 上，每套都有浅色段与 `body[data-ds-dark-theme]` 深色段；「跟随宿主」是空集。
 - [ ] 外观页三组控件都能改、失败会回滚；伙伴开关是 `aria-pressed` 的按钮，不是复选框。
 - [ ] 试管触发器任何时候都在（投影缺失显示「—」），浮窗里有数字、构成条与图例。
 - [ ] 输入框上方那一行按 `@container` 决定伙伴显隐，窗口窄但卡宽时也不会互相压住。
