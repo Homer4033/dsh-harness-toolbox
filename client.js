@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.2'
+    const PLUGIN_VERSION = '2.4.3'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -1982,6 +1982,10 @@ body[data-ct-art='on'] .ct-aura-host canvas {
   display: block;
   width: 100%;
   height: 100%;
+  /* The horizon can reach past the top of its own canvas on a tall column; the
+     fade turns that edge into a soft arrival instead of a seam across the chat. */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 100%);
 }
 /* ---- Appearance page ---------------------------------------------------- */
 .ct-swatches {
