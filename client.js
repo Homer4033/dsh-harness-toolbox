@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.4.5'
+    const PLUGIN_VERSION = '2.4.6'
     const PALETTES = [
       { id: 'host', labelKey: 'paletteHost' },
       { id: 'obsidian', labelKey: 'paletteObsidian' },
@@ -390,196 +390,7 @@ window.__ModuleLoader__.load({
       document.body.setAttribute('data-ct-palette', spec.palette)
       document.body.setAttribute('data-ct-art', art ? 'on' : 'off')
       document.body.setAttribute('data-ct-motion', spec.motion)
-      auraRuntime.spec = spec
-      syncAura()
       return { palette: spec.palette, art: art }
-    }
-
-    /**
-     * The horizon aura is the one moving part of the art layer. Upstream paints
-     * a procedural glow behind the conversation (ripple-core's 2D renderer,
-     * driven by conv-aura's state machine); we vendored the renderer and keep
-     * the controller here, because the state that matters in DSH is "is the art
-     * layer on and how much motion did the user allow", not Obsidian's
-     * running / decision / error phases.
-     *
-     * The canvas lives in the chat region as an absolutely positioned sibling
-     * with `z-index: 0`, and `[data-conversation-scroll]` is lifted to `z-index:
-     * 1`, so the glow paints above the column background and below the
-     * transcript. Frames are capped at ~30fps (the upstream cap); the motion
-     * setting scales speed and intensity, `off` paints one still frame, and the
-     * vendor script is only fetched once the layer is actually enabled.
-     */
-    const AURA_HEIGHT_RATIO = 0.40
-    const AURA_FRAME_MS = 33
-    const AURA_HEALTH_MS = 1200
-    const auraRuntime = {
-      spec: null,
-      host: null,
-      canvas: null,
-      glow: null,
-      target: null,
-      raf: 0,
-      loading: false,
-      failed: false,
-      staticDrawn: false,
-      startedAt: 0,
-      lastDrawAt: 0,
-      timer: 0,
-    }
-
-    function auraMotion(spec) {
-      const motion = spec && spec.motion ? spec.motion : 'full'
-      if (motion === 'subtle' || motion === 'off') return motion
-      return 'full'
-    }
-
-    function auraAllowed(spec) {
-      return Boolean(spec && spec.art !== false && spec.palette && spec.palette !== 'host')
-    }
-
-    function auraRegion() {
-      if (typeof document === 'undefined' || !document.body
-        || typeof document.querySelector !== 'function') return null
-      return document.querySelector("[data-conversation-region='chat']")
-    }
-
-    function stopAuraFrames() {
-      if (auraRuntime.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(auraRuntime.raf)
-      auraRuntime.raf = 0
-    }
-
-    function detachAura() {
-      stopAuraFrames()
-      if (auraRuntime.host && auraRuntime.host.parentNode) {
-        auraRuntime.host.parentNode.removeChild(auraRuntime.host)
-      }
-      auraRuntime.host = null
-      auraRuntime.canvas = null
-      auraRuntime.glow = null
-      auraRuntime.target = null
-      auraRuntime.loading = false
-      auraRuntime.failed = false
-      auraRuntime.staticDrawn = false
-    }
-
-    function teardownAura() {
-      if (auraRuntime.timer && typeof clearInterval === 'function') clearInterval(auraRuntime.timer)
-      auraRuntime.timer = 0
-      detachAura()
-    }
-    /** Async vendor load: the canvas is in the DOM first, the renderer bites later. */
-    function ensureAuraGlow() {
-      if (auraRuntime.glow || auraRuntime.loading || auraRuntime.failed) return
-      auraRuntime.loading = true
-      loadVendor('horizon').then(function (lib) {
-        auraRuntime.loading = false
-        if (!auraRuntime.canvas || !lib || typeof lib.mount !== 'function') return
-        auraRuntime.glow = lib.mount(auraRuntime.canvas)
-        auraRuntime.startedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
-        auraRuntime.staticDrawn = false
-        sizeAura(auraRuntime.target)
-        if (auraMotion(auraRuntime.spec) === 'off') drawAuraFrame(auraRuntime.startedAt)
-        else startAuraFrames()
-      }).catch(function () {
-        // Keep the host: the CSS fallback glow stays visible, so the layer never
-        // becomes a flat band just because the renderer could not be fetched.
-        auraRuntime.loading = false
-        auraRuntime.failed = true
-      })
-    }
-
-    function sizeAura(region) {
-      const glow = auraRuntime.glow
-      if (!glow || !region) return
-      const width = region.clientWidth || 0
-      const height = Math.round((region.clientHeight || 0) * AURA_HEIGHT_RATIO)
-      if (!width || !height) return
-      const rawDpr = (typeof window !== 'undefined' && Number(window.devicePixelRatio)) || 1
-      glow.resize(width, height, Math.min(rawDpr, 1.5) * 0.72)
-    }
-
-    function drawAuraFrame(now) {
-      auraRuntime.raf = 0
-      const glow = auraRuntime.glow
-      const spec = auraRuntime.spec
-      if (!glow || !auraRuntime.canvas || !auraAllowed(spec)) return
-      const motion = auraMotion(spec)
-      if (now - auraRuntime.lastDrawAt < AURA_FRAME_MS) {
-        if (motion !== 'off') scheduleAuraFrame()
-        return
-      }
-      auraRuntime.lastDrawAt = now
-      const speed = motion === 'subtle' ? 0.45 : 1
-      const intensity = motion === 'subtle' ? 0.55 : 0.95
-      const seconds = ((now - auraRuntime.startedAt) / 1000) * speed
-      try {
-        // 0.72, not the upstream 0.47: the host canvas is the same 32% band, but
-        // DSH's composer covers the lowest ~150px, so the glow has to reach
-        // higher or only its bottom sliver stays visible.
-        glow.draw(seconds, hostIsDark(), intensity, 1, 0.85)
-        if (auraRuntime.host) auraRuntime.host.setAttribute('data-ct-aura-ready', '1')
-      } catch { /* a lost 2d context must not break the page */ }
-      if (motion !== 'off') scheduleAuraFrame()
-      else auraRuntime.staticDrawn = true
-    }
-
-    function scheduleAuraFrame() {
-      if (auraRuntime.raf || typeof requestAnimationFrame !== 'function') return
-      auraRuntime.raf = requestAnimationFrame(drawAuraFrame)
-    }
-
-    function startAuraFrames() {
-      if (auraRuntime.raf || auraRuntime.staticDrawn) return
-      scheduleAuraFrame()
-    }
-
-    /** Mount, resize, or stand down — idempotent, safe to call on a timer. */
-    function syncAura() {
-      const spec = auraRuntime.spec
-      if (!auraAllowed(spec)) {
-        detachAura()
-        return
-      }
-      const region = auraRegion()
-      if (!region) {
-        detachAura()
-        return
-      }
-      if (auraRuntime.target !== region || !auraRuntime.host || !auraRuntime.host.isConnected) {
-        detachAura()
-        const host = document.createElement('div')
-        host.className = 'ct-aura-host'
-        host.setAttribute('aria-hidden', 'true')
-        host.setAttribute('data-ct-aura', '')
-        // The drifting fallback lives under the canvas and disappears on the
-        // first rendered frame; if the renderer never starts, it *is* the layer.
-        const fallback = document.createElement('div')
-        fallback.className = 'ct-aura-fallback'
-        host.appendChild(fallback)
-        const canvas = document.createElement('canvas')
-        host.appendChild(canvas)
-        region.insertBefore(host, region.firstChild)
-        auraRuntime.host = host
-        auraRuntime.canvas = canvas
-        auraRuntime.target = region
-        ensureAuraGlow()
-      }
-      sizeAura(region)
-      if (auraMotion(spec) === 'off') {
-        stopAuraFrames()
-        if (auraRuntime.glow && !auraRuntime.staticDrawn) drawAuraFrame(
-          typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(),
-        )
-        return
-      }
-      startAuraFrames()
-    }
-
-    function watchAura() {
-      teardownAura()
-      if (typeof setInterval === 'function') auraRuntime.timer = setInterval(syncAura, AURA_HEALTH_MS)
-      syncAura()
     }
 
     /**
@@ -592,7 +403,6 @@ window.__ModuleLoader__.load({
     const VENDOR_SCRIPTS = {
       vial: { file: 'vial-core.js', global: '__agVialCore', pending: null },
       mascot: { file: 'dual-mascot-rig.js', global: '__agDualMascotRig', pending: null },
-      horizon: { file: 'horizon-glow.js', global: '__agHorizonGlow', pending: null },
     }
     // Host context budget: the same 65,536-token reserve the official
     // compaction-basic engine applies.
@@ -665,6 +475,10 @@ window.__ModuleLoader__.load({
         vialSystem: '系统',
         vialTools: '工具',
         vialMessages: '对话',
+        vialUsage: '本会话用量',
+        vialUsageCache: '缓存命中',
+        vialUsageSpeed: '生成速度',
+        vialUsageTurns: '轮 / 步',
         vialUnavailable: '读不到上下文用量',
         vialLoading: '读取中…',
         vialClose: '关闭',
@@ -818,6 +632,10 @@ window.__ModuleLoader__.load({
         vialSystem: 'System',
         vialTools: 'Tools',
         vialMessages: 'Conversation',
+        vialUsage: 'This session',
+        vialUsageCache: 'Cache hit',
+        vialUsageSpeed: 'Decode speed',
+        vialUsageTurns: 'Turns / steps',
         vialUnavailable: 'Context usage is unavailable',
         vialLoading: 'Reading…',
         vialClose: 'Close',
@@ -1932,67 +1750,22 @@ body[data-ct-art='on']:not([data-ds-dark-theme]) [data-composer-card] {
 body[data-ct-art='on'] [data-conversation-region='chat'] {
   position: relative;
 }
-body[data-ct-art='on'] [data-conversation-scroll] {
-  position: relative;
-  z-index: 1;
+/* The art layer's backdrop is one static linear gradient — a bottom-lit band
+   under the transcript. Nothing animates here on purpose: the horizon renderer
+   it replaced repainted a canvas ~30 times a second for the same picture. */
+body[data-ct-art='on'] [data-conversation-region='chat'] {
+  background-image:
+    linear-gradient(to top,
+      color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent) 0%,
+      color-mix(in srgb, var(--dsw-alias-chart-tools) 9%, transparent) 26%,
+      transparent 54%);
+  background-repeat: no-repeat;
+  background-position: bottom;
 }
-body[data-ct-art='on'] .ct-aura-host {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 40%;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 700ms ease;
-}
-body[data-ct-art='on'] .ct-aura-host[data-ct-aura-ready='1'] {
-  opacity: 1;
-}
-/* The fallback glow: two drifting radial blobs, composited on the GPU, so the
-   layer is never a flat black band even if the canvas renderer cannot start. It
-   stays until the canvas reports its first frame, then fades out. */
-body[data-ct-art='on'] .ct-aura-fallback {
-  position: absolute;
-  inset: -10% 0 -10% 0;
-  background:
-    radial-gradient(58% 120% at 30% 100%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 42%, transparent), transparent 70%),
-    radial-gradient(46% 100% at 76% 100%, color-mix(in srgb, var(--dsw-alias-chart-tools) 30%, transparent), transparent 72%),
-    linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent) 100%);
-  animation: ct-aura-drift 26s ease-in-out infinite alternate;
-  transition: opacity 900ms ease;
-}
-body[data-ct-art='on'] .ct-aura-host[data-ct-aura-ready='1'] .ct-aura-fallback {
-  opacity: 0;
-  animation: none;
-}
-body[data-ct-art='on'][data-ct-motion='subtle'] .ct-aura-fallback {
-  opacity: 0.6;
-  animation-duration: 60s;
-}
-body[data-ct-art='on'][data-ct-motion='off'] .ct-aura-fallback {
-  opacity: 0.55;
-  animation: none;
-}
-@keyframes ct-aura-drift {
-  from { transform: translate3d(-5%, 0, 0) scale(1.04); }
-  to { transform: translate3d(5%, -5%, 0) scale(1.12); }
-}
-@media (prefers-reduced-motion: reduce) {
-  body[data-ct-art='on'] .ct-aura-fallback { animation: none; }
-  body[data-ct-art='on'] .ct-aura-host { transition: none; }
-}
-body[data-ct-art='on'] .ct-aura-host canvas {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  /* The horizon can reach past the top of its own canvas on a tall column; the
-     fade turns that edge into a soft arrival instead of a seam across the chat. */
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 100%);
+/* The composer stats line under the composer is the host's own text; the art
+   layer hides it and the vial popover carries the same readings. */
+body[data-ct-art='on'] [data-composer-stat] {
+  display: none !important;
 }
 /* ---- Appearance page ---------------------------------------------------- */
 .ct-swatches {
@@ -2563,10 +2336,17 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
 }
-.ct-vial-rows {
-  display: grid;
-  gap: 5px;
-  margin: 0;
+.ct-vial-rows {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+/* The host's composer stats line is hidden by the art layer; these rows carry
+   the same readings inside the vial, separated from the context numbers. */
+.ct-vial-usage {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
 }
 .ct-vial-row {
   display: flex;
@@ -2778,13 +2558,40 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     }
 
     /**
+     * The readings the host prints under the composer (session tokens, cache
+     * hit, decode speed, turns/steps). The art layer hides that line, so the
+     * vial carries the same numbers — read from the same two projections the
+     * official pills use, and only when the host actually serves them.
+     */
+    function vialUsage(usage, stats) {
+      const out = { total: null, cacheHit: null, speed: null, turns: null, steps: null }
+      const count = (value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0)
+      if (usage && typeof usage === 'object') {
+        const cacheRead = count(usage.cacheReadTokens)
+        const prompt = count(usage.uncachedInputTokens) + cacheRead + count(usage.cacheWriteTokens)
+        const total = prompt + count(usage.outputTokens)
+        if (total > 0) {
+          out.total = total
+          if (prompt > 0) out.cacheHit = Math.round((cacheRead / prompt) * 100)
+        }
+      }
+      if (stats && typeof stats === 'object') {
+        if (typeof stats.turns === 'number' && stats.turns >= 0) out.turns = stats.turns
+        if (typeof stats.steps === 'number' && stats.steps >= 0) out.steps = stats.steps
+        const decodeMs = count(stats.decodeMs)
+        const decodeTokens = count(stats.decodeTokens)
+        if (decodeMs > 0 && decodeTokens > 0) out.speed = decodeTokens / (decodeMs / 1000)
+      }
+      return out
+    }
+
+    /**
      * Fold the official `contextPressure` projection into the numbers the vial
      * and the panel show. The threshold mirrors the documented server formula
      * `floor(min(W × ratio, W − 65,536))`; the output reservation is unknown on
      * the client, so this is the same upper bound `compression_context` reports.
      */
-    function vialMeter(pressure, spec) {
-      const usedRaw = pressure && (pressure.projectedTokens !== undefined ? pressure.projectedTokens : pressure.pressureTokens)
+    function vialMeter(pressure, spec) {      const usedRaw = pressure && (pressure.projectedTokens !== undefined ? pressure.projectedTokens : pressure.pressureTokens)
       const used = Number(usedRaw)
       const window = Number(pressure && pressure.contextWindow)
       if (!Number.isFinite(used) || used < 0 || !Number.isFinite(window) || window <= 0) return null
@@ -3055,6 +2862,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const t = props.t
       const meter = props.meter || null
       const breakdown = props.breakdown || null
+      const usage = props.usage || { total: null, cacheHit: null, speed: null, turns: null, steps: null }
       const appearance = props.appearance || DEFAULT_APPEARANCE
       const [open, setOpen] = React.useState(false)
       const [failed, setFailed] = React.useState(false)
@@ -3250,6 +3058,16 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
                       h('span', { className: 'ct-vial-dot', 'data-kind': 'messages' }),
                       h('span', null, t('vialMessages')),
                       h('span', null, tokenLabel(usedParts.messages))))
+                : null,
+              usage.total !== null || usage.speed !== null || usage.turns !== null
+                ? h('dl', { className: 'ct-vial-rows ct-vial-usage' },
+                    usage.total !== null ? row('usageTotal', t('vialUsage'), tokenLabel(usage.total)) : null,
+                    usage.cacheHit !== null ? row('usageCache', t('vialUsageCache'), usage.cacheHit + '%') : null,
+                    usage.speed !== null ? row('usageSpeed', t('vialUsageSpeed'), (Math.round(usage.speed * 10) / 10) + ' tok/s') : null,
+                    usage.turns !== null || usage.steps !== null
+                      ? row('usageTurns', t('vialUsageTurns'),
+                          (usage.turns === null ? '—' : usage.turns) + ' / ' + (usage.steps === null ? '—' : usage.steps))
+                      : null)
                 : null)
           ]
         : [
@@ -4113,6 +3931,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const appearance = normalizeAppearance(settings && settings.appearance)
       const spec = levelSpecOf(settings)
       const level = settings && settings.level ? settings.level : 'standard'
+      const tokenUsage = useProjection ? useProjection('tokenUsage') : undefined
+      const sessionStats = useProjection ? useProjection('sessionStats') : undefined
+      const usage = vialUsage(tokenUsage, sessionStats)
       const meter = vialMeter(pressure, spec)
 
       React.useEffect(function () {
@@ -4322,6 +4143,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           t: t,
           meter: meter,
           breakdown: breakdown,
+          usage: usage,
           level: level,
           appearance: appearance,
           onPoke: function () {
@@ -5493,15 +5315,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         skinRuntime: skinRuntime,
         normalizeAppearance: normalizeAppearance,
         applyOptics: applyOptics,
-        // The aura controller: pure predicates plus the DOM mount it performs.
-        aura: {
-          allowed: auraAllowed,
-          motionOf: auraMotion,
-          runtime: auraRuntime,
-          sync: syncAura,
-          teardown: teardownAura,
-          mount: ensureAuraGlow,
-        },
+        vialUsage: vialUsage,
+
         setSkinTheme: function (theme) {
           skinRuntime.theme = theme
           paintSkin()
@@ -5535,12 +5350,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         ctx.effect(function () {
           return installStyles()
         }, 'compression-tiers: styles')
-        ctx.effect(function () {
-          watchAura()
-          return function () {
-            teardownAura()
-          }
-        }, 'compression-tiers: horizon aura')
+
         // Whole-app skin: the host's theme service composes our palette layer on
         // top of the active theme. Optional on purpose — a host without the
         // service keeps the panel and the dock, it just does not repaint.

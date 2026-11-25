@@ -1,3 +1,10 @@
+## 2.4.6 — 2026-11-25
+
+- **背景不再动**：用户说「背景动效不要了吧、改为纯线性渐变」，2.4.6 把 2.4.0 起的 canvas 地平线渲染器整层删掉——`vendor/obsidian-prism/horizon-glow.js`、`auraRuntime` / `auraAllowed` / `auraMotion` / `syncAura` / `drawAuraFrame` / `ensureAuraGlow` / `watchAura`、`.ct-aura-*` 样式、`VENDOR_SCRIPTS` 的第三个名字、`NOTICE` 里的那条衍生声明、vendor 测试一起下线。现在对话区底部只有一条静态渐变：`linear-gradient(to top, accent 16% → chart-tools 9% @26% → transparent @54%)`，挂在 `body[data-ct-art='on'] [data-conversation-region='chat']` 上，没有 canvas、没有帧、没有 `requestAnimationFrame`。
+- **输入框下方那行浅色统计字并进试管**：用户在截图里框的就是它（`[data-composer-stat]`：轮/步、tok/s、总 token、缓存命中）。美术层打开时 `display: none !important` 隐藏，同样读数改到试管浮窗底部的「本会话用量」一段：新增纯函数 `vialUsage(tokenUsage, sessionStats)`，读官方 `useProjection('tokenUsage')` 与 `useProjection('sessionStats')`；投影缺失就整行不渲染，不用 0 冒充。四个新文案键（`vialUsage` / `vialUsageCache` / `vialUsageSpeed` / `vialUsageTurns`）。
+- 测试仍 219 条（两处用例改写：静态渐变 + 无 aura 控制器；`vialUsage` 读数与 null 回落；vendor 用例改成「渲染器已下线、白名单只有两个」）。
+- 截图：新增 `docs/screenshots/background.png`，删除 `aura.png` / `aura-hero.png`。
+- **渲染未验证**：截图来自离线舞台，真实窗口里底光与「统计字消失后输入卡上方更干净」的观感要装上看。
 # 变更记录
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.4.0`。

@@ -1215,140 +1215,41 @@ test('the art layer hangs off two body attributes and stays off only when switch
   assert.doesNotMatch(css, /\[data-ct-art='on'\] \.[a-z]+_[A-Za-z0-9]{4,}/)
 })
 
-test('the horizon aura mounts one canvas in the chat region and stands down with the palette', async () => {
-  const attrs = {}
-  const frames = []
-  const calls = { resize: 0, draw: 0, clear: 0 }
-  const makeElement = (tagName) => {
-    const element = {
-      tagName: tagName.toUpperCase(),
-      attrs: {},
-      children: [],
-      parentNode: null,
-      isConnected: false,
-      setAttribute(name, value) { this.attrs[name] = String(value) },
-      getAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attrs, name) ? this.attrs[name] : null },
-      hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attrs, name) },
-      removeChild(child) {
-        const at = this.children.indexOf(child)
-        if (at >= 0) this.children.splice(at, 1)
-        child.parentNode = null
-        child.isConnected = false
-        return child
-      },
-      insertBefore(child, reference) {
-        const at = reference ? this.children.indexOf(reference) : -1
-        if (at >= 0) this.children.splice(at, 0, child)
-        else this.children.push(child)
-        child.parentNode = this
-        child.isConnected = true
-        return child
-      },
-      appendChild(child) {
-        return this.insertBefore(child, null)
-      },
-    }
-    if (element.tagName === 'CANVAS') {
-      element.width = 0
-      element.height = 0
-      element.getContext = () => null
-    }
-    return element
-  }
-  const region = makeElement('div')
-  region.clientWidth = 900
-  region.clientHeight = 600
-  const head = makeElement('head')
-  const body = makeElement('body')
-  const document = {
-    body,
-    head,
-    hidden: false,
-    createElement: makeElement,
-    querySelector: (selector) => (String(selector).includes("data-conversation-region='chat'") ? region : null),
-  }
-  const sandbox = vm.createContext({
-    window: {
-      devicePixelRatio: 2,
-      matchMedia: () => ({ matches: false }),
-      __agHorizonGlow: {
-        mount: () => ({
-          resize(width, height) { calls.resize += 1; calls.size = [width, height] },
-          draw() { calls.draw += 1 },
-          clear() { calls.clear += 1 },
-          dispose() {},
-        }),
-      },
-      __ModuleLoader__: { load(module) { sandbox.loaded = module } },
-    },
-    document,
-    performance: { now: () => 1000 },
-    requestAnimationFrame: (fn) => { frames.push(fn); return frames.length },
-    cancelAnimationFrame: () => {},
-    setInterval: () => 1,
-    clearInterval: () => {},
-    setTimeout,
-    console,
-  })
-  vm.runInContext(source, sandbox)
-  const module = sandbox.loaded
-  const plugin = module.factory(() => fakeReact(null))
-  plugin.apply(sectionContext([]))
-  const aura = plugin.__test.aura
-
-  aura.runtime.spec = { palette: 'obsidian', art: true, motion: 'full' }
-  assert.equal(aura.allowed(aura.runtime.spec), true)
-  aura.sync()
-  const host = region.children[0]
-  assert.ok(host, 'the aura host is inserted into the chat region')
-  assert.equal(host.className, 'ct-aura-host')
-  assert.equal(host.getAttribute('aria-hidden'), 'true')
-  assert.equal(host.children[0].className, 'ct-aura-fallback')
-  assert.equal(host.children[1].tagName, 'CANVAS')
-  assert.equal(body.getAttribute('data-ct-art'), null, 'the controller never writes the switches itself')
-
-  // The vendor global is already there, so the mount is one microtask away.
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  assert.equal(calls.resize, 1)
-  assert.deepEqual(calls.size, [900, 240])
-  assert.ok(frames.length >= 1, 'a full-motion aura schedules frames')
-  frames.shift()(1200)
-  assert.equal(calls.draw, 1)
-  assert.equal(host.getAttribute('data-ct-aura-ready'), '1')
-
-  // `off` paints one still frame and stops scheduling.
-  aura.runtime.spec = { palette: 'obsidian', art: true, motion: 'off' }
-  const before = frames.length
-  aura.sync()
-  assert.equal(frames.length, before, 'motion off does not schedule another frame')
-
-  // Following the host palette removes the canvas: DSH's own surfaces stay untouched.
-  aura.runtime.spec = { palette: 'host', art: true, motion: 'full' }
-  assert.equal(aura.allowed(aura.runtime.spec), false)
-  aura.sync()
-  assert.equal(region.children.length, 0)
-  assert.equal(aura.runtime.host, null)
-})
-
-test('the aura only ever renders inside the chat region, under the transcript', () => {
+test('the art backdrop is one static linear gradient instead of a repainted canvas', () => {
   const { module, styles } = loadClient()
   const plugin = module.factory(() => fakeReact(null))
   plugin.apply(sectionContext([]))
-  const aura = plugin.__test.aura
-  assert.equal(aura.motionOf({ motion: 'subtle' }), 'subtle')
-  assert.equal(aura.motionOf({ motion: 'off' }), 'off')
-  assert.equal(aura.motionOf({}), 'full')
-  assert.equal(aura.motionOf({ motion: 'warp' }), 'full')
-  assert.equal(aura.allowed({ palette: 'host', art: true }), false)
-  assert.equal(aura.allowed({ palette: 'obsidian', art: false }), false)
-  assert.equal(aura.allowed({ palette: 'crystal', art: true }), true)
-
   const css = String(styles[0].textContent)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-aura-host \{/)
-  assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-scroll\] \{\n  position: relative;\n  z-index: 1;\n\}/)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-aura-host\[data-ct-aura-ready='1'\] \{/)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-aura-fallback \{/)
-  assert.match(css, /body\[data-ct-art='on'\]\[data-ct-motion='off'\] \.ct-aura-fallback \{/)
+  assert.match(css, /body\[data-ct-art='on'\] \[data-conversation-region='chat'\] \{\n  background-image:\n    linear-gradient\(to top,/)
+  assert.match(css, /background-repeat: no-repeat/)
+  // The horizon renderer is gone: no canvas host, no fallback blobs, no keyframes,
+  // and no controller left exposed for anyone to restart.
+  assert.equal(/ct-aura/.test(css), false, 'the aura layer is gone')
+  assert.equal(plugin.__test.aura, undefined, 'no aura controller is exposed')
+})
+
+test('the composer stats line moves into the vial', () => {
+  const { module, styles } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  const css = String(styles[0].textContent)
+  // Host-owned pills under the composer are hidden, and only while the art layer
+  // is on (turning it off restores them).
+  assert.match(css, /body\[data-ct-art='on'\] \[data-composer-stat\] \{\n  display: none/)
+  assert.match(css, /\.ct-vial-usage \{/)
+  // The readings come from the same projections the official pills read.
+  const usage = plugin.__test.vialUsage
+  assert.ok(usage, 'the reading helper is testable')
+  const view = usage(
+    { uncachedInputTokens: 1000, cacheReadTokens: 9000, cacheWriteTokens: 0, outputTokens: 2000 },
+    { turns: 4, steps: 12, decodeMs: 4000, decodeTokens: 800 },
+  )
+  assert.equal(view.total, 12000)
+  assert.equal(view.cacheHit, 90)
+  assert.equal(view.speed, 200)
+  assert.equal(view.turns, 4)
+  // Missing projections degrade to nulls, never to zeros that read as "no usage".
+  assert.equal(JSON.stringify(usage(null, null)), JSON.stringify({ total: null, cacheHit: null, speed: null, turns: null, steps: null }))
 })
 
 test('a six-page rail keeps appearance in the navigation', () => {

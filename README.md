@@ -12,7 +12,7 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.4.5-0f172a?style=flat-square" alt="Version 2.4.5" />
+  <img src="https://img.shields.io/badge/Version-2.4.6-0f172a?style=flat-square" alt="Version 2.4.6" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Tests-219%20passing-16a34a?style=flat-square" alt="219 tests passing" />
@@ -96,19 +96,15 @@
 
 这层美术挂在 `<body>` 的属性上（`data-ct-palette` / `data-ct-art` / `data-ct-motion`），由外观页「光学外观」开关控制；配色只决定用哪套 token 来画——选「跟随宿主」时美术就用 DSH 自己的颜色画，不再整层消失。所有选择器只用 DSH 自己的语义属性（`[data-conversation-region]`、`[data-message-bubble]`、`[data-composer-card]`、`[data-conversation-scroll]`），不碰哈希类名，命中不到就自然不生效。上游的背景极光本身是 canvas 着色器，2.3.0 只重画了静态部分；2.4.0 把渲染器也搬来了，见下面那节。
 
-### 3. 会动的背景：地平线辉光
+### 3. 静态渐变：一层不动的底光
 
-静态泛光之上，2.4.0 把上游真正的那层动效搬了过来：`ripple-core.js` 里的 2D 地平线渲染器（`conv-aura.js` 只是它的状态机）。它逐像素画一条贴着对话区底部的辉光带——两个正弦波叠出的 curtain、`valueNoise` 抖出的边缘、halftone 点阵，深色是钴蓝到青、浅色是宝蓝水彩；DSH 侧把它挂在对话区第一个子节点（底部 40%、`z-index: 0`，正文被提到 `1`），约 30fps，正文永远在它上面；canvas 下面还垫了一层缓慢漂移的 CSS 兜底光，渲染器起不来时也不会留一块死黑。
-
-<p align="center">
-  <img src="docs/screenshots/aura.png" width="100%" alt="深空黑曜对话区底部的地平线辉光与 halftone 点阵" />
-</p>
-
-外观页的动效三档直接管它：`完整` 原速、`克制` 速度 0.45 与强度 0.5、`关闭` 只画一帧静态图不再排帧。它跟静态美术共用一个开关：跟随宿主时用宿主的颜色画（2.4.2 起不再需要先选一套配色），关掉「光学外观」才整层移除。
+2.4.6 起对话区底部只有**一条线性渐变**：从底边的 accent 16% 淡染升到 27% 处的冰蓝 9%、54% 处收敛为全透明，贴在 `[data-conversation-region='chat']` 上，没有 canvas、没有帧、没有动画。此前 2.4.0–2.4.5 用的是移植来的地平线渲染器（逐像素 halftone 点阵、约 30fps），用户实测嫌它"像一条动的带子"，2.4.6 把渲染器整个撤掉（`vendor/obsidian-prism/horizon-glow.js` 已删除），只留这层静态底光。
 
 <p align="center">
-  <img src="docs/screenshots/aura-hero.png" width="100%" alt="空会话首页：跟随宿主配色下同样有泛光与地平线辉光" />
+  <img src="docs/screenshots/background.png" width="100%" alt="对话区底部的静态线性渐变（离线舞台渲染）" />
 </p>
+
+它跟静态美术共用一个开关：跟随宿主时用宿主的颜色画，关掉「光学外观」就整层移除。**同一层还顺手把宿主那行浅色统计字（`[data-composer-stat]`：轮/步、tok/s、总 token、缓存命中）藏起来**，同样的读数挪进试管浮窗的「本会话用量」一段——聊天区底部因此只剩输入卡本身。
 
 ### 4. 光学细节：上下文试管
 
@@ -162,7 +158,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.4.5`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.4.6`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -270,10 +266,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.4.5`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.4.6`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）、`dual-mascot-rig.js`（约 231 KB）与 `horizon-glow.js`（约 17 KB，从上游 `ripple-core.js` 抽出的 2D 地平线渲染器）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（只服务这三个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.4.5` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）、`dual-mascot-rig.js`（约 231 KB）与 `horizon-glow.js`（约 17 KB，从上游 `ripple-core.js` 抽出的 2D 地平线渲染器）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（只服务这三个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.4.6` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 300 KB，也不用 `eval`。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」，不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
