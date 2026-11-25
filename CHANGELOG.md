@@ -1,6 +1,15 @@
 # 变更记录
 
-> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.10.2`。
+> 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v1.10.3`。
+
+## 1.10.3 — 2026-11-25
+
+- **导航栏不再比卡片高一头**：`.ct-nav` 原来写的是 `position: sticky; top: 18px`。粘性定位的正 `top` 不是「留 18px 呼吸」，而是「相对滚动口把盒子往下压」——于是静止状态下导航栏就比右侧第一张卡片低一截（1400×792 实测：档位页低 13px、规则页低 18px；用户窗口里是 10px）。现在 `top: 0`，导航栏与第一张卡片同在 `.ct-page` 的 `padding-top` 处（实测差值 0），滚动时也不再跳。
+- **切页不再横向挪一下**：`.ct-page` 是 `overflow-y: auto` 却没固定滚动条槽，档位页内容短、没有滚动条，规则页内容高、多出一条 15px 的滚动条，内容盒跟着变窄，居中的 `.ct-shell` 就横向位移。加上 `scrollbar-gutter: stable` 后五页实测 `shellLeft` 恒为 318.5、`gutter` 恒为 15。
+- **分页进场只淡入**：`ct-page-in` 去掉了 `translateY(3px)`，只留 160ms 的 `opacity 0→1`；位移叠在前两条上，读起来正好是「点击规则的时候页面有小小的位移」。
+- 测试 192 条不变：`test/client.test.js` 新增三条断言——`.ct-nav` 必须是 `sticky` 且 `top: 0`（不得出现 `top: 18px`）、`.ct-page` 必须有 `scrollbar-gutter: stable`、`@keyframes ct-page-in` 里不得出现 `transform`。
+- 文档：[AGENTS.md](AGENTS.md) 第 22 条与验证要求、[docs/UI.md](docs/UI.md)（布局、分页导航、动效、禁止项、检查清单）同步写明「正的 `sticky` `top` 会把导航栏推离卡片」。
+- 渲染未验证：几何结论来自无头 Chrome（同源静态预览，1400×792 / 600×792）的 `getBoundingClientRect` 测量，真实 DSH 窗口刷新后请再确认一次。
 
 ## 1.10.2 — 2026-11-25
 

@@ -292,6 +292,10 @@ window.__ModuleLoader__.load({
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* Reserve the scrollbar lane even on short pages: otherwise a taller page
+     adds a scrollbar, the content box narrows by its width, and the centered
+     shell slides sideways the moment you switch pages. */
+  scrollbar-gutter: stable;
   padding: 22px 24px 48px;
   color: var(--dsw-alias-label-primary);
   /* Liquid-glass canvas: two accent washes and a faint vertical tint give the
@@ -330,7 +334,11 @@ window.__ModuleLoader__.load({
 }
 .ct-nav {
   position: sticky;
-  top: 18px;
+  /* Must stay 0: a positive offset repositions the rail inside the scrollbox,
+     so at rest it already sits lower than the first card (18px measured 13–18px
+     off, depending on how much room the grid row leaves) and the panel reads
+     misaligned on every page. */
+  top: 0;
   display: grid;
   gap: 3px;
   box-sizing: border-box;
@@ -416,8 +424,8 @@ window.__ModuleLoader__.load({
   animation: ct-page-in 160ms ease-out;
 }
 @keyframes ct-page-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 /* Narrow panel: the rail turns into a horizontal strip above the page. The
    items wrap instead of scrolling, so no page can be clipped away. */

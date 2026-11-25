@@ -23,7 +23,7 @@
 
 包名 `dsh-harness-toolbox`（已发布在 npmjs.com，版本见 `npm view dsh-harness-toolbox version`）：
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.10.2`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@1.10.3`）；
 2. 安装完成后打开新会话 → 左侧栏的 **压缩分档** 面板。
 
 也可以在会话里让智能体用 `plugin_manager` 安装这个包名。

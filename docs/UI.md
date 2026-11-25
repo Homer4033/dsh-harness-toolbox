@@ -105,6 +105,7 @@
 ## 布局
 
 - 面板自身是滚动容器：`.ct-page` 为 `flex: 1 1 auto; overflow-y: auto`，内边距 `22px 24px 48px`。
+- **滚动条槽固定**：`.ct-page` 带 `scrollbar-gutter: stable`。分页高度不同，短页没有滚动条、长页有；不预留槽位时内容盒会窄 15px，居中的 `.ct-shell` 就横向挪一下——切页时的「小小位移」有一半来自这里。
 - **一个外壳、一次一页**：`.ct-shell` 是 `grid-template-columns: 196px minmax(0, 1fr)`、间距 20px、最大宽 980px 居中；左列是固定导航栏 `.ct-nav`，右列是当前页 `.ct-content`（`key` 随分页变化，触发 160ms 进场）。不再有整页长滚动与两栏拼贴。
 - **容器查询的容器是 `.ct-page`**（`container-type: inline-size`），不是 `.ct-shell`：元素不能被自己的容器查询命中，把 `container-type` 放在 `.ct-shell` 上时，`@container` 里对 `.ct-shell` 的规则不会生效——外壳留在两栏、只有子元素被改成横向，导航项会被裁在 196px 里。
 - **按面板宽度判断，不按窗口宽度**：左侧栏占掉窗口的一段固定宽度，1200px 的窗口留给面板的远不到 1200px；用 `@media` 会在「窗口够宽、面板不够宽」时错判。容器查询不可用的环境退回两栏，这是可接受的降级。
@@ -115,7 +116,7 @@
 ## 分页导航
 
 1. 五个分页固定顺序：档位（`levels`）、规则（`rules`）、工作区（`workspace`）、组件（`components`）、GitHub（`github`）。**五个分页始终都在导航里**：某个页面没有数据（例如还没注册工作区）时页面照常打开、在页内说明状态，不能因为没数据就把页面或导航项拿掉——分页是固定的地图，不是可选清单。
-2. 导航栏 `.ct-nav`：`position: sticky; top: 18px`，玻璃底（`--ct-glass-rail`）+ 20px 圆角 + 内高光；品牌行是 14px 的 accent 图标 + 11px 大写文字。
+2. 导航栏 `.ct-nav`：`position: sticky; top: 0`，玻璃底（`--ct-glass-rail`）+ 20px 圆角 + 内高光；品牌行是 14px 的 accent 图标 + 11px 大写文字。**`top` 只能是 0**：正值会把导航栏相对滚动口重新定位，静止状态就往下一段，导航栏顶部与右侧第一张卡片对不齐（1400×792 实测 `top: 18px` 时档位页差 13px、规则页差 18px，用户看到的就是「点击规则的时候页面有小小的位移」）。`top: 0` 下静止时两列都在 `padding-top` 的 22px 处（实测差值 0），滚动时导航栏也不再跳动。改回正值前先读这一条。
 3. 导航项 `.ct-nav-item`：34px 高、12px 圆角、15px 图标 + 13px 文字、`justify-content: flex-start`；默认透明底 + 透明描边。
 4. 当前页用 `aria-current="page"` 标记，样式是 accent 16% 淡染 + 40% accent 描边 + `inset 2px 0 0` 左竖条 + 22px 柔光；图标转 accent。**不要**用右侧箭头或加粗字号来区分。
 5. 导航项必须是 `<button type="button">`，带 `data-section`（测试与样式共用），Enter/Space 切换；不用链接、不用 tab 角色。
@@ -160,7 +161,7 @@
 ## 动效
 
 - 只做 110–160ms 的 `background-color` / `border-color` / `color` / `transform` 过渡、分页进场与弹层进场；不做位移布局、不做长于 200ms 的动画。
-- 分页进场 `ct-page-in` 160ms：`opacity 0→1` + `translateY(3px)→0`；只挂在 `.ct-content` 上，不重播导航栏。
+- 分页进场 `ct-page-in` 160ms：只做 `opacity 0→1`，不位移、不缩放；只挂在 `.ct-content` 上，不重播导航栏。切页时任何位移（`translateY` 也算）都会读成「页面跳了一下」，既然两组坐标本来就不该变，就别让它们动。
 - 展开箭头 140ms `rotate(180deg)`；按钮与选项 hover 110–120ms。
 - 用 `--virtual-time-budget` 之类冻结时钟的截图工具里，进场动画可能停在 `opacity: 0` 的首帧：预览样式要单独关掉它，交付截图前先确认画面不是全黑。
 
@@ -182,6 +183,7 @@
 - ❌ 把整页内容重新拼成一条长滚动，或恢复 `.ct-page-inner` / `.ct-columns` 两栏栅格。
 - ❌ 用 `overflow-x` 横滚的导航条（窄面板必须换行）。
 - ❌ 给同一个面板换第二套卡片圆角或第二套玻璃配方。
+- ❌ 给 `.ct-nav` 写正的 `sticky` `top`（导航栏会离第一张卡片一个偏移），或在分页进场里加位移/缩放。
 
 ## 落地映射
 
@@ -208,6 +210,7 @@
 - [ ] 面板是「导航栏 + 一次一页」，分页顺序与 `SECTIONS` 一致，当前页有 `aria-current="page"`。
 - [ ] `container-type` 在 `.ct-page` 上；面板 ≤720px 时导航栏是换行的横向条，没有被裁掉的页面。
 - [ ] 卡片仍是 20px 圆角、同一套玻璃配方；导航栏比卡片低一层。
+- [ ] 导航栏 `sticky` 的 `top` 是 0，导航栏顶部与第一张卡片同一水平线；`.ct-page` 有 `scrollbar-gutter: stable`，切分页时外壳不会横向挪动。
 - [ ] 所有动作按钮常显，禁用时有 `title`。
 - [ ] 没有原生 `<select>`；弹层是 layer-3 + portal + `data-side`，表面不是 layer-2。
 - [ ] 键盘：↑ / ↓ / Home / End / Enter / Esc 与外部点击都能走通。

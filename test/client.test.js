@@ -369,6 +369,9 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.ok(pageCss, 'the panel page keeps its own rule')
   assert.match(pageCss[0], /overflow-y: auto/)
   assert.match(pageCss[0], /flex: 1 1 auto/)
+  // A stable gutter keeps the content box the same width on every page: an
+  // appearing scrollbar used to narrow it and shift the centered shell.
+  assert.match(pageCss[0], /scrollbar-gutter: stable/)
   // Liquid-glass recipe shared by the rail and the cards.
   assert.match(pageCss[0], /--ct-glass-fill:/)
   assert.match(pageCss[0], /--ct-glass-sheen:/)
@@ -388,6 +391,17 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
   assert.match(styles[0].textContent, /\.ct-nav-item\[aria-current='page'\]/)
   assert.match(styles[0].textContent, /\.ct-content \{/)
   assert.match(styles[0].textContent, /@keyframes ct-page-in/)
+  // The rail's sticky offset must be 0: a positive one displaced it downward
+  // at rest, so it never lined up with the card on the right.
+  const navCss = String(styles[0].textContent).match(/\.ct-nav \{[^}]*\}/)
+  assert.ok(navCss, 'the rail keeps its own rule')
+  assert.match(navCss[0], /position: sticky/)
+  assert.match(navCss[0], /top: 0;/)
+  assert.equal(/top: 18px/.test(navCss[0]), false, 'the rail is not inset from the scrollport')
+  // The page switch fades only: a translate made the page slide on every click.
+  const pageIn = String(styles[0].textContent).match(/@keyframes ct-page-in \{[^}]*\}[^}]*\}/)
+  assert.ok(pageIn, 'the page keeps its entrance animation')
+  assert.equal(/transform/.test(pageIn[0]), false, 'the page fades instead of sliding')
   assert.match(styles[0].textContent, /@container \(max-width: 720px\)/)
   // The narrow rail wraps its items; clipped pages are not an option.
   assert.match(styles[0].textContent, /flex-wrap: wrap/)
