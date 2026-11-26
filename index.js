@@ -13,6 +13,7 @@ import { ffmpegDownloadRunning, ffmpegStatus, prependFfmpegPath, startFfmpegDown
 import { COMPONENT_IDS, componentBinDirs, componentDownloadRunning, componentStatus, prependComponentPath, startComponentDownload } from './src/components.js'
 import { COMPONENT_ORDER, componentRows } from './src/component-rows.js'
 import { MODEL_IDS, modelDownloadRunning, modelsStatus, startModelDownload } from './src/models.js'
+import { usageHeatmap } from './src/usage-heatmap.js'
 import { migrateTools, parseToolsPath, resolveToolsPath, toolsStatus } from './src/tools-path.js'
 import { pushFlow, pushReportText, resolvePushCwd, sessionTarget } from './src/push-flow.js'
 import { dirname, join } from 'node:path'
@@ -952,6 +953,23 @@ export function apply(ctx) {
         sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
       }
     }, 'models route')
+
+    // Local token heatmap for a blank Session. The host board Obsidian Prism
+    // draws does not exist here, and the composer slot is ours, so the grid is
+    // read from the official projection cache on demand — read-only, and the
+    // dock renders it only while the session has no context reading yet.
+    register('/compression-tiers/api/usage', async (req, res) => {
+      if (guard(child, req, res)) return
+      try {
+        if (req.method !== 'GET') {
+          sendJson(res, 405, { error: 'GET' })
+          return
+        }
+        sendJson(res, 200, { ok: true, ...usageHeatmap(homeDir()) })
+      } catch (error) {
+        sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
+      }
+    }, 'usage route')
 
   })
 

@@ -2,6 +2,15 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.7.0 — 2026-11-26
+
+- **空白会话上方画出本机 token 热力图**（用户先纠正「是新会话token 热力图HUD，不是试管」，再定位置「obsidian-prism中显示在上方、对话栏往下移了吧」）：上游 Obsidian Prism 的 Studio 首页有一条「活跃轨迹」——26 周 × 7 天的方格网格，DSH 没有那块板子。现在同一张网格放进本插件自己的 `conversation.input.dock` 行，**只在空白会话出现**：没有 `contextPressure` 读数时这一行先画热力图（工具区在下面），发出第一条消息、试管拿到读数后热力图整块让位。
+- `src/usage-heatmap.js`（新增）只读宿主自己写的会话投影缓存 `<DSH home>/storages/session_projcache/sessions/*.json`：一条会话的 token = `uncachedInputTokens + outputTokens + cacheReadTokens + cacheWriteTokens`，按 `record.identity.createdAt` 的**本地日**归集（缓存没有逐轮时间戳，跨夜会话记在创建日）；坏 JSON、没有 usage 行的会话跳过，目录不存在就是空网格。`GET /compression-tiers/api/usage` 出网格（`weeks` / `firstDay` / `lastDay` / `totalTokens` / `maxDayTokens` / `activeDays` / `sessions` / `columns[w].days[d]{date,tokens,sessions,level,future}`），窗口固定 26 周、周一对齐、今天之后不画，五档强度由 `levelOf()` 按当日峰值取 `floor(4 × log1p(t) / log1p(max)) + 1`。
+- 客户端 `UsageHeatmap` 画 10px 方格（`grid-auto-flow: column` + 7 行 = 列优先，一列一周）、五档 `color-mix` 的 accent 18% → 92%、空格 6% 淡底、未来日 3%、悬停给「日期 · token · 会话数」，标题行左侧「活跃轨迹」、右侧摘要（`近 26 周 · 5.13B token · 23 个活跃日`），右下角「少 → 多」图例。`.ct-repo-dock` 因此从单行改成 `flex-direction: column; align-items: stretch`（行宽与胶囊右缘不变），热力图自己 `width: fit-content; margin-left: auto` 贴右缘。客户端按 60 秒缓存，取不到时保留上一次的网格。
+- 本机实测（2026-11-26 快照）：**95 个会话 / 23 个活跃日 / 5,133,407,254 token**，窗口 2026-06-01 – 2026-11-29，单日峰值 2026-10-22 的 1.50B。
+- 测试 258 → **268**：`test/usage-heatmap.test.js` 6 条（四桶求和与非法桶、缓存读取与坏 JSON、缺目录空网格、26 周周一对齐 + future 标记 + 同日相加、强度单调到 5、本地时区归日）+ client 4 条（空白会话画 182 格、有读数时让位给试管、无缓存不画、dock 行是列布局与五档色阶）。
+- 事实来源（新增「本机用量唯一来源」段）、第 14 条、验证要求、[docs/UI.md](docs/UI.md)（新增「本机用量热力图」一节 + 类名表 + 禁止项 + 检查清单）、README（亮点、§5、升级说明、测试条数）同步；2.6.0–2.6.2 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.6.2）；版本 2.7.0。
+
 ## 2.6.6 — 2026-11-26
 
 - **没有读数就不画试管**（用户：「新会话的token HUD好像还没有」）：实机核对（headless Chrome 连桌面端 `127.0.0.1:1250`）——空白会话里 `conversation.input.dock` 照常渲染，但 `.ct-vial` 是 `disabled` 的灰胶囊、只写「—」、点不开，而宿主自己的 `ContextMeter` 在第一条消息之前压根不渲染（`[data-composer-dock]` 里 0 个按钮）；对照有内容的会话，试管显示 `9%` 并接管了被美术层隐藏的宿主占用环。根因是 `contextPressure` 在首条消息之前没有值，旧规则要求「取不到就渲染『—』并禁用触发器」，于是空白会话里这支灰胶囊成了唯一的 token UI。

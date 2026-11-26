@@ -22,8 +22,9 @@ window.__ModuleLoader__.load({
     const COMPONENTS_API = '/compression-tiers/api/components'
     const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
+    const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.6.6'
+    const PLUGIN_VERSION = '2.7.0'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -537,6 +538,12 @@ window.__ModuleLoader__.load({
         vialSystem: '系统',
         vialTools: '工具',
         vialMessages: '对话',
+        heatTitle: '活跃轨迹',
+        heatRange: '近 {weeks} 周',
+        heatDays: '个活跃日',
+        heatSessions: '个会话',
+        heatLess: '少',
+        heatMore: '多',
         vialUsage: '本会话用量',
         vialUsageCache: '缓存命中',
         vialUsageSpeed: '生成速度',
@@ -696,6 +703,12 @@ window.__ModuleLoader__.load({
         vialSystem: 'System',
         vialTools: 'Tools',
         vialMessages: 'Conversation',
+        heatTitle: 'Active trail',
+        heatRange: 'Last {weeks} weeks',
+        heatDays: 'active days',
+        heatSessions: 'sessions',
+        heatLess: 'Less',
+        heatMore: 'More',
         vialUsage: 'This session',
         vialUsageCache: 'Cache hit',
         vialUsageSpeed: 'Decode speed',
@@ -1420,11 +1433,88 @@ window.__ModuleLoader__.load({
   max-width: calc(var(--dsh-composer-card-max-width, 720px) - var(--dsh-composer-dock-inset, 8px) * 4);
   margin: 0 auto;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
   padding: 0;
+}
+.ct-heat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* The block hugs the grid and rides the dock's right edge, the same edge the
+     repository pill uses; a full-width header would leave the grid floating in
+     the middle of an otherwise right-aligned row. */
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  min-width: 0;
+}
+.ct-heat-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.ct-heat-title {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--dsw-alias-label-secondary);
+}
+.ct-heat-range {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ct-heat-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 10px);
+  grid-auto-columns: 10px;
+  gap: 3px;
+  justify-content: end;
+}
+.ct-heat-cell,
+.ct-heat-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--dsw-alias-label-secondary) 6%, transparent);
+}
+.ct-heat-cell[data-future='true'] {
+  background: color-mix(in srgb, var(--dsw-alias-label-secondary) 3%, transparent);
+}
+.ct-heat-cell[data-level='1'],
+.ct-heat-swatch[data-level='1'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);
+}
+.ct-heat-cell[data-level='2'],
+.ct-heat-swatch[data-level='2'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 34%, transparent);
+}
+.ct-heat-cell[data-level='3'],
+.ct-heat-swatch[data-level='3'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 52%, transparent);
+}
+.ct-heat-cell[data-level='4'],
+.ct-heat-swatch[data-level='4'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 72%, transparent);
+}
+.ct-heat-cell[data-level='5'],
+.ct-heat-swatch[data-level='5'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 92%, transparent);
+}
+.ct-heat-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
 }
 .ct-repo-group {
   display: inline-flex;
@@ -2599,6 +2689,37 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       return repoCache.pending
     }
 
+    /**
+     * The local token heatmap for a blank Session, cached for a minute: the dock
+     * remounts on every session switch, while the grid only moves when a session
+     * ends. A failed read keeps whatever was already painted (or nothing).
+     */
+    const USAGE_HEATMAP_MS = 60_000
+    const usageHeat = { body: null, at: 0, pending: null }
+
+    function loadUsageHeatmap() {
+      if (usageHeat.body && Date.now() - usageHeat.at < USAGE_HEATMAP_MS) {
+        return Promise.resolve(usageHeat.body)
+      }
+      if (usageHeat.pending) return usageHeat.pending
+      usageHeat.pending = fetch(USAGE_API, { credentials: 'same-origin' })
+        .then(readJson)
+        .then(function (body) {
+          const grid = body && body.ok && Array.isArray(body.columns) ? body : null
+          if (grid) {
+            usageHeat.body = grid
+            usageHeat.at = Date.now()
+          }
+          return usageHeat.body
+        })
+        .catch(function () { return usageHeat.body })
+        .then(function (result) {
+          usageHeat.pending = null
+          return result
+        })
+      return usageHeat.pending
+    }
+
     function repoErrorText(t, error) {
       if (error === 'gh-not-installed' || error === 'not-authenticated') return t('repoUnavailable')
       if (error === 'network') return t('repoNetwork')
@@ -2695,6 +2816,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     function tokenLabel(value) {
       const number = Number(value)
       if (!Number.isFinite(number)) return '—'
+      if (number >= 1_000_000_000) {
+        return (Math.round((number / 1_000_000_000) * 100) / 100) + 'B'
+      }
       if (number >= 1_000_000) {
         const scaled = number / 1_000_000
         return (scaled >= 10 ? Math.round(scaled) : Math.round(scaled * 10) / 10) + 'M'
@@ -3954,6 +4078,63 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     }
 
     /**
+     * The "active trail" grid Obsidian Prism paints on its home board, folded
+     * into the composer row for a blank Session: 26 weeks (columns) by weekday
+     * (rows), five intensity steps. Every number comes from the official session
+     * projection cache through our own route — nothing is estimated, and a day
+     * after today stays blank instead of painting an empty square.
+     */
+    const HEAT_LEVELS = [1, 2, 3, 4, 5]
+
+    function UsageHeatmap(props) {
+      const t = props.t
+      const heat = props.heat || null
+      if (!heat || !Array.isArray(heat.columns) || heat.columns.length === 0) return null
+      const cells = []
+      heat.columns.forEach(function (column) {
+        const days = Array.isArray(column.days) ? column.days : []
+        days.forEach(function (day) {
+          if (!day || typeof day.date !== 'string') return
+          const label = day.future
+            ? ''
+            : day.date + ' · ' + tokenLabel(day.tokens) + ' token · ' + (Number(day.sessions) || 0) + ' ' + t('heatSessions')
+          cells.push(h('i', {
+            key: day.date,
+            className: 'ct-heat-cell',
+            'data-level': String(Number(day.level) || 0),
+            'data-future': day.future ? 'true' : 'false',
+            title: label,
+            'aria-hidden': 'true',
+          }))
+        })
+      })
+      const summary = t('heatRange').replace('{weeks}', String(Number(heat.weeks) || heat.columns.length))
+        + ' · ' + tokenLabel(Number(heat.totalTokens) || 0) + ' token'
+        + ' · ' + (Number(heat.activeDays) || 0) + ' ' + t('heatDays')
+      return h('div', { className: 'ct-heat' },
+        h('div', { key: 'head', className: 'ct-heat-head' },
+          h('span', { className: 'ct-heat-title' }, t('heatTitle')),
+          h('span', { className: 'ct-heat-range' }, summary)),
+        h('div', {
+          key: 'grid',
+          className: 'ct-heat-grid',
+          role: 'img',
+          'aria-label': t('heatTitle') + ' ' + summary,
+        }, cells),
+        h('div', { key: 'legend', className: 'ct-heat-legend' },
+          h('span', null, t('heatLess')),
+          HEAT_LEVELS.map(function (level) {
+            return h('i', {
+              key: 'level-' + level,
+              className: 'ct-heat-swatch',
+              'data-level': String(level),
+              'aria-hidden': 'true',
+            })
+          }),
+          h('span', null, t('heatMore'))))
+    }
+
+    /**
      * Composer dock row: which online repository this session publishes to.
      * The row sits above the input card, so a blank Session shows it too (the
      * title cluster is hidden there) and the listbox can open upward.
@@ -3970,6 +4151,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [active, setActive] = React.useState(0)
       // The palette and motion tier come from the same snapshot the panel uses.
       const [settings, setSettings] = React.useState(settingsCache.body)
+      // The heatmap is only for a blank Session, so its grid is read lazily and
+      // kept across session switches (module cache inside loadUsageHeatmap).
+      const [heat, setHeat] = React.useState(usageHeat.body)
       const pillRef = React.useRef(null)
       const menuRef = React.useRef(null)
       const placement = React.useRef(null)
@@ -3987,6 +4171,20 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const sessionStats = useProjection ? useProjection('sessionStats') : undefined
       const usage = vialUsage(tokenUsage, sessionStats)
       const meter = vialMeter(pressure, spec)
+
+      // A blank Session has no context reading: that is exactly where the host
+      // board would be, so the row draws the local token grid instead. Once the
+      // first turn produces a reading the grid makes room for the vial.
+      React.useEffect(function () {
+        if (meter || heat) return undefined
+        let alive = true
+        loadUsageHeatmap().then(function (body) {
+          if (alive && body) setHeat(body)
+        }, function () {
+          // No grid is better than an invented one; the row stays as it was.
+        })
+        return function () { alive = false }
+      }, [meter ? 1 : 0])
 
       React.useEffect(function () {
         mounted.current = true
@@ -4186,6 +4384,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         'data-palette': appearance.palette,
         'data-motion': appearance.motion,
       },
+      meter ? null : h(UsageHeatmap, { key: 'heat', t: t, heat: heat }),
       h('div', { key: 'tools', className: 'ct-dock-tools' },
         h(EffortBridge, {
           key: 'effort',
@@ -5465,6 +5664,12 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           runtime: glowRuntime,
         },
         vialUsage: vialUsage,
+        // The local heatmap cache: the seam a fake renderer cannot reach, since
+        // its grid arrives from our own route rather than a host projection.
+        heatmap: {
+          cache: usageHeat,
+          load: loadUsageHeatmap,
+        },
         // The shared settings snapshot: the panel writes it, the dock subscribes.
         settings: {
           subscribe: subscribeSettings,

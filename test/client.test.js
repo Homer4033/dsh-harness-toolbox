@@ -1516,7 +1516,37 @@ test('a five-page rail keeps appearance in the navigation', () => {
   assert.equal(current[0].props['data-section'], 'appearance')
 })
 
-/** Render the context vial element the dock mounts, with its own hook values. */
+/** A grid shaped like the one our usage route returns, for the blank-Session card. */
+const heatPayload = {
+  ok: true,
+  weeks: 26,
+  firstDay: '2026-06-01',
+  lastDay: '2026-11-29',
+  totalTokens: 5_120_000_000,
+  maxDayTokens: 1_500_000_000,
+  activeDays: 24,
+  sessions: 95,
+  columns: Array.from({ length: 26 }, (unusedWeek, week) => ({
+    start: '2026-06-' + String(week).padStart(2, '0'),
+    days: Array.from({ length: 7 }, (unusedDay, day) => ({
+      date: '2026-06-' + String(week).padStart(2, '0') + '-' + day,
+      tokens: 1_000_000 * (week + 1),
+      sessions: 1,
+      level: day === 0 ? 0 : Math.min(5, day),
+      future: week === 25 && day > 3,
+    })),
+  })),
+}
+
+/** Render the heatmap element the dock mounts for a blank Session. */
+function renderHeat(options) {
+  const { dockNodes } = renderVial(options || {})
+  const heat = dockNodes.find((node) => typeof node.type === 'function'
+    && node.props && 'heat' in node.props)
+  assert.ok(heat, 'the dock mounts the heatmap element')
+  return collect(heat.type(heat.props))
+}
+
 function renderVial(options) {
   const config = options || {}
   const settings = config.settings || settingsState
@@ -1535,6 +1565,7 @@ function renderVial(options) {
     false,
     0,
     settings,
+    config.heat || null,
   ]
   const vialStates = config.vialStates || [true, false]
   const react = fakeReact(dockStates.concat(vialStates), config.refs || [null, null, null, true, null, null, null, null, null, null, { up: true, left: 100, width: 392, bottom: 400, maxHeight: 360 }, null, null])
@@ -1633,6 +1664,53 @@ test('the vial appears as soon as the official projection has a reading', () => 
   assert.equal('data-empty' in trigger.props, false)
   assert.equal(trigger.props.disabled, undefined)
   assert.equal(deepText(trigger), '51%')
+})
+
+test('a blank Session draws the token heatmap above the repository pill', () => {
+  const nodes = renderHeat({ heat: heatPayload })
+  assert.ok(nodes.some((node) => hasClass(node, 'ct-heat')), 'the card renders')
+  const grid = nodes.find((node) => hasClass(node, 'ct-heat-grid'))
+  assert.equal(grid.props.role, 'img')
+  assert.match(grid.props['aria-label'], /heatTitle/)
+  const cells = nodes.filter((node) => hasClass(node, 'ct-heat-cell'))
+  assert.equal(cells.length, 182, '26 weeks by 7 days')
+  assert.equal(cells.filter((node) => node.props['data-future'] === 'true').length, 3)
+  assert.equal(cells.filter((node) => node.props['data-level'] === '0').length, 26)
+  // The hover label carries the day, its tokens and how many sessions fed it.
+  assert.match(cells[0].props.title, /2026-06-00-0 · 1M token · 1 heatSessions/)
+  assert.equal(nodes.filter((node) => hasClass(node, 'ct-heat-swatch')).length, 5)
+  assert.equal(nodes.filter((node) => hasClass(node, 'ct-heat-legend')).length, 1)
+})
+
+test('the heatmap gives way to the vial once the session has a reading', () => {
+  const pressure = { projectedTokens: 260000, contextWindow: 512000 }
+  const { dockNodes } = renderVial({ heat: heatPayload, pressure })
+  assert.equal(dockNodes.some((node) => node.props && 'heat' in node.props), false)
+})
+
+test('no grid is painted without cached usage data', () => {
+  const { dockNodes } = renderVial({ heat: null })
+  const heat = dockNodes.find((node) => node.props && 'heat' in node.props)
+  assert.ok(heat, 'the slot stays so a later read can fill it')
+  assert.equal(collect(heat.type(heat.props)).some((node) => hasClass(node, 'ct-heat')), false)
+})
+
+test('the dock is a column so the grid sits above the pill, never beside it', () => {
+  const { module, styles } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  const css = String(styles[0].textContent)
+  // 2.7.0: the row stacks a heatmap above the tools line; both keep the right edge.
+  assert.match(css, /\.ct-repo-dock \{[^}]*flex-direction: column;/)
+  assert.match(css, /\.ct-repo-dock \{[^}]*justify-content: flex-end;/)
+  assert.match(css, /\.ct-heat-grid \{[^}]*grid-auto-flow: column;/)
+  assert.match(css, /grid-template-rows: repeat\(7, 10px\);/)
+  // Five steps on the accent token, plus a subtler empty and future square.
+  for (const level of [1, 2, 3, 4, 5]) {
+    assert.match(css, new RegExp(`\\.ct-heat-cell\\[data-level='${level}'\\]`))
+  }
+  assert.match(css, /\.ct-heat-cell\[data-future='true'\]/)
+  assert.match(css, /\.ct-heat \{[\s\S]*?width: fit-content;/)
 })
 
 test('motion off pauses every effort animation, the sweep included', () => {
