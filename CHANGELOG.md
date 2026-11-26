@@ -2,6 +2,14 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.7.4 — 2026-11-27
+
+- **空白会话把宿主那一段（欢迎语 + 快捷按钮 + 输入卡）整块下移**（用户先发截图画圈、再纠正「啥啊，红圈地方往下移，我说卡片了吗？」——红框圈的是宿主的空会话块，2.7.3 只挪了我们自己的卡片，所以屏幕上几乎没动）：先量出根因——空会话里宿主的 `.composerStack` 由宿主自己在聊天区居中，1584×905 窗口实测 seat `y 265 → 680`、下方空着 225px 死区，插件行在不在都不改变它；`docs` 里那条「只读宿主几何、不写宿主节点」的约束因此只能由用户明确要求来打破。
+- 实现：`placeHeatLayer()` 先算 `shift = max(0, chatBottom − HEAT_SEAT_GAP(24) − seatBottom)`（该窗口 201px）写进根节点的 `--ct-seat-shift`，样式表只加一条 `body[data-ct-blank='on'] [data-conversation-region='composer'] { transform: translateY(var(--ct-seat-shift, 0px)) }`；`data-ct-blank` 由 `HeatOverlay` 挂载时写入、卸载时连变量一起删除，有 `contextPressure` 读数时整条规则不成立。写完变量必须**重新取一次 seat 矩形**再算卡片位置（transform 会反映进 `getBoundingClientRect`），顺序颠倒卡片会停在旧位置。
+- 产物：seat 从 `265 → 680` 变成 `466 → 881`，看板随之落在新的输入区上沿之上，宿主 hero 与输入卡之间仍是原样的间距。这是一次**明确由用户要求的宿主布局覆写**（与 2.5.0 的 `display: none` 同类）：只走 `body[data-ct-blank='on']` + 一个 CSS 变量，空白会话结束即撤销。
+- 测试仍 **270**（`test/client.test.js` 补一条样式规则断言，确认那条 `translateY` 只挂在 `body[data-ct-blank='on']` 下）。
+- 第 14 条、验证要求、[docs/UI.md](docs/UI.md)（「本机用量热力图」新增第 3 条、禁止项、类名表、检查清单同步）、README（亮点、§4、§5、升级说明）、AGENTS 变更记录同步；2.6.5 / 2.6.6 / 2.7.0 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.7.0，AGENTS.md 回到 65,536 字节预算以内）；版本 2.7.4。**空白会话的最终渲染只在 headless 注入里验证，未在装好 2.7.4 的窗口里复验**。
+
 ## 2.7.3 — 2026-11-27
 
 - **看板贴到输入区上沿**（用户发截图、从对话栏画了一条往下的箭头：「移下来不行吗？」）：2.7.2 把卡片垂直居中在「聊天区顶 → 输入区顶」之间，空聊天区里它浮在半空、离下面的对话栏还差一截。现在改成底部对齐——卡片底边落在输入区上沿再减 `HEAT_BOTTOM_GAP`（16px），顶到聊天区顶时保底 12px；窗口矮时先缩宽度再贴边。`placeHeatLayer()` 的公式从 `(room - height) / 2` 换成 `room - height - 16`，其余不动。测试仍 **270**。

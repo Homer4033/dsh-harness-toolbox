@@ -1800,6 +1800,10 @@ test('the dock is a column so the grid sits above the pill, never beside it', ()
   assert.match(css, /\.ct-heat-bar \{[^}]*justify-content: flex-end;/)
   assert.match(css, /@container \(max-width: 660px\) \{[\s\S]*?\.ct-heat-chassis \{\n    grid-template-columns: minmax\(0, 1fr\);/)
   assert.match(css, /\.ct-heat-layer \{[^}]*container-type: inline-size;/)
+  // 2.7.4: on a blank Session the host's centred welcome + composer block is
+  // shifted down into the dead band under the input card, then the card hangs
+  // above it. Only while the card is up (data-ct-blank).
+  assert.match(css, /body\[data-ct-blank='on'\] \[data-conversation-region='composer'\] \{[^}]*transform: translateY\(var\(--ct-seat-shift, 0px\)\);/)
   assert.match(css, /\.ct-heat-grid \{[^}]*grid-template-columns: repeat\(26, minmax\(0, 1fr\)\);/)
   assert.match(css, /\.ct-heat-grid \{[^}]*grid-auto-flow: column;/)
   assert.match(css, /\.ct-heat \{[\s\S]*?background: var\(--dsw-specific-menu\);/)

@@ -253,7 +253,8 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 上游 Obsidian Prism 的 Studio 首页用一张 bento 卡同时放两块东西：左边「活跃轨迹」（标题行 → 26 周 × 7 天网格 → 大号总量），右边「5h 配额池」（三条带 5px 轨道的用量行）。DSH 没有那块板子，所以整套排版搬进本插件自己的浮层卡，**只在空白会话出现**（2.7.0 首版，2.7.1 卡片化，2.7.2 补全双栏并搬出输入框上方那一行）。
 
 1. **画在哪儿**：空白会话（没有 `contextPressure` 读数、拿不到试管）时，这一行**不再渲染**，`RepoBinding` 直接返回 `HeatOverlay`：卡片经 `ReactDOM.createPortal` 挂到 `document.body` 的 `.ct-heat-layer` 上（`position: fixed`、`pointer-events: none`、`container-type: inline-size`、`z-index: 20`），卡片自己 `pointer-events: auto`。这样宿主自己的空会话 hero（问候语 + 快捷按钮）保持在原版位置，输入卡仍在窗口最底部——上游就是「热力图在中间、对话栏在底下」。
-2. **怎么定位**：`placeHeatLayer()` 读 `[data-conversation-region='chat']` 与 `[data-conversation-region='composer']` 的矩形，水平居中于聊天区，**底边贴着输入区上沿 16px**（`HEAT_BOTTOM_GAP`；顶到聊天区顶时保底 12px）——空聊天区里不要浮在半空。宽度从 900px 起，放不下就每档减 40px（下限 360px），绝不盖住宿主 hero。`HeatOverlay` 用 `resize` + `ResizeObserver`（层 / chat / composer）重算。只读宿主几何，不写宿主节点、不写 `body` 变量。
+2. **怎么定位**：`placeHeatLayer()` 读 `[data-conversation-region='chat']` 与 `[data-conversation-region='composer']` 的矩形，水平居中于聊天区，**底边贴着输入区上沿 16px**（`HEAT_BOTTOM_GAP`；顶到聊天区顶时保底 12px）——空聊天区里不要浮在半空。宽度从 900px 起，放不下就每档减 40px（下限 360px），绝不盖住宿主 hero。`HeatOverlay` 用 `resize` + `ResizeObserver`（层 / chat / composer）重算。
+3. **空白会话把宿主那一段往下推（2.7.4）**：宿主在空会话里把「欢迎语 + 快捷按钮 + 输入卡」整块居中在聊天区（1584×905 实测 seat `265 → 680`，下方空着 225px 死区），插件行在不在都不改变它——用户要「红圈地方往下移」的就只能是这块。`placeHeatLayer()` 先算 `shift = max(0, chatBottom − 24 − seatBottom)`（`HEAT_SEAT_GAP` = 24px）写进 `:root` 的 `--ct-seat-shift`，样式表里只有一条 `body[data-ct-blank='on'] [data-conversation-region='composer'] { transform: translateY(var(--ct-seat-shift, 0px)) }`；`data-ct-blank` 由 `HeatOverlay` 挂载时写入、卸载时与变量一起删除，有 `contextPressure` 读数时整条规则不成立。写完变量**必须重新取一次 seat 矩形**再算卡片位置（transform 会反映进 `getBoundingClientRect`），顺序颠倒卡片会停在旧位置。除这两个开关外仍然只读宿主几何、不写宿主节点。
 3. **双栏底盘**：`.ct-heat` 里是 `.ct-heat-chassis`（`grid-template-columns: 62fr 38fr`，左右栏之间 1px `border-l1` 分隔线），窄于 660px（`@container`）时堆叠成单栏、分隔线转成上边框。卡面 `--dsw-specific-menu` 底、1px `border-l2`、14px 圆角、`overflow: hidden`。
 4. **左栏（热力图）**：`.ct-heat-zone` 内边距 15/18/14、行距 11px——标题行 `.ct-heat-head`（左「活跃轨迹」12px/600，右分段控件）→ `.ct-heat-grid`（`repeat(26, minmax(0, 1fr))` + `repeat(7, auto)` + `grid-auto-flow: column` + gap 3px，格子 `aspect-ratio: 1`、2px 圆角）→ `.ct-heat-foot`（`padding: 13px 18px 15px` + `border-top`，里面是 `.ct-heat-hero`：`clamp(20px, 2vw, 25px)` / 500 / `-0.02em` 的大号总量 + 12px 的「Tokens」与「（近 26 周）」，下面 11px mono 摘要）。
 5. **右栏（模型用量）**：`.ct-heat-right` 内边距 15/18，标题行（左「模型用量」、右 mono 10px「按会话归属」）→ `.ct-heat-pools`（gap 13px）里每个模型一行 `.ct-heat-pool`：`.ct-heat-pool-top`（左名称 12px/500、右 mono 11px「百分比 + 会话数」）→ `.ct-heat-track`（5px 高、内阴影、`--ct-heat-pool` 取 `--dsw-alias-chart-1..6`、兜底 accent）→ `.ct-heat-track-fill`（`width` 按份额，`min-width: 5px`，顶部一条白色高光）。份额四舍五入到 0 但确实有量时写 `<1%`。底部 `.ct-heat-right-foot`（`border-top` + 10px mono）写「连续活跃 N 天 · 窗口 起 – 止」。
@@ -331,6 +332,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - ❌ 在投影缺失时画一个禁用状态的试管（2.6.6：没有读数就整个不渲染，见第 220 行）。
 - ❌ 给热力图填假数据、用 0 冒充没有读数的日子，或把未来日画成实心格（2.7.0：没有会话缓存就整块不画）。
 - ❌ 把热力图塞回输入框上方那一行、做成 `width: fit-content` 的裸块或写死 10px 方块（2.7.2：它是聊天区里的固定浮层卡，`62fr 38fr` 双栏、列宽均分卡面，宿主的空会话 hero 必须留在原版位置）。
+- ❌ 在没有 `body[data-ct-blank='on']` 的前提下改宿主 composer seat 的位置（2.7.4 的唯一一处宿主布局覆写只允许在空白会话生效、只走 `--ct-seat-shift` 一个变量，有读数时必须连属性带变量一起撤掉；不得给它加第二套偏移逻辑，也不得借这条去改别的宿主区域）。
 - ❌ 恢复像素伙伴或给输入框上方那一行重新引入容器查询（2.5.0 已整块删除，见 [AGENTS.md](../AGENTS.md) 第 23 条）。
 
 ## 落地映射
@@ -357,6 +359,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | `.ct-heat-right` / `.ct-heat-pools` / `.ct-heat-pool` / `.ct-heat-track` / `.ct-heat-track-fill` | 右栏模型区 / 模型列表 / 单行 / 5px 轨道 / 份额填充 |
 | `.ct-heat-ranges` / `.ct-heat-range` | 标题行右侧的 7天 / 30天 / 全部 分段控件 / 单个分段（`data-active`） |
 | `.ct-heat-tip` / `.ct-heat-bar` / `.ct-heat-right-foot` | 悬停玻璃胶囊 / 卡底仓库栏 / 右栏 10px 脚注 |
+| `body[data-ct-blank='on']` / `--ct-seat-shift` | 空白会话的两个开关：`HeatOverlay` 挂载时写、卸载时删；变量由 `placeHeatLayer()` 写根节点，只被 `[data-conversation-region='composer']` 那条 `translateY` 读（2.7.4） |
 | `.ct-list` / `.ct-list-head` | 「模型和组件」页的列表容器 / 分组标题（组件、本地模型） |
 | `.ct-item` / `.ct-item-main` / `.ct-item-name` / `.ct-item-pin` / `.ct-item-state` | 列表行 / 行首文本块 / 名称 / 钉住版本 / 状态 |
 | `.ct-item-path` / `.ct-item > .ct-actions` | 行内路径 / 住在行尾的两个按钮 |
@@ -386,12 +389,13 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - [ ] 试管只在有官方读数时出现：新会话（第一条消息之前）看不到试管，发第一条消息后出现且能点开，浮窗里有数字、构成条与图例。
 - [ ] 推理滑块只出现在官方「推理等级」行下面：行按标签认（两行兜底），多于两行又没有标签命中就不加；锚点是语义属性，`role="slider"` 带 min/max/now/valuetext；写不进去就回滚并写原因；注入后不派发 `resize`；会话目录每次重取、丢了节点会重建。
 - [ ] 输入框上方那一行只有工具区（试管触发器 + 状态小字 + 胶囊），没有伙伴槽、没有 `container-type`、没有 `@container` 收伙伴的规则。
-- [ ] 空白会话显示用量卡片：卡片是聊天区里的固定浮层（不占 dock 行，宿主 hero 在原版位置），左栏「标题行（标题 + 7天/30天/全部）→ 26 周网格 → 发丝线 → 大号总量与小字」，右栏「模型用量」每模型一行 5px 轨道 + 百分比 + 会话数，卡底是仓库胶囊；窄于 660px 两栏堆叠；有读数后整块让位给试管；格子颜色全走 `color-mix` 的 accent，没有硬编码蓝、没有假数据。
+- [ ] 空白会话的用量卡片：卡片是聊天区里的固定浮层（不占 dock 行，宿主 hero 在原版位置），左栏「标题行（标题 + 7天/30天/全部）→ 26 周网格 → 发丝线 → 大号总量与小字」，右栏「模型用量」每模型一行 5px 轨道 + 百分比 + 会话数，卡底是仓库胶囊；窄于 660px 两栏堆叠；有读数后整块让位给试管；格子颜色全走 `color-mix` 的 accent，没有硬编码蓝、没有假数据。
+- [ ] 空白会话里宿主的「欢迎语 + 快捷按钮 + 输入卡」整块被推到聊天区底部（`--ct-seat-shift`，底部留 24px）：卡片跟着下移后的输入区贴边；发出第一条消息（有 `contextPressure` 读数）后整块回到宿主原位，`body` 上没有 `data-ct-blank`、`:root` 上没有 `--ct-seat-shift`。
 - [ ] 动效三档都试过：`subtle` 只关进场与液面过渡，`off` 还把 `reducedMotion` 传给了试管、并暂停了星尘与扫光。
 - [ ] 空状态行不占位。
 - [ ] 规则页是两张卡：上面全局 `AGENTS.md`，下面所选工作区的补充规则；两张卡各有一个文本域与一个保存按钮。
 - [ ] 工作区文本域里只有受管块的内容，保存后插在 `AGENTS.md` 开头，文件原有的正文原样留在块下面。
-- [ ] 输入卡归宿主：没有改 `[data-composer-card]` 的底色，seat 的遮罩、`background-image` 与其它属性也没动；seat 上只多一层 `::before` 底光（负 z、实测高度、顶边 mask），正文在卡上方就被裁住。
+- [ ] 输入卡归宿主：没有改 `[data-composer-card]` 的底色，seat 的遮罩、`background-image` 与其它属性也没动；seat 上只多一层 `::before` 底光（负 z、实测高度、顶边 mask），正文在卡上方就被裁住。**例外只有空白会话那一处**：`body[data-ct-blank='on']` 下的 `translateY(var(--ct-seat-shift))`，有读数时属性与变量都必须消失（2.7.4）。
 - [ ] 宿主那颗 `○ 5%`（`[data-composer-dock]` 里 `aria-haspopup='dialog'` 的按钮）在美术层打开时不显示，关掉「光学外观」后自己回来；没有为它新增开关。
 - [ ] 底光跨过 seat 顶边是连续的：确认没有再让 seat 自己重画 `background-image`，`--ct-glow-height` 是实测值而不是写死的像素。
 - [ ] 对话区背景只有一条静态 `linear-gradient`，样式表里没有 canvas、没有背景关键帧。

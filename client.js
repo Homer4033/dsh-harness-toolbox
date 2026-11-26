@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.7.3'
+    const PLUGIN_VERSION = '2.7.4'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -1461,6 +1461,12 @@ window.__ModuleLoader__.load({
   gap: 8px;
   min-width: 0;
   padding: 0;
+}
+/* Blank Session: the host centers its welcome + composer block, leaving dead space
+   under the input card. Shift that seat into the band so the composer sits low, the
+   way upstream does, and only while our card is up. */
+body[data-ct-blank='on'] [data-conversation-region='composer'] {
+  transform: translateY(var(--ct-seat-shift, 0px));
 }
 .ct-heat-layer {
   position: fixed;
@@ -2997,6 +3003,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     /* Gap between the card and the composer block above it: the card hangs just
        above the input area instead of floating at the top of an empty chat. */
     const HEAT_BOTTOM_GAP = 16
+    /* Blank Session only: how far above the chat bottom the pushed-down composer seat stops. */
+    const HEAT_SEAT_GAP = 24
     const HEAT_RANGES = [
       { id: '7d', label: 'heatRange7d' },
       { id: '30d', label: 'heatRange30d' },
@@ -4568,13 +4576,23 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
      */
     function placeHeatLayer(layer) {
       if (!layer || typeof window === 'undefined' || typeof document === 'undefined') return
+      document.body.setAttribute('data-ct-blank', 'on')
       const chat = document.querySelector('[data-conversation-region="chat"]')
-      const composer = document.querySelector('[data-conversation-region="composer"]')
+      const seat = document.querySelector('[data-conversation-region="composer"]')
       const viewHeight = window.innerHeight || 0
       const chatRect = chat
         ? chat.getBoundingClientRect()
         : { left: 0, top: 0, width: window.innerWidth || 0, height: viewHeight }
-      const composerRect = composer ? composer.getBoundingClientRect() : null
+      // The host centers its empty-state block (welcome row + composer) in the
+      // chat area, leaving a band of dead space under the input card. On a blank
+      // Session that whole block is shifted into that band first, then the card
+      // is placed above it — the composer ends up near the bottom, like upstream.
+      if (seat) {
+        const seatRect = seat.getBoundingClientRect()
+        const shift = Math.max(0, Math.round(chatRect.top + chatRect.height - HEAT_SEAT_GAP - seatRect.bottom))
+        document.documentElement.style.setProperty('--ct-seat-shift', shift + 'px')
+      }
+      const composerRect = seat ? seat.getBoundingClientRect() : null
       const roomTop = chatRect.top
       const roomBottom = composerRect ? composerRect.top : chatRect.top + chatRect.height
       const room = Math.max(0, roomBottom - roomTop)
@@ -4631,6 +4649,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
             try { observer.disconnect() } catch { /* already gone */ }
           }
           if (frame) cancel(frame)
+          document.body.removeAttribute('data-ct-blank')
+          document.documentElement.style.removeProperty('--ct-seat-shift')
         }
       }, [])
       if (!props.children) return null
