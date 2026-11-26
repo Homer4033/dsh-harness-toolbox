@@ -426,7 +426,7 @@ dsh-harness-toolbox/
 │   └── screenshots/              # the three screenshots used by the README and the detail pages
 ├── locale/                       # zh / en metadata and descriptions
 ├── scripts/check-secrets.mjs     # the secret-scan entry point
-├── scripts/stage/                # the offline render stage: CSS extraction, component tree, headless shots (not shipped)
+├── scripts/stage/                # the offline render stage: CSS extraction, component tree, headless shots (shipped with scripts/, never loaded at runtime)
 ├── test/                         # node:test cases
 └── .github/workflows/ci.yml      # Windows + Linux: npm test → check:secrets
 ```

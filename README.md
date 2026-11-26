@@ -426,7 +426,7 @@ dsh-harness-toolbox/
 │   └── screenshots/              # README 与详情页用的三张截图
 ├── locale/                       # zh / en 元数据与描述
 ├── scripts/check-secrets.mjs     # 密钥扫描入口
-├── scripts/stage/                # 离线渲染舞台：抽出 CSS、跑组件树、无头截图（不进包）
+├── scripts/stage/                # 离线渲染舞台：抽出 CSS、跑组件树、无头截图（随 scripts 发布，运行时不加载）
 ├── test/                         # node:test 用例
 └── .github/workflows/ci.yml      # Windows + Linux：npm test → check:secrets
 ```
