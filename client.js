@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.7.4'
+    const PLUGIN_VERSION = '2.7.5'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -4584,15 +4584,22 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         ? chat.getBoundingClientRect()
         : { left: 0, top: 0, width: window.innerWidth || 0, height: viewHeight }
       // The host centers its empty-state block (welcome row + composer) in the
-      // chat area, leaving a band of dead space under the input card. On a blank
-      // Session that whole block is shifted into that band first, then the card
-      // is placed above it — the composer ends up near the bottom, like upstream.
-      if (seat) {
-        const seatRect = seat.getBoundingClientRect()
+      // chat area, leaving a band of dead space under the input card: on a blank
+      // Session that block is shifted into the band so the composer sits low,
+      // like upstream. Our own transform shows up in getBoundingClientRect, so
+      // clear it before measuring — a re-run (window resize) would otherwise read
+      // the shifted seat, compute a shift of zero and drop the block back up.
+      const rootStyle = document.documentElement.style
+      rootStyle.setProperty('--ct-seat-shift', '0px')
+      const seatRect = seat ? seat.getBoundingClientRect() : null
+      if (seatRect) {
         const shift = Math.max(0, Math.round(chatRect.top + chatRect.height - HEAT_SEAT_GAP - seatRect.bottom))
-        document.documentElement.style.setProperty('--ct-seat-shift', shift + 'px')
+        rootStyle.setProperty('--ct-seat-shift', shift + 'px')
       }
-      const composerRect = seat ? seat.getBoundingClientRect() : null
+      // The card keeps the geometry of the host's own layout (the seat's real
+      // place, never the shifted one): moving the block down must not drag the
+      // heatmap with it.
+      const composerRect = seatRect
       const roomTop = chatRect.top
       const roomBottom = composerRect ? composerRect.top : chatRect.top + chatRect.height
       const room = Math.max(0, roomBottom - roomTop)

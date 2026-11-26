@@ -2,19 +2,25 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.7.5 — 2026-11-27
+
+- **热力图不跟着宿主那一块下移**（用户：「红圈没有圈热力图，你移下来干什么？」）：2.7.4 把宿主座位推下去之后，卡片是按移位后的座位贴边的，等于连带把热力图也挪到了下面——而红圈圈的只有宿主的欢迎语 + 输入卡。现在 `placeHeatLayer()` **测量前先把 `--ct-seat-shift` 清零**，量到的永远是宿主自己的座位；移位量只写回变量，卡片一律按这个**原始座位**算位置：红圈那块往下走，热力图留在原地。顺带修掉一个真实 bug——旧实现第二次调用读到的是移位后的矩形，`shift` 会算成 0，窗口一 resize 整块就弹回原位。
+- **变更记录搬进 `docs/`**（用户：「除了 AGENTS.md，其余文档收到 docs」）：`CHANGELOG.md` → [docs/CHANGELOG.md](CHANGELOG.md)，文件里指向 `docs/*` 的链接改成同级、指向 `AGENTS.md` 的改成 `../AGENTS.md`；`package.json` 的 `files` 去掉根级 `CHANGELOG.md`（`docs` 整个目录本来就在 `files` 里，包里仍然带着它）。README 留在根（GitHub 首页与 npm 包页要用），LICENSE / NOTICE / THIRD_PARTY_NOTICES.md 也留在根（许可与署名识别）。
+- 测试仍 **270**。第 14 条、验证要求、[docs/UI.md](UI.md)、README（§5 与升级说明）、AGENTS 变更记录同步；2.7.1 / 2.7.2 的变更记录移入 [docs/HISTORY.md](HISTORY.md)（归档范围改为 1.0 – 2.7.2）；版本 2.7.5。**空白会话的最终渲染只在 headless 注入里验证，未在装好 2.7.5 的窗口里复验**。
+
 ## 2.7.4 — 2026-11-27
 
 - **空白会话把宿主那一段（欢迎语 + 快捷按钮 + 输入卡）整块下移**（用户先发截图画圈、再纠正「啥啊，红圈地方往下移，我说卡片了吗？」——红框圈的是宿主的空会话块，2.7.3 只挪了我们自己的卡片，所以屏幕上几乎没动）：先量出根因——空会话里宿主的 `.composerStack` 由宿主自己在聊天区居中，1584×905 窗口实测 seat `y 265 → 680`、下方空着 225px 死区，插件行在不在都不改变它；`docs` 里那条「只读宿主几何、不写宿主节点」的约束因此只能由用户明确要求来打破。
 - 实现：`placeHeatLayer()` 先算 `shift = max(0, chatBottom − HEAT_SEAT_GAP(24) − seatBottom)`（该窗口 201px）写进根节点的 `--ct-seat-shift`，样式表只加一条 `body[data-ct-blank='on'] [data-conversation-region='composer'] { transform: translateY(var(--ct-seat-shift, 0px)) }`；`data-ct-blank` 由 `HeatOverlay` 挂载时写入、卸载时连变量一起删除，有 `contextPressure` 读数时整条规则不成立。写完变量必须**重新取一次 seat 矩形**再算卡片位置（transform 会反映进 `getBoundingClientRect`），顺序颠倒卡片会停在旧位置。
 - 产物：seat 从 `265 → 680` 变成 `466 → 881`，看板随之落在新的输入区上沿之上，宿主 hero 与输入卡之间仍是原样的间距。这是一次**明确由用户要求的宿主布局覆写**（与 2.5.0 的 `display: none` 同类）：只走 `body[data-ct-blank='on']` + 一个 CSS 变量，空白会话结束即撤销。
 - 测试仍 **270**（`test/client.test.js` 补一条样式规则断言，确认那条 `translateY` 只挂在 `body[data-ct-blank='on']` 下）。
-- 第 14 条、验证要求、[docs/UI.md](docs/UI.md)（「本机用量热力图」新增第 3 条、禁止项、类名表、检查清单同步）、README（亮点、§4、§5、升级说明）、AGENTS 变更记录同步；2.6.5 / 2.6.6 / 2.7.0 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.7.0，AGENTS.md 回到 65,536 字节预算以内）；版本 2.7.4。**空白会话的最终渲染只在 headless 注入里验证，未在装好 2.7.4 的窗口里复验**。
+- 第 14 条、验证要求、[docs/UI.md](UI.md)（「本机用量热力图」新增第 3 条、禁止项、类名表、检查清单同步）、README（亮点、§4、§5、升级说明）、AGENTS 变更记录同步；2.6.5 / 2.6.6 / 2.7.0 的变更记录移入 [docs/HISTORY.md](HISTORY.md)（归档范围改为 1.0 – 2.7.0，AGENTS.md 回到 65,536 字节预算以内）；版本 2.7.4。**空白会话的最终渲染只在 headless 注入里验证，未在装好 2.7.4 的窗口里复验**。
 
 ## 2.7.3 — 2026-11-27
 
 - **看板贴到输入区上沿**（用户发截图、从对话栏画了一条往下的箭头：「移下来不行吗？」）：2.7.2 把卡片垂直居中在「聊天区顶 → 输入区顶」之间，空聊天区里它浮在半空、离下面的对话栏还差一截。现在改成底部对齐——卡片底边落在输入区上沿再减 `HEAT_BOTTOM_GAP`（16px），顶到聊天区顶时保底 12px；窗口矮时先缩宽度再贴边。`placeHeatLayer()` 的公式从 `(room - height) / 2` 换成 `room - height - 16`，其余不动。测试仍 **270**。
 - 顺带核实：宿主的空会话 hero（问候语 + 快捷按钮）与输入卡由宿主自己在聊天区里居中，插件行有没有都不改变它们的位置——所以「对话栏在底下」这一条属于宿主布局，插件只挪自己的浮层卡，不碰宿主 DOM（第 14 条）。
-- 第 14 条、验证要求、[docs/UI.md](docs/UI.md)、README、CHANGELOG 同步；版本 2.7.3。
+- 第 14 条、验证要求、[docs/UI.md](UI.md)、README、CHANGELOG 同步；版本 2.7.3。
 
 ## 2.7.2 — 2026-11-27
 
@@ -23,14 +29,14 @@
 - ③左栏照上游补上标题行右侧的 7天 / 30天 / 全部 分段控件（切换重新取数，强度按窗口内峰值重算、总量 / 活跃日 / 峰值日 / 模型分桶都跟着窗口走）、发丝线下的大号总量与 mono 小字、网格悬停 8px 处的玻璃胶囊；仓库胶囊搬进卡片底部 `.ct-heat-bar`，空会话不再有独立 dock 行。
 - `GET /compression-tiers/api/usage` 新增 `?range=7d|30d|all`（未知值回落 `all`），`buildUsageHeatmap()` 多了 `active` / `range` / `streak` / `peakDay` / `models`，客户端按窗口各缓存 60 秒；字典补 `heatModels` / `heatModelNote` / `heatUnknownModel` / `heatNoModels`，删掉 2.7.1 的 `heatRange` 与图例键。
 - 测试 269 → **270**：`test/usage-heatmap.test.js` 新增三窗口用例（窗口外 `active=false` 且归零、强度按窗口峰值重算、总量 / 会话数 / 活跃日 / 峰值日跟着窗口走、未知窗口回落 `all`、`streak` 跳过今天这类空尾）；`test/client.test.js` 改为断言双栏底盘（`ct-heat-chassis` / `ct-heat-left` / `ct-heat-right`）、模型行与 5px 轨道、分段控件三个按钮、浮层（`ct-heat-layer` + `ct-skin`）与卡底栏。
-- 第 14 条、事实来源、验证要求、[docs/UI.md](docs/UI.md)（「本机用量热力图」整节重写成浮层 + 双栏，类名表、禁止项、检查清单同步）、README（亮点、§5、升级说明）、AGENTS 变更记录同步；2.5.1 / 2.6.3 / 2.6.4 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.6.4）；版本 2.7.2。**空白会话的最终渲染只在 headless 注入里验证（见 `temp/heatmap-preview.png`），未在装好 2.7.2 的窗口里复验**。
+- 第 14 条、事实来源、验证要求、[docs/UI.md](UI.md)（「本机用量热力图」整节重写成浮层 + 双栏，类名表、禁止项、检查清单同步）、README（亮点、§5、升级说明）、AGENTS 变更记录同步；2.5.1 / 2.6.3 / 2.6.4 的变更记录移入 [docs/HISTORY.md](HISTORY.md)（归档范围改为 1.0 – 2.6.4）；版本 2.7.2。**空白会话的最终渲染只在 headless 注入里验证（见 `temp/heatmap-preview.png`），未在装好 2.7.2 的窗口里复验**。
 
 ## 2.7.1 — 2026-11-27
 
 - **用量热力图按上游 Studio 的排版重做**（用户：「参考obsidian-prism的排版啊，你这样放乱放是吗？」）：2.7.0 把它做成 `width: fit-content` 的裸块——标题与摘要挤在同一行小字里、182 个写死 10px 的方格贴着右缘，读起来像一团随手放上去的控件。上游 `ag-v2-bento-heat-zone` 是一张卡：标题行（左「活跃轨迹」、右时段切换位）→ 满宽网格（`repeat(26, minmax(0,1fr))`，列宽均分、`aspect-ratio: 1` 的方格）→ 发丝线 → 大号总量 + 一行小字（`相当于写下 14.2 本书` + `累计 3.56M Tokens · 1,284 条消息`）。
 - 现在 `.ct-heat` 是同一套结构：`width: min(100%, 560px)`、`margin-left: auto`（卡面与仓库胶囊共用右缘）、`--dsw-specific-menu` 底 + 1px `border-l2` + 14px 圆角 + 14/16/13 内边距；`.ct-heat-head` 左标题（12px/600）右图例（「少 → 多」五个 8px 方块）；`.ct-heat-grid` 改成 `grid-template-columns: repeat(26, minmax(0, 1fr))` + `grid-template-rows: repeat(7, auto)` + `grid-auto-flow: column`，格子 `aspect-ratio: 1` 随卡宽缩放、悬停 `scale(1.25)`；`.ct-heat-foot` 一条 `border-top` 后放 `.ct-heat-hero-num`（20px/600/`tabular-nums`）+「Tokens」与 11px 的「近 26 周 · 95 个会话 · 23 个活跃日」。图例从网格下方移到标题行右侧，摘要从标题行移进卡脚。字典新增 `heatTokens`。
 - 测试仍 **268**（client 的两条热力图用例改为断言卡片结构：head 里有标题与图例、hero 是 20px 的 `5.12B`、脚注写会话与活跃日、网格按 26 列均分且格子 `aspect-ratio: 1`、`.ct-heat` 是 `min(100%, 560px)` + `margin-left: auto` 且不再有 `fit-content` / `.ct-heat-range`）。
-- [docs/UI.md](docs/UI.md)（「本机用量热力图」整节重写 + 类名表 + 禁止项 + 检查清单）、README（亮点、§5、升级说明）同步；版本 2.7.1。实机排版已用注入 shipped CSS + 真实 payload 的截图核对（`temp/heatmap-preview.png`）。2.7.0 的 npm 版本未获批准，可以直接跳到 2.7.1。
+- [docs/UI.md](UI.md)（「本机用量热力图」整节重写 + 类名表 + 禁止项 + 检查清单）、README（亮点、§5、升级说明）同步；版本 2.7.1。实机排版已用注入 shipped CSS + 真实 payload 的截图核对（`temp/heatmap-preview.png`）。2.7.0 的 npm 版本未获批准，可以直接跳到 2.7.1。
 
 ## 2.7.0 — 2026-11-26
 
@@ -39,13 +45,13 @@
 - 客户端 `UsageHeatmap` 画 10px 方格（`grid-auto-flow: column` + 7 行 = 列优先，一列一周）、五档 `color-mix` 的 accent 18% → 92%、空格 6% 淡底、未来日 3%、悬停给「日期 · token · 会话数」，标题行左侧「活跃轨迹」、右侧摘要（`近 26 周 · 5.13B token · 23 个活跃日`），右下角「少 → 多」图例。`.ct-repo-dock` 因此从单行改成 `flex-direction: column; align-items: stretch`（行宽与胶囊右缘不变），热力图自己 `width: fit-content; margin-left: auto` 贴右缘。客户端按 60 秒缓存，取不到时保留上一次的网格。
 - 本机实测（2026-11-26 快照）：**95 个会话 / 23 个活跃日 / 5,133,407,254 token**，窗口 2026-06-01 – 2026-11-29，单日峰值 2026-10-22 的 1.50B。
 - 测试 258 → **268**：`test/usage-heatmap.test.js` 6 条（四桶求和与非法桶、缓存读取与坏 JSON、缺目录空网格、26 周周一对齐 + future 标记 + 同日相加、强度单调到 5、本地时区归日）+ client 4 条（空白会话画 182 格、有读数时让位给试管、无缓存不画、dock 行是列布局与五档色阶）。
-- 事实来源（新增「本机用量唯一来源」段）、第 14 条、验证要求、[docs/UI.md](docs/UI.md)（新增「本机用量热力图」一节 + 类名表 + 禁止项 + 检查清单）、README（亮点、§5、升级说明、测试条数）同步；2.6.0–2.6.2 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.6.2）；版本 2.7.0。
+- 事实来源（新增「本机用量唯一来源」段）、第 14 条、验证要求、[docs/UI.md](UI.md)（新增「本机用量热力图」一节 + 类名表 + 禁止项 + 检查清单）、README（亮点、§5、升级说明、测试条数）同步；2.6.0–2.6.2 的变更记录移入 [docs/HISTORY.md](HISTORY.md)（归档范围改为 1.0 – 2.6.2）；版本 2.7.0。
 
 ## 2.6.6 — 2026-11-26
 
 - **没有读数就不画试管**（用户：「新会话的token HUD好像还没有」）：实机核对（headless Chrome 连桌面端 `127.0.0.1:1250`）——空白会话里 `conversation.input.dock` 照常渲染，但 `.ct-vial` 是 `disabled` 的灰胶囊、只写「—」、点不开，而宿主自己的 `ContextMeter` 在第一条消息之前压根不渲染（`[data-composer-dock]` 里 0 个按钮）；对照有内容的会话，试管显示 `9%` 并接管了被美术层隐藏的宿主占用环。根因是 `contextPressure` 在首条消息之前没有值，旧规则要求「取不到就渲染『—』并禁用触发器」，于是空白会话里这支灰胶囊成了唯一的 token UI。
 - 现在 `ContextVial` 在 `meter` 为 null 时直接 `return null`：触发器、浮窗、`data-empty` 属性与 `.ct-vial-empty` 样式一并删除，有读数才出现、读数消失（换会话）就跟着消失；dock 行与仓库胶囊照旧渲染，headless 实测空白会话里胶囊右缘仍在任务栏右缘上（`dockRight = pillRight = 1345`，行宽不变）。
-- 测试仍 **258** 条：两条旧用例改为「新会话不渲染试管」「有读数才出现」（并断言不再有 `data-empty` / `disabled`）。第 23 条、验证要求、[docs/UI.md](docs/UI.md)、README §5 与升级说明同步；版本 2.6.6。
+- 测试仍 **258** 条：两条旧用例改为「新会话不渲染试管」「有读数才出现」（并断言不再有 `data-empty` / `disabled`）。第 23 条、验证要求、[docs/UI.md](UI.md)、README §5 与升级说明同步；版本 2.6.6。
 
 ## 2.6.5 — 2026-11-26
 
@@ -93,7 +99,7 @@
 - **顺手修掉分块响应的长度判定**（`src/gh.js`）：`Number(headers.get('content-length'))` 在没有该头时得到 `0` 而不是 `null`，于是任何 chunked 响应都会被判成「0 字节短读」。现在缺头即视为未知长度；`downloadWithResume` 新增 `expectedBytes` 参数，模型下载把钉住的字节数传下去，这种响应上仍然能做短读校验（不完整文件绝不改名落盘）。gh / ffmpeg / 组件共用这个下载器，一并受益。
 - 测试 245 → **249**：`test/models.test.js` 补端点顺序与回落、双端全挂时的错误文案、无 `content-length` 时按钉住字节判短读；`test/gh.test.js` 补「chunked 不当作 0 字节」与 `expectedBytes` 兜底。
 - 真实下载验证：用 `startModelDownload` 的 `files` 注入只取两个真实小文件（`model_index.json` 446 B、`transformer/config.json` 541 B），从 `hf-mirror.com` 3.2 秒落地、字节数吻合（同一路径下大文件的 `Range` 也验过返回 206 + `content-range`）。
-- README §5 补镜像与排查说明；AGENTS.md 的本地模型事实来源、验证要求同步；2.4.0 – 2.4.5 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)，AGENTS.md 只保留 2.4.6 起。
+- README §5 补镜像与排查说明；AGENTS.md 的本地模型事实来源、验证要求同步；2.4.0 – 2.4.5 的变更记录移入 [docs/HISTORY.md](HISTORY.md)，AGENTS.md 只保留 2.4.6 起。
 
 ## 2.5.0 — 2026-11-25
 
@@ -102,7 +108,7 @@
 - **底光接缝修平**（用户问「这个渐变是不是有断层？」）：2.4.9 在底座上重画渐变时用的是**底座自身高度**的百分比停靠点（底边 accent 16% → 距顶 36px 处 chart-tools 11% → 顶边透明），和上方那条 accent 渐变在接缝处颜色、坡度都对不上，输入框上方那行的顶边会看到一条淡色带。现在不再替换底座的 `background-image`（宿主的遮罩原样保留），改成在 `[data-conversation-region='composer']::before` 上重画**同一条渐变**：`background-size: 100% var(--ct-glow-height, 100%)` 按对话区高度取尺度，再用 `mask-image: linear-gradient(180deg, transparent 0px, #000 36px)` 按宿主遮罩同样的 36px 淡入，两层相消；`--ct-glow-height` 由客户端量对话区 `clientHeight` 写入（`ResizeObserver` + `resize` + 每次会话挂载重测）。截图逐行实测：接缝处单行变化 ≤1/255。
 - **「组件」页改名「模型和组件」，新增本地模型下载**（用户：「『组件』改成『模型和组件』，添加本地模型下载 FLUX.2 [klein] 4B 蒸馏 4 步，本地模型单独放一个文件夹。」）：导航与标题改为「模型和组件 / Models & components」。新增 `src/models.js`：钉住 `black-forest-labs/FLUX.2-klein-4B`（蒸馏 4 步、guidance 1.0、Apache-2.0、免登录免同意），只取 diffusers 最小集 18 个文件（transformer 7.75GB + Qwen3-4B 文本编码器两片 8.04GB + VAE 168MB + scheduler / tokenizer），**不**取仓库里重复的单文件 transformer 与预览图；每个文件的大小按 Hugging Face tree API 的 LFS 字节数钉死，下载走 2.4.10 的 Range 续传与短读重试，只有完整文件才 `rename` 到目标路径。模型放在下载根下**单独的 `models/` 目录**（`<root>/models/<id>`），四套组件仍在 `<root>/<id>`；`migrateTools` 现在把 `models` 一起搬并按同一个预检/回滚规则处理，任一下载（含模型）进行中返回 409。新路由 `GET/POST /compression-tiers/api/models`（GET 状态、POST `download` / `probe`，16GB 的任务在后台跑、面板轮询），面板在同一页多一段「本地模型」行：名称 + 状态 + 总量（15.98 GB）+ 进度条 + 当前文件 + 目录 + 下载 / 重新检测两个常显按钮。
 - 测试 238 → **245** 条：新增 `test/models.test.js`（钉住的仓库/许可/文件集/总字节/URL、missing / partial / installed 三态与不虚报字节、`.part` 续传与改名、单飞 409、未知 id 404）；`test/tools-path.test.js` 覆盖 `models` 目录与 `running.models`；`test/client.test.js` 覆盖模型行的四种状态与按钮常显、改名后的文案、旧 `mascots` 字段仍能渲染 dock。
-- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.5.0`；AGENTS.md（范围、事实来源、第 14 / 23 条、验证要求与变更记录）、README、[docs/UI.md](docs/UI.md)、`locale/*.json`、`NOTICE`、`package.json` 的 `files` / keywords 同步。
+- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.5.0`；AGENTS.md（范围、事实来源、第 14 / 23 条、验证要求与变更记录）、README、[docs/UI.md](UI.md)、`locale/*.json`、`NOTICE`、`package.json` 的 `files` / keywords 同步。
 - **渲染未验证**：模型行、宿主上下文环的隐藏、底光接缝与试管在真宿主里的观感要装上看；`docs/screenshots/` 仍是 2.4.x 的产物（含已删除的像素伙伴），下次截图时再重出。
 
 ## 2.4.10 — 2026-11-25
@@ -120,7 +126,7 @@
 - **两处小校验**：`POST /api/settings` 的 `appearance.art` 非布尔现在 400（和 palette / motion / mascots 一致）；`sessionRepos` 的查表改用 `Object.hasOwn`（`constructor` 之类的键不再变成远端）；GitHub 页登录按钮补上禁用时的 `title`。
 - 测试 225 → **238** 条：`test/gh.test.js` 补短读重试、PowerShell 兜底参数、双 stderr、设备码解析；`test/tools-path.test.js` 补「复制失败回滚后半程可重试」；`test/workspace-rules.test.js` 补整行标记 400、行内提及放行、带 BOM 的注册表；`test/client.test.js` 补试管禁用态、扫光暂停、设置快照推送、外观引导失败不涂抹；`test/rules.test.js` 与 `test/workspace-rules.test.js` 补「手改的 BOM/CRLF 文件读回已归一，编辑器一打开不会就是脏的」。
 - **顺带修掉两处读侧不一致**：`readRules()` / `readWorkspaceRules()` 现在把 BOM 与 CRLF 归一后再交给面板——textarea 拿回来的是 LF，不归一的话一个 CRLF 的 `AGENTS.md` 刚打开就被判成「已修改」，保存按钮一直可点；工作区保存成功后编辑器对齐到服务端归一后的文本（草稿结尾的换行不会再把脏态卡住）。**明确没改**：`MAX_RULES_CHARS` 仍按输入字符计（结尾那一个换行不算超限，不改变已保存文件）；请求路径里的同步读文件保持原样（体积小、失败有兜底）；`Select` 菜单的 Tab 焦点顺序不动（Esc 的焦点归还已补）。
-- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.10`；AGENTS.md 第 10 / 12 / 17 / 21 / 23 条与验证要求、[docs/UI.md](docs/UI.md) 的动效与试管小节同步。
+- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.10`；AGENTS.md 第 10 / 12 / 17 / 21 / 23 条与验证要求、[docs/UI.md](UI.md) 的动效与试管小节同步。
 - **渲染未验证**：试管禁用态、dock 跟随面板、扫光暂停在真宿主里的观感要装上看。
 
 ## 2.4.9 — 2026-11-25
@@ -129,7 +135,7 @@
 - **底光被输入区底座截断**（用户说「怎么把渐变也给切掉了？」）：2.4.8 把 composer 交还宿主后，`[data-conversation-region='composer']` 底座自带的遮罩（顶边透明、36px 处变不透明 `bg-base`，用来挡住滚出去的正文）也把底光截在底座顶边——用户截图取样 y≈1110 最亮、y≥1190 起回落到 `(10,10,12)` 并保持平直。现在在底座上再画一遍底光、叠在遮罩之上，最后 36px 按遮罩斜率淡出，两层相加正好等于原渐变；36px 以下遮罩已不透明，底光自己铺到窗口底边。选择器 `body[data-ct-art='on'] [data-conversation-region='chat'][data-content-phase='active'] [data-conversation-region='composer']`（特指度 0,4,1 压过宿主的 0,3,0，不用 `!important`），`background-image` 两层——第一层是底光，第二层**照抄宿主遮罩**（整条 `background-image` 会被替换）。只改 `background-image`：卡片底色、遮罩、透明度都没动，正文照样在卡上方被裁住。
 - 离线舞台验证（`temp/seat-preview.html` 三个变体，1440×900 截图 + Pillow 取列）：与「没有底座遮罩」的同一渐变相比整列像素差 ≤3/255、行间最大跳变 3/255；2.4.8 的对照在 36px 内从 25 掉到 10 然后全平。
 - 测试 222 → **225** 条：`test/workspace-rules.test.js` 新增「标记在正文行内不算围栏」「只提到标记的文件保存后正文逐字保留」「孤儿 START 不产生第二个开头」；`test/client.test.js` 断言底座那一层规则（含 `calc(100% - 36px)` 与照抄的遮罩）、只此一条且只在 active 相位、仍无 `[data-composer-seat]`、卡片规则仍无 `background-color` / `!important`。
-- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.9`；[docs/UI.md](docs/UI.md) 的「对话区底光」补上底座层与接缝算式、「主题美术」第 6 条澄清 seat 只多一层背景，README §3 与规则段同步。
+- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.9`；[docs/UI.md](UI.md) 的「对话区底光」补上底座层与接缝算式、「主题美术」第 6 条澄清 seat 只多一层背景，README §3 与规则段同步。
 - **渲染未验证**：底光在真宿主里的接缝观感与底座高度相关，要装上看。
 
 ## 2.4.8 — 2026-11-25
@@ -138,7 +144,7 @@
 - **工作区规则改为「注入 AGENTS.md 开头」**（用户说「工作区规则不要显示的 AGENTS.md 内容，注入在 AGENTS.md 开头，没有 AGENTS.md 则创建一个」）：面板不再把工作区 `AGENTS.md` 的正文灌进文本域，文本域里只剩插件自己的受管块——保存时把 `<!-- compression-tiers:workspace-rules:start -->` … `<!-- compression-tiers:workspace-rules:end -->` 插到文件**开头**，块下面原有的正文逐字保留；没有文件就创建。`GET /api/workspace-rules` 只返回受管块内容（`readWorkspaceRules` 先剥围栏），所以别人的那份契约永远不进面板。清空编辑器再保存只去掉围栏、保留文件其余正文，且不会给没有文件的工作区创建空文件。字段标签改为「补充规则（置于 AGENTS.md 开头）」，新增 `workspaceRulesLabel` 键。
 - **正文不再透过输入卡**（用户说「文字透过了对话框，应该是在对话栏上方就裁减了才对」）：2.4.2 / 2.4.4 为了旧辉光「到底」关掉了 `[data-composer-seat]` 的底遮罩、把输入卡改成 76% 半透明（`!important`），正文滚到卡下面时会从半透明卡片里透出来。底光在 2.4.6 已改成静态渐变，这两条覆盖随之删除：遮罩回到宿主手里、卡片保持不透明，正文在输入卡上方就被裁住；卡片上的顶光泽与落影保留。
 - 测试 219 → **222** 条：`test/workspace-rules.test.js` 重写为受管块的四件事（只读受管块、块前置且正文保留、再次保存替换旧块、空保存不建空文件 / 不清正文），`test/client.test.js` 改成「规则页两张卡 + 五个分页 + 工作区只显示补充规则」，并新增「输入卡不得有底色覆盖、样式表不得出现 `[data-composer-seat]`」的断言。
-- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.8`；[docs/UI.md](docs/UI.md) 的「地平线辉光」一节改写为「对话区底光」、分页从六页改五页、工作区卡片语义重写，README 的分页表与规则段同步。
+- `PLUGIN_VERSION` 与 `package.json` 同步到 `2.4.8`；[docs/UI.md](UI.md) 的「地平线辉光」一节改写为「对话区底光」、分页从六页改五页、工作区卡片语义重写，README 的分页表与规则段同步。
 - **渲染未验证**：规则页两张卡的配色与高度、正文在输入卡上方被裁住的效果都要装上看。
 
 ## 2.4.7 — 2026-11-25
@@ -191,7 +197,7 @@
 - **辉光更明显，且不再可能「整层消失」**：真实窗口里 32% 高度 + `reach` 0.72 的辉光只在窗口最底边留一条几乎看不见的边。现在高度 40%、`reach` 0.85、深色强度 0.95；canvas 下面再垫一层 `.ct-aura-fallback`（两个缓慢漂移的径向色块，26s 交替，GPU 合成的 `transform`），在 canvas 报首帧后淡出，渲染器取不到或起不来时它就是这一层，不会留一块死黑。
 - **启动时补齐外观**：以前只在启动时读一次设置，读失败（宿主还没就绪）就会让整个美术层整场都不生效。现在失败按 1.5s × 次数退避重试 5 次；动效档位同时写到 `<body>` 的 `data-ct-motion`，CSS 兜底层按它降速或停用。
 - 测试仍 219 条：`test/client.test.js` 增补 `data-ct-motion` 写入、`.ct-aura-fallback` 与 `data-ct-motion='off'` 的样式断言；滑块几何用例改成断言填充与旋钮共用同一条中心线。
-- 文档：README 的「推理滑块」小节与截图换新（`docs/screenshots/effort.png`）、「会动的背景」小节更新高度与兜底层；[docs/UI.md](docs/UI.md) 的「推理滑块」几何与颜色两条重写、新增兜底层条目；[AGENTS.md](AGENTS.md) 第 23 条与验证要求同步。
+- 文档：README 的「推理滑块」小节与截图换新（`docs/screenshots/effort.png`）、「会动的背景」小节更新高度与兜底层；[docs/UI.md](UI.md) 的「推理滑块」几何与颜色两条重写、新增兜底层条目；[AGENTS.md](../AGENTS.md) 第 23 条与验证要求同步。
 - **渲染未验证**：两张截图都来自离线舞台（真实 `client.js` 样式表 + 真实 `horizon-glow.js` + 无头 Chrome），真实窗口里仍需看一眼。
 
 ## 2.4.0 — 2026-11-25
@@ -202,7 +208,7 @@
 - **三档动效直接管它**：`full` 原速；`subtle` 速度 ×0.45、强度 0.5；`off` 只画一帧静态图并停止排帧。渲染 `reach` 用 0.72（上游默认 0.47 是给没有输入卡遮挡的画布用的，DSH 的输入卡压住底部约 150px）。`document.hidden` 时不排帧；React 换掉对话区节点时每 1.2s 复核并重新挂载。
 - **闸门不变**：`host` 配色或 `art: false` 时连 canvas 都不挂（控制器与静态美术共用 `applyOptics()` 的两个 body 属性），vendor 脚本也是美术层开启后才取。
 - 测试 216 → **219** 条：`test/vendor.test.js` 新增出处头 / 抽取范围（不得把 GL、glyph、ripple 路径带进来）/ `mount` 的 resize-draw-clear / 无 2d context 的降级；`test/client.test.js` 新增「挂在对话区第一个子节点且 `aria-hidden`」「`subtle` / `off` / 未知值分档」「`off` 不再排帧」「`host` 切换后画布被移除」「vendor 就绪后先 sizing 再出帧」。
-- 文档：README 新增「界面预览 3. 会动的背景」小节与 `docs/screenshots/aura.png`，亮点 / 技术细节 / 测试数同步；[docs/UI.md](docs/UI.md) 新增「地平线辉光」一节（挂载点、三档、重建、为什么不加 keyframes）；[AGENTS.md](AGENTS.md) 第 23 条拆出「地平线辉光是美术层唯一的动效」、范围 / 事实来源 / 验证要求同步；`NOTICE` 补 `horizon-glow.js` 的衍生声明。
+- 文档：README 新增「界面预览 3. 会动的背景」小节与 `docs/screenshots/aura.png`，亮点 / 技术细节 / 测试数同步；[docs/UI.md](UI.md) 新增「地平线辉光」一节（挂载点、三档、重建、为什么不加 keyframes）；[AGENTS.md](../AGENTS.md) 第 23 条拆出「地平线辉光是美术层唯一的动效」、范围 / 事实来源 / 验证要求同步；`NOTICE` 补 `horizon-glow.js` 的衍生声明。
 - **渲染未验证**：`docs/screenshots/aura.png` 来自离线舞台（真实 `horizon-glow.js` + 按 DSH 语义属性搭的对话区 + 黑曜 token，由无头 Chrome 截图），真实窗口里的速度与浓度仍需装上后确认。
 
 ## 2.3.0 — 2026-11-25
@@ -214,7 +220,7 @@
 - **开关只有两个 body 属性**：`applyOptics()` 写 `data-ct-palette` / `data-ct-art`，样式表里每条美术规则都以 `body[data-ct-art='on']` 开头；`host` 或外观页「光学外观」关闭时是 `off`，DSH 原样一点不动。选择器只用 DSH 自己的语义属性（`[data-conversation-region]` / `[data-conversation-scroll]` / `[data-message-bubble]` / `[data-composer-card]`、对话区的 `hr` / `blockquote`），不碰哈希类名，命中不到就自然不生效。
 - **外观页多一组控件**：`appearance.art`（默认开）与配色 / 动效 / 伙伴并列；跟随宿主时按钮置灰、`title` 写「选一套配色后生效」（第 16 条：禁用要说明原因）。`src/store.js` 与 `client.js` 两侧的归一化都接受 `art`，只有显式 `false` 才关。
 - 测试 215 → **216** 条：新增「美术层挂在两个 body 属性上、宿主配色永远不上」（含未知值回落、样式表必须逐条以 `body[data-ct-art='on']` 开头、不得出现哈希类名钩子）与外观页第 4 个开关的断言。
-- 文档：README 新增「界面预览 2. 主题美术」小节与 `docs/screenshots/art.png`、亮点 / 技术细节 / 兼容性与限制同步；[docs/UI.md](docs/UI.md) 新增「主题美术（宿主表面）」一节（三层配方、开关边界、不抄的部分）与检查清单；[AGENTS.md](AGENTS.md) 第 23 条与验证要求同步。
+- 文档：README 新增「界面预览 2. 主题美术」小节与 `docs/screenshots/art.png`、亮点 / 技术细节 / 兼容性与限制同步；[docs/UI.md](UI.md) 新增「主题美术（宿主表面）」一节（三层配方、开关边界、不抄的部分）与检查清单；[AGENTS.md](../AGENTS.md) 第 23 条与验证要求同步。
 - **渲染未验证**：截图来自离线渲染舞台（按 DSH 的语义属性搭的对话区副本 + 本仓库真实样式表 + 2.2.x 的配色 token），真实 DSH 窗口里的观感（尤其宿主是不是把这些属性都挂上）仍需装上新版本后点一遍。
 
 ## 2.2.1 — 2026-11-25
@@ -223,7 +229,7 @@
 - **不再派发 `resize`**：2.2.0 在注入轨道后用 `window.dispatchEvent(new Event('resize'))` 想让官方菜单重新测量高度。参考插件（`dsh-codex-effort-slider@1.1.9`，已装在 DSH 里实测可用）的源码里明确写着不要派发——部分宿主在 `resize` 上挂了「关闭菜单」的兜底监听，派发会让菜单刚打开就收起来。现在官方菜单用 CSS 锚点定位，加高自己会跟着走。
 - **会话目录按需重取，不长期缓存**：`directoryFor(sessionId)` 在会话作用域就绪前会抛错，宿主还会在模型代次变化时换掉目录实例。所以每次读、每次写都重新解析；拿不到就按 60 / 240 / 540 / 960 / 1500 / 3000ms 退避重试（第一次重试失败也要继续排下一次，否则一次启动期抖动就是永久失效），换到新实例时退掉旧订阅、重新订阅并按 400ms 节流调一次 `load()`（`load()` 已就绪时直接回缓存，与官方行共享同一份目录）。React 切换子面板时可能复用行、也可能把我们的节点移掉，所以每轮复核「节点仍是该行的下一个兄弟」，丢了就重建。
 - 测试 213 → **215** 条：新增「标签优先于位置」（三行菜单，标签命中第 3 行；去掉推理行后剩下的两行不再被认领）、「`directoryFor()` 先抛错后可用」（退避重试接上、换实例后重订阅并跟着重画、节点被丢掉后重建、dispose 清掉会话）。
-- 文档：[docs/UI.md](docs/UI.md) 的「推理滑块」一节补「认行靠标签不靠位置」「注入后不派发 `resize`」「目录按需重取」三条与检查清单；README 的滑块段与技术细节同步；[AGENTS.md](AGENTS.md) 第 23 条与验证要求同步。
+- 文档：[docs/UI.md](UI.md) 的「推理滑块」一节补「认行靠标签不靠位置」「注入后不派发 `resize`」「目录按需重取」三条与检查清单；README 的滑块段与技术细节同步；[AGENTS.md](../AGENTS.md) 第 23 条与验证要求同步。
 - **2.2.0 的 staged 记录未审批发布，由 2.2.1 取代**（2.2.0 那份 tarball 里还是按位置认行、且会派发 `resize` 的版本）。
 
 ## 2.2.0 — 2026-11-25
@@ -239,7 +245,7 @@
 - **写失败不谎报**：`select` 返回 `ok:false`（例如 `session/writer-held`）或抛错时，`.ct-effort-error` 写原因、旋钮退回**宿主确认**的那一档（不是退回上一次乐观值）；写入中 `data-busy='true'` 锁住轨道。切工水晶是自绘 SVG（4 个切面，按位置由冰蓝到紫罗兰），`createElementNS` 不可用时退化成圆点旋钮。
 - 测试 208 → 213 条：新增档位映射（含「一档不算滑轨」「别的 provider 的同名模型不认」）、轨道几何与位置色、语义锚点查找（含 1 行菜单 / 关闭菜单 / 无 composer card 的兜底）、注入后与官方行的兄弟顺序、键盘写入 `reasoningEffort`、被拒回滚、关菜单即移除，以及 dock 只挂桥不渲染标记。
 - 离线舞台里跑通了整条链路（挂载 → 点击 → 官方行变「最高」→ 旋钮到最右），截图见 `docs/screenshots/effort.png`；真实 DSH 菜单里的最终位置仍需在窗口里确认。
-- 文档：README 亮点 / 界面预览（新增「推理滑块与切工水晶」小节与 `screenshots/effort.png`）/ 配色表 / 使用 / 技术细节 / 兼容性改写；[docs/UI.md](docs/UI.md) 新增「推理滑块（注入官方模型菜单）」整节，并同步配色皮肤（两段式、不再写 `color-scheme`）、全局皮肤（删除「选深色会改偏好」那条）、禁止项、落地映射与检查清单；[AGENTS.md](AGENTS.md) 范围 / 事实来源 / 第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.2.0（vendor 路由的 `?v=` 跟着换）。
+- 文档：README 亮点 / 界面预览（新增「推理滑块与切工水晶」小节与 `screenshots/effort.png`）/ 配色表 / 使用 / 技术细节 / 兼容性改写；[docs/UI.md](UI.md) 新增「推理滑块（注入官方模型菜单）」整节，并同步配色皮肤（两段式、不再写 `color-scheme`）、全局皮肤（删除「选深色会改偏好」那条）、禁止项、落地映射与检查清单；[AGENTS.md](../AGENTS.md) 范围 / 事实来源 / 第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.2.0（vendor 路由的 `?v=` 跟着换）。
 - 渲染未验证：截图仍来自离线渲染舞台；两套配色在真实 DSH 窗口里切换深浅、以及滑块在真实模型菜单里的位置，都要装上新版本后确认。
 
 ## 2.1.0 — 2026-11-25
@@ -250,7 +256,7 @@
 - **不做推理滑块与切工水晶**：这两样在上游是给 Antigravity 的模型菜单做的，依赖宿主有「推理等级 / effort」。DSH 的客户端包（chat / conversation / theme / layout / settings 等）里没有任何 `effort`、`reasoningEffort`、`thinkingBudget` 标识，没有可挂的宿主控件；按「不显示假数据」的规矩，不添加拨动后无效果的装饰控件，等宿主暴露真实推理强度再移植。**（本节结论后来被证伪：判断源于一份不完整的 `app.asar` 解包，漏了 `dsh-client-ui-model-selection` 与 `dsh-llm-deepseek`；DSH 确实有真实推理等级，2.2.0 已按官方数据通路移植滑块。）**
 - 设置即皮肤：插件启动时读自己的 `settings.json` 把上次的配色装回去，不必先打开外观页；写入失败仍回滚到上一个配色（连同全局层一起回滚）。
 - 测试 205 → 207 条：新增「四套配色经主题服务重绘整个界面」用例（每个 token 必须是 `--dsw-*` 且带 light/dark、`host` 只卸载不加层、暖调 / 暖白取到对应底色）。
-- 文档：README 的亮点、外观页与技术细节补上全局换肤，兼容性里写明为什么没有推理滑块与切工水晶；[docs/UI.md](docs/UI.md) 增「全局皮肤（宿主主题服务）」小节；[AGENTS.md](AGENTS.md) 第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.1.0（vendor 路由的 `?v=` 跟着换，旧缓存不会跨版本存活）。
+- 文档：README 的亮点、外观页与技术细节补上全局换肤，兼容性里写明为什么没有推理滑块与切工水晶；[docs/UI.md](UI.md) 增「全局皮肤（宿主主题服务）」小节；[AGENTS.md](../AGENTS.md) 第 23 条同步；`PLUGIN_VERSION` 与 `package.json` 升到 2.1.0（vendor 路由的 `?v=` 跟着换，旧缓存不会跨版本存活）。
 - 渲染未验证：跟 2.0.0 一样，截图来自离线渲染舞台；全局 token 的实际观感要在真实 DSH 窗口里换一遍确认。
 
 ## 2.0.0 — 2026-11-25
@@ -264,7 +270,7 @@
 - **配色是整份 token 覆盖，但只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行、portal 菜单与试管浮窗上，四套值不渗到宿主界面；`host` 是空集。浅色两套同时设 `color-scheme: light`（否则原生滚动条与输入框还是深色），玻璃变量也跟着换（白底高透 + 冷/暖阴影）。
 - **动效档位**：`subtle` 去掉分页 / 菜单进场与液面过渡，`off` 再把 `reducedMotion` 传给试管与伙伴；实现只有两条 CSS 加一处 JS 传参，新增动效时必须三档都过一遍。
 - 新增 `test/vendor.test.js`（UMD 用 `node:vm` 装载、出处头、GPL 文件、vendor 路由、manifest 许可与 `files`）与外观 / 试管 / 伙伴 / 设置归一化用例；`test/client.test.js` 的 harness 跟着六页与新增 hooks 更新。测试 192 → **205** 条。
-- **README 按上游体例重写**：居中图标 + 标题 + 徽章 + 主图、非官方声明、亮点、界面预览（配色表 / 试管 / 伙伴 / 面板）、快速安装、使用、档位与组件表、`<details>` 技术细节、GPL 与上游致谢、开发与目录树；新增 `docs/screenshots/` 五张截图，`docs/DETAIL*.md` 的单图换成 `screenshots/hero.png`（`docs/preview.svg` 删除）。[docs/UI.md](docs/UI.md) 增补配色皮肤、外观页、输入框上方那一行、动效档位与检查清单；[AGENTS.md](AGENTS.md) 范围 / 事实来源 / 约束 / 验证 / 索引同步。
+- **README 按上游体例重写**：居中图标 + 标题 + 徽章 + 主图、非官方声明、亮点、界面预览（配色表 / 试管 / 伙伴 / 面板）、快速安装、使用、档位与组件表、`<details>` 技术细节、GPL 与上游致谢、开发与目录树；新增 `docs/screenshots/` 五张截图，`docs/DETAIL*.md` 的单图换成 `screenshots/hero.png`（`docs/preview.svg` 删除）。[docs/UI.md](UI.md) 增补配色皮肤、外观页、输入框上方那一行、动效档位与检查清单；[AGENTS.md](../AGENTS.md) 范围 / 事实来源 / 约束 / 验证 / 索引同步。
 - 渲染未验证：截图与几何结论来自离线渲染舞台（同源静态预览 + 无头 Chrome，直接运行本仓库 `client.js` 与移植模块）；真实 DSH 窗口（当前安装的是 1.10.1）里的最终观感要装上新版本后刷新确认。
 
 ## 1.10.3 — 2026-11-25
@@ -273,7 +279,7 @@
 - **切页不再横向挪一下**：`.ct-page` 是 `overflow-y: auto` 却没固定滚动条槽，档位页内容短、没有滚动条，规则页内容高、多出一条 15px 的滚动条，内容盒跟着变窄，居中的 `.ct-shell` 就横向位移。加上 `scrollbar-gutter: stable` 后五页实测 `shellLeft` 恒为 318.5、`gutter` 恒为 15。
 - **分页进场只淡入**：`ct-page-in` 去掉了 `translateY(3px)`，只留 160ms 的 `opacity 0→1`；位移叠在前两条上，读起来正好是「点击规则的时候页面有小小的位移」。
 - 测试 192 条不变：`test/client.test.js` 新增三条断言——`.ct-nav` 必须是 `sticky` 且 `top: 0`（不得出现 `top: 18px`）、`.ct-page` 必须有 `scrollbar-gutter: stable`、`@keyframes ct-page-in` 里不得出现 `transform`。
-- 文档：[AGENTS.md](AGENTS.md) 第 22 条与验证要求、[docs/UI.md](docs/UI.md)（布局、分页导航、动效、禁止项、检查清单）同步写明「正的 `sticky` `top` 会把导航栏推离卡片」。
+- 文档：[AGENTS.md](../AGENTS.md) 第 22 条与验证要求、[docs/UI.md](UI.md)（布局、分页导航、动效、禁止项、检查清单）同步写明「正的 `sticky` `top` 会把导航栏推离卡片」。
 - 渲染未验证：几何结论来自无头 Chrome（同源静态预览，1400×792 / 600×792）的 `getBoundingClientRect` 测量，真实 DSH 窗口刷新后请再确认一次。
 
 ## 1.10.2 — 2026-11-25
@@ -281,7 +287,7 @@
 - **工作区页常驻**：面板是「导航 + 一次一页」，而工作区页在没有注册工作区时整页消失（1.9.0 起的「清单为空就整块不渲染」，1.10.x 的导航又把这个规则一起继承下来）——分页是固定的地图，不该因为没数据少一格。现在五个分页始终在导航里；打开工作区页时如果没有注册工作区，页面照常显示并写「目前无工作区」，不出选择器与文本域，保存按钮常显、置灰、`title` 写同一条说明。
 - **加载态不再冒充空态**：以前「还没读到」和「读到了但为空」都用 `workspaceRules === null` 表示，页面分不出来。现在空清单也是一个已加载结果（`applyWorkspaceRules` 写入 `{ workspaces: [] }`），未加载时显示「正在读取…」，加载完但为空才显示「目前无工作区」。新增 `workspaceNone` 文案键（中/英）。
 - 测试 192 条：新增「空清单页仍在导航里并写目前无工作区」「未加载时写正在读取」两条用例，导航断言改成五页恒定（`levels/rules/workspace/components/github`）。
-- 文档：[AGENTS.md](AGENTS.md) 第 21 条与验证要求改写（1.9.0 的「整块不渲染」作废）、[docs/UI.md](docs/UI.md) 增加「空状态写在卡片里，不写进导航」、README 工作区一栏同步。
+- 文档：[AGENTS.md](../AGENTS.md) 第 21 条与验证要求改写（1.9.0 的「整块不渲染」作废）、[docs/UI.md](UI.md) 增加「空状态写在卡片里，不写进导航」、README 工作区一栏同步。
 
 ## 1.10.1 — 2026-11-25
 
@@ -298,7 +304,7 @@
 - **仓库胶囊终于站到输入卡上**：`conversation.input.dock` 渲染在整宽的 `.composerStack` 里，而输入卡自己按 `--dsh-composer-card-max-width` 居中——1.9.x 的整宽行只做到「不贴窗口边」，胶囊停在输入卡右侧很远。`.ct-repo-dock` 现在按 `min(calc(100% - 2 × --dsh-composer-side-clearance), --dsh-composer-card-max-width)` 收窄并 `margin: 0 auto`，胶囊右缘与输入卡右缘对齐。
 - 新增 `test/client.test.js` 用例：外壳与导航（一次一页、`aria-current`、工作区页缺席）、容器在页面而不在外壳、窄面板换行、玻璃变量与 20px 卡片圆角、许可页四套组件；旧的 `.ct-page-inner` / `.ct-columns` / `.ct-col` 断言改成「必须不存在」。测试 191 条。
 - `actionButton()` 补上 `key: action`：动作行是用数组传给 `actionRow()` 的，真实 React 里每个按钮都需要自己的 key（此前只有测试用的假 React 掩盖了这一点）。
-- 文档：[docs/UI.md](docs/UI.md) 重写（玻璃配方、分页导航、布局与容器查询的坑、许可行、胶囊对齐），[AGENTS.md](AGENTS.md) 第 14/22 条与验证要求同步，README 的使用与许可两节更新。
+- 文档：[docs/UI.md](UI.md) 重写（玻璃配方、分页导航、布局与容器查询的坑、许可行、胶囊对齐），[AGENTS.md](../AGENTS.md) 第 14/22 条与验证要求同步，README 的使用与许可两节更新。
 - 渲染未验证：静态预览（`temp/preview-build.mjs` + 无头 Chrome，深色 token 取真实主题值）确认了外壳、分页、玻璃、许可页与胶囊对齐；真实 DSH 窗口里的最终观感要刷新页面后确认。
 
 ## 1.9.1 — 2026-11-25
