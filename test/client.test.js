@@ -1666,9 +1666,11 @@ test('the vial appears as soon as the official projection has a reading', () => 
   assert.equal(deepText(trigger), '51%')
 })
 
-test('a blank Session draws the token heatmap above the repository pill', () => {
+test('a blank Session draws the token heatmap card above the repository pill', () => {
   const nodes = renderHeat({ heat: heatPayload })
-  assert.ok(nodes.some((node) => hasClass(node, 'ct-heat')), 'the card renders')
+  const card = nodes.find((node) => hasClass(node, 'ct-heat'))
+  assert.ok(card, 'the card renders')
+  assert.equal(card.type, 'section')
   const grid = nodes.find((node) => hasClass(node, 'ct-heat-grid'))
   assert.equal(grid.props.role, 'img')
   assert.match(grid.props['aria-label'], /heatTitle/)
@@ -1678,8 +1680,22 @@ test('a blank Session draws the token heatmap above the repository pill', () => 
   assert.equal(cells.filter((node) => node.props['data-level'] === '0').length, 26)
   // The hover label carries the day, its tokens and how many sessions fed it.
   assert.match(cells[0].props.title, /2026-06-00-0 · 1M token · 1 heatSessions/)
+  // Upstream's card: the legend rides the head row next to the title, and the
+  // number it all adds up to is the headline in the foot, not a crowded caption.
+  const head = nodes.find((node) => hasClass(node, 'ct-heat-head'))
+  assert.ok(head, 'the head row renders')
+  assert.match(deepText(head), /heatTitle/)
+  assert.match(deepText(head), /heatLess/)
+  assert.match(deepText(head), /heatMore/)
   assert.equal(nodes.filter((node) => hasClass(node, 'ct-heat-swatch')).length, 5)
   assert.equal(nodes.filter((node) => hasClass(node, 'ct-heat-legend')).length, 1)
+  const hero = nodes.find((node) => hasClass(node, 'ct-heat-hero'))
+  assert.ok(hero, 'the headline number renders')
+  assert.match(deepText(hero), /5\.12B/)
+  assert.match(deepText(hero), /heatTokens/)
+  const sub = nodes.find((node) => hasClass(node, 'ct-heat-sub'))
+  assert.match(deepText(sub), /heatSessions/)
+  assert.match(deepText(sub), /heatDays/)
 })
 
 test('the heatmap gives way to the vial once the session has a reading', () => {
@@ -1703,14 +1719,25 @@ test('the dock is a column so the grid sits above the pill, never beside it', ()
   // 2.7.0: the row stacks a heatmap above the tools line; both keep the right edge.
   assert.match(css, /\.ct-repo-dock \{[^}]*flex-direction: column;/)
   assert.match(css, /\.ct-repo-dock \{[^}]*justify-content: flex-end;/)
+  // 2.7.1: the grid fills a card (upstream Studio's 活跃轨迹), columns share the
+  // width, cells stay square — no fixed 10px squares hugging the right edge.
+  assert.match(css, /\.ct-heat-grid \{[^}]*grid-template-columns: repeat\(26, minmax\(0, 1fr\)\);/)
   assert.match(css, /\.ct-heat-grid \{[^}]*grid-auto-flow: column;/)
-  assert.match(css, /grid-template-rows: repeat\(7, 10px\);/)
+  assert.match(css, /\.ct-heat \{[\s\S]*?width: min\(100%, 560px\);/)
+  assert.match(css, /\.ct-heat \{[\s\S]*?margin-left: auto;/)
+  assert.match(css, /\.ct-heat \{[\s\S]*?margin-right: 0;/)
+  assert.match(css, /\.ct-heat \{[\s\S]*?background: var\(--dsw-specific-menu\);/)
+  assert.match(css, /\.ct-heat-cell \{[^}]*aspect-ratio: 1;/)
+  assert.match(css, /\.ct-heat-head \{[^}]*justify-content: space-between;/)
+  assert.match(css, /\.ct-heat-foot \{[^}]*border-top: 1px solid var\(--dsw-alias-border-l2\);/)
+  assert.match(css, /\.ct-heat-hero-num \{[^}]*font-size: 20px;/)
+  assert.equal(/\.ct-heat-range/.test(css), false, 'the summary moved out of the head row')
   // Five steps on the accent token, plus a subtler empty and future square.
   for (const level of [1, 2, 3, 4, 5]) {
     assert.match(css, new RegExp(`\\.ct-heat-cell\\[data-level='${level}'\\]`))
+    assert.match(css, new RegExp(`\\.ct-heat-swatch\\[data-level='${level}'\\]`))
   }
   assert.match(css, /\.ct-heat-cell\[data-future='true'\]/)
-  assert.match(css, /\.ct-heat \{[\s\S]*?width: fit-content;/)
 })
 
 test('motion off pauses every effort animation, the sweep included', () => {

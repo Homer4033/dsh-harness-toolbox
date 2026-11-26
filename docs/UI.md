@@ -235,29 +235,31 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 ## 输入框上方那一行
 
-`.ct-repo-dock` 渲染在 `conversation.input.dock`（输入框正上方的整宽槽），2.7.0 起是一个**列**：空白会话上面多一张用量热力图，下面照旧是工具区。
+`.ct-repo-dock` 渲染在 `conversation.input.dock`（输入框正上方的整宽槽），2.7.0 起是一个**列**：空白会话上面多一张用量卡片，下面照旧是工具区。
 
 | 块 | 类名 | 规则 |
 | --- | --- | --- |
-| 热力图 | `.ct-heat` | 只在空白会话出现，`width: fit-content` + `margin-left: auto`（贴右缘），见下一节 |
+| 热力图 | `.ct-heat` | 只在空白会话出现，卡面 `width: min(100%, 560px)` + `margin-left: auto`（贴右缘），见下一节 |
 | 工具区 | `.ct-dock-tools` | `flex: 1 1 auto` + `justify-content: flex-end` + `margin-left: auto`，内放试管触发器、状态小字（`.ct-repo-note`）与仓库胶囊 |
 
 - 行容器是 `display: flex; flex-direction: column; align-items: stretch; gap: 8px`，仍保留 `justify-content: flex-end`；胶囊与热力图各自在行内右对齐，行的外框不变（下面那条 dock 盒子规则不变，所以右缘仍落在任务栏右缘上）。
 - 行宽按输入卡几何收窄并居中（见上一节「胶囊必须正对输入卡」），`box-sizing: border-box`。
 - **2.5.0 按用户要求整块删除像素伙伴**：没有左段、没有 `.ct-dock-mascots` / `.ct-mascot-stage`、没有 `@container (max-width: 620px)` 的收伙伴规则，`.ct-repo-dock` 也不带 `container-type`。不要为了「以后可关」把舞台或开关加回来（产品决定，写进 [AGENTS.md](../AGENTS.md) 第 23 条）。
-- 这一行只有试管触发器、状态小字与胶囊三样东西；窄了就让胶囊自己缩，不要新增占位块把行撑宽。
+- 这一行只有用量卡片、试管触发器、状态小字与胶囊；窄了就让胶囊自己缩、卡片跟着收，不要新增占位块把行撑宽。
 - **上到下固定是「仓库栏和试管 → 任务栏 → 输入卡」（2.6.4）**：`conversation.input.dock` 是 `list` 槽，宿主按 `order` **升序**渲染（`[...rows].sort((a, b) => a.order - b.order)`，上小下大）。原则是**跟原版输入卡亲密性强的 UI 优先靠近输入卡，插件次之**（用户 2.6.4 的原话）——宿主自己的行（智能体 `todo_write` 起的「任务」清单条 `todo`，order 0，条目 1/2/3/4 排开；工作树进度 5；目标条 10；队列 20）紧贴输入卡，本行取 order **-1000**（`client.js` 的 `DOCK_ORDER_FIRST`），排在它们全部之前。没有任务条时就是「仓库栏和试管 → 输入卡」。不要把 order 改成非负值，也不要为了抢位置去改宿主条目的 order。
 
 ## 本机用量热力图（空白会话）
 
-上游 Obsidian Prism 的 Studio 首页有一条「活跃轨迹」——26 周 × 7 天的方格网格。DSH 没有那块板子，所以同一张网格放进本插件自己的 dock 行，**只在空白会话出现**（2.7.0）。
+上游 Obsidian Prism 的 Studio 首页有一条「活跃轨迹」——26 周 × 7 天的方格网格，装在一张卡里：**标题行 → 满宽网格 → 一条发丝线 → 大号总量 + 一行小字**。DSH 没有那块板子，所以整套排版放进本插件自己的 dock 行，**只在空白会话出现**（2.7.0 首版，2.7.1 按上游排版重做）。
 
 1. **画在哪儿**：就在 `.ct-repo-dock` 里、工具区上面，不 portal、不碰宿主 DOM、不往 `body` 写变量。有 `contextPressure` 读数后整块让位给试管（2.6.6 的规则不变：空白会话没读数、宿主自己也不画 `ContextMeter`，所以那时这行由热力图占位）。
-2. **几何**：`.ct-heat` 是一个 `width: fit-content; max-width: 100%; margin-left: auto` 的块，贴着行右缘；标题行 `.ct-heat-head` 里面左侧「活跃轨迹」、右侧摘要（`近 26 周 · 5.13B token · 23 个活跃日`），下面 `.ct-heat-grid` 是 `grid-auto-flow: column` + `grid-template-rows: repeat(7, 10px)` + `grid-auto-columns: 10px` + `gap: 3px` + `justify-content: end`——**列优先填充**（一列就是一周，周一到周日），所以 182 格自然按周排开。
-3. **五档强度**：每格 `.ct-heat-cell` 带 `data-level`（0 空日、1–5 由 `src/usage-heatmap.js` 的 `levelOf()` 按当日峰值取对数），颜色全部 `color-mix(in srgb, var(--dsw-alias-state-business-primary) N%, transparent)`——18 / 34 / 52 / 72 / 92%；`data-level='0'` 是 `label-secondary` 6% 的淡底，未来日（`data-future`）再淡到 3%。**不得**写死十六进制蓝，也不得给空日画一个灰「—」。
-4. **读数如实**：格子的 `title` 是「日期 · token · 会话数」（`2026-10-22 · 1.5B token · 3 会话`），日期与数字都来自真实会话缓存；没有缓存就整块不画，**不得**用假数据或 0 冒充（上游演示图里的热力图是 hash 出来的假数据，这里不跟）。口径写在 [AGENTS.md](../AGENTS.md)「事实来源」的「本机用量唯一来源」段：整会话 token 按会话**创建日的本地日**归集（缓存没有逐轮时间戳）。
-5. **图例**：网格下方 `.ct-heat-legend` 是「少 [5 个 10px 方块] 多」，方块与格子同一套颜色，`.ct-heat-swatch` 与 `.ct-heat-cell` 共用 10px / 2px 圆角。
-6. **数据来源**：`GET /compression-tiers/api/usage`，客户端 `loadUsageHeatmap()` 缓存 60 秒，失败保留上一次的网格（不闪空白）。
+2. **卡面**：`.ct-heat` 是 `width: min(100%, 560px)` + `margin-left: auto` 的卡（`--dsw-specific-menu` 底、1px `border-l2`、14px 圆角、内边距 14/16/13），贴右缘——卡与下面的仓库胶囊落在同一条右缘上，也就是任务栏右缘。**不要**再回到 2.7.0 那版 `width: fit-content` 的裸块：网格缩成一小团才显得「乱放」。
+3. **标题行**：`.ct-heat-head` 是 `justify-content: space-between`，左侧 `.ct-heat-title`「活跃轨迹」（12px / 600 / `label-secondary`），右侧 `.ct-heat-legend` 图例「少 [5 个 8px 方块] 多」（10px / `label-tertiary`）——对应上游标题行右边的时段切换位。摘要**不**挤在标题行里。
+4. **网格**：`.ct-heat-grid` 用 `grid-template-columns: repeat(26, minmax(0, 1fr))` + `grid-template-rows: repeat(7, auto)` + `grid-auto-flow: column` + `gap: 3px`，格子 `.ct-heat-cell` 是 `aspect-ratio: 1` 的方格——**列宽均分卡面、格子随宽度等比缩放**（一列一周，周一到周日），这才是上游那种「一块表」的观感；不要写死 `10px`。
+5. **五档强度**：每格带 `data-level`（0 空日、1–5 由 `src/usage-heatmap.js` 的 `levelOf()` 按当日峰值取对数），颜色全部 `color-mix(in srgb, var(--dsw-alias-state-business-primary) N%, transparent)`——18 / 34 / 52 / 72 / 92%；`data-level='0'` 是 `label-secondary` 6% 的淡底，未来日（`data-future`）再淡到 3%；悬停 `scale(1.25)` 加一圈 55% 的 `label-primary` 描边。**不得**写死十六进制蓝，也不得给空日画一个灰「—」。
+6. **读数如实**：格子的 `title` 是「日期 · token · 会话数」（`2026-10-22 · 1.5B token · 3 会话`），日期与数字都来自真实会话缓存；没有缓存就整块不画，**不得**用假数据或 0 冒充（上游演示图里的热力图是 hash 出来的假数据，这里不跟）。口径写在 [AGENTS.md](../AGENTS.md)「事实来源」的「本机用量唯一来源」段：整会话 token 按会话**创建日的本地日**归集（缓存没有逐轮时间戳）。
+7. **卡脚**：`.ct-heat-foot` 先一条 `border-top` 发丝线，再放大号总量——`.ct-heat-hero-num`（20px / 600 / `letter-spacing: -0.02em` / `tabular-nums`）配 `.ct-heat-hero-unit`「Tokens」，下面 `.ct-heat-sub`（11px / `label-tertiary` / `tabular-nums`）写「近 26 周 · 95 个会话 · 23 个活跃日」。总量是这一块的主角，不要塞回标题行当小字。
+8. **数据来源**：`GET /compression-tiers/api/usage`，客户端 `loadUsageHeatmap()` 缓存 60 秒，失败保留上一次的网格（不闪空白）。
 
 ## 推理滑块（注入官方模型菜单）
 
@@ -326,6 +328,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - ❌ 让 `client.js` import 移植模块（它们是 UMD，只能走同源 `<script src="/compression-tiers/vendor/…">`）。
 - ❌ 在投影缺失时画一个禁用状态的试管（2.6.6：没有读数就整个不渲染，见第 220 行）。
 - ❌ 给热力图填假数据、用 0 冒充没有读数的日子，或把未来日画成实心格（2.7.0：没有会话缓存就整块不画）。
+- ❌ 把热力图做成 `width: fit-content` 的裸块或写死 10px 方块（2.7.1：它是一张卡，网格列宽均分卡面，标题行与卡脚各就各位）。
 - ❌ 恢复像素伙伴或给输入框上方那一行重新引入容器查询（2.5.0 已整块删除，见 [AGENTS.md](../AGENTS.md) 第 23 条）。
 
 ## 落地映射
@@ -346,8 +349,9 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 | `.ct-swatches` / `.ct-swatch` / `.ct-swatch-band` | 外观页配色栅格 / 单个色板（`role=radio`）/ 三段色带 |
 | `.ct-segments` / `.ct-segment` | 外观页动效分段组 / 单个分段按钮 |
 | `.ct-repo-dock` / `.ct-repo-pill` / `.ct-repo-note` | 输入框上方那一行（按宿主 dock 盒子收窄并居中——卡宽再每边内缩 `--dsh-composer-dock-inset`，order -1000，排在宿主原生 dock 行之前；2.7.0 起是列布局）/ 仓库胶囊 / 状态小字 |
-| `.ct-heat` / `.ct-heat-head` / `.ct-heat-grid` / `.ct-heat-cell` | 空白会话的用量热力图：外壳 / 标题行（左标题右摘要）/ 列优先的 7 行网格 / 单个 10px 格子（`data-level` 0–5、`data-future`） |
-| `.ct-heat-legend` / `.ct-heat-swatch` | 网格下方的「少 → 多」图例 / 图例里的 10px 方块 |
+| `.ct-heat` / `.ct-heat-head` / `.ct-heat-grid` / `.ct-heat-cell` | 空白会话的用量卡片：卡面 / 标题行（左标题、右图例）/ 26 列满宽网格 / 单个方格（`aspect-ratio: 1`、`data-level` 0–5、`data-future`） |
+| `.ct-heat-legend` / `.ct-heat-swatch` | 标题行右侧的「少 → 多」图例 / 图例里的 8px 方块 |
+| `.ct-heat-foot` / `.ct-heat-hero` / `.ct-heat-hero-num` / `.ct-heat-hero-unit` / `.ct-heat-sub` | 卡脚（发丝线以上）/ 大号总量行 / 总量数字 / 「Tokens」单位 / 小字摘要 |
 | `.ct-list` / `.ct-list-head` | 「模型和组件」页的列表容器 / 分组标题（组件、本地模型） |
 | `.ct-item` / `.ct-item-main` / `.ct-item-name` / `.ct-item-pin` / `.ct-item-state` | 列表行 / 行首文本块 / 名称 / 钉住版本 / 状态 |
 | `.ct-item-path` / `.ct-item > .ct-actions` | 行内路径 / 住在行尾的两个按钮 |
@@ -377,7 +381,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - [ ] 试管只在有官方读数时出现：新会话（第一条消息之前）看不到试管，发第一条消息后出现且能点开，浮窗里有数字、构成条与图例。
 - [ ] 推理滑块只出现在官方「推理等级」行下面：行按标签认（两行兜底），多于两行又没有标签命中就不加；锚点是语义属性，`role="slider"` 带 min/max/now/valuetext；写不进去就回滚并写原因；注入后不派发 `resize`；会话目录每次重取、丢了节点会重建。
 - [ ] 输入框上方那一行只有工具区（试管触发器 + 状态小字 + 胶囊），没有伙伴槽、没有 `container-type`、没有 `@container` 收伙伴的规则。
-- [ ] 空白会话显示用量热力图（26 周 × 7 天、182 格、五档色阶、未来日更淡、悬停有「日期 · token · 会话数」），有读数后让位给试管；格子颜色全走 `color-mix` 的 accent，没有硬编码蓝、没有假数据。
+- [ ] 空白会话显示用量卡片（26 周 × 7 天、182 格、列宽均分卡面、五档色阶、未来日更淡、悬停有「日期 · token · 会话数」），有读数后让位给试管；卡内是「标题行（左标题右图例）→ 网格 → 发丝线 → 大号总量 + 小字摘要」，右缘与仓库胶囊同一条线；格子颜色全走 `color-mix` 的 accent，没有硬编码蓝、没有假数据。
 - [ ] 动效三档都试过：`subtle` 只关进场与液面过渡，`off` 还把 `reducedMotion` 传给了试管、并暂停了星尘与扫光。
 - [ ] 空状态行不占位。
 - [ ] 规则页是两张卡：上面全局 `AGENTS.md`，下面所选工作区的补充规则；两张卡各有一个文本域与一个保存按钮。

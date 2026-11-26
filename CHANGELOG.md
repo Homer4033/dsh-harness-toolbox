@@ -2,6 +2,13 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.7.1 — 2026-11-27
+
+- **用量热力图按上游 Studio 的排版重做**（用户：「参考obsidian-prism的排版啊，你这样放乱放是吗？」）：2.7.0 把它做成 `width: fit-content` 的裸块——标题与摘要挤在同一行小字里、182 个写死 10px 的方格贴着右缘，读起来像一团随手放上去的控件。上游 `ag-v2-bento-heat-zone` 是一张卡：标题行（左「活跃轨迹」、右时段切换位）→ 满宽网格（`repeat(26, minmax(0,1fr))`，列宽均分、`aspect-ratio: 1` 的方格）→ 发丝线 → 大号总量 + 一行小字（`相当于写下 14.2 本书` + `累计 3.56M Tokens · 1,284 条消息`）。
+- 现在 `.ct-heat` 是同一套结构：`width: min(100%, 560px)`、`margin-left: auto`（卡面与仓库胶囊共用右缘）、`--dsw-specific-menu` 底 + 1px `border-l2` + 14px 圆角 + 14/16/13 内边距；`.ct-heat-head` 左标题（12px/600）右图例（「少 → 多」五个 8px 方块）；`.ct-heat-grid` 改成 `grid-template-columns: repeat(26, minmax(0, 1fr))` + `grid-template-rows: repeat(7, auto)` + `grid-auto-flow: column`，格子 `aspect-ratio: 1` 随卡宽缩放、悬停 `scale(1.25)`；`.ct-heat-foot` 一条 `border-top` 后放 `.ct-heat-hero-num`（20px/600/`tabular-nums`）+「Tokens」与 11px 的「近 26 周 · 95 个会话 · 23 个活跃日」。图例从网格下方移到标题行右侧，摘要从标题行移进卡脚。字典新增 `heatTokens`。
+- 测试仍 **268**（client 的两条热力图用例改为断言卡片结构：head 里有标题与图例、hero 是 20px 的 `5.12B`、脚注写会话与活跃日、网格按 26 列均分且格子 `aspect-ratio: 1`、`.ct-heat` 是 `min(100%, 560px)` + `margin-left: auto` 且不再有 `fit-content` / `.ct-heat-range`）。
+- [docs/UI.md](docs/UI.md)（「本机用量热力图」整节重写 + 类名表 + 禁止项 + 检查清单）、README（亮点、§5、升级说明）同步；版本 2.7.1。实机排版已用注入 shipped CSS + 真实 payload 的截图核对（`temp/heatmap-preview.png`）。2.7.0 的 npm 版本未获批准，可以直接跳到 2.7.1。
+
 ## 2.7.0 — 2026-11-26
 
 - **空白会话上方画出本机 token 热力图**（用户先纠正「是新会话token 热力图HUD，不是试管」，再定位置「obsidian-prism中显示在上方、对话栏往下移了吧」）：上游 Obsidian Prism 的 Studio 首页有一条「活跃轨迹」——26 周 × 7 天的方格网格，DSH 没有那块板子。现在同一张网格放进本插件自己的 `conversation.input.dock` 行，**只在空白会话出现**：没有 `contextPressure` 读数时这一行先画热力图（工具区在下面），发出第一条消息、试管拿到读数后热力图整块让位。

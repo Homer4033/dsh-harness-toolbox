@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.7.0'
+    const PLUGIN_VERSION = '2.7.1'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -542,6 +542,7 @@ window.__ModuleLoader__.load({
         heatRange: '近 {weeks} 周',
         heatDays: '个活跃日',
         heatSessions: '个会话',
+        heatTokens: 'Tokens',
         heatLess: '少',
         heatMore: '多',
         vialUsage: '本会话用量',
@@ -707,6 +708,7 @@ window.__ModuleLoader__.load({
         heatRange: 'Last {weeks} weeks',
         heatDays: 'active days',
         heatSessions: 'sessions',
+        heatTokens: 'Tokens',
         heatLess: 'Less',
         heatMore: 'More',
         vialUsage: 'This session',
@@ -1443,78 +1445,134 @@ window.__ModuleLoader__.load({
 .ct-heat {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  /* The block hugs the grid and rides the dock's right edge, the same edge the
-     repository pill uses; a full-width header would leave the grid floating in
-     the middle of an otherwise right-aligned row. */
-  width: fit-content;
-  max-width: 100%;
+  gap: 10px;
+  /* Upstream Studio draws "活跃轨迹" as a card: a head row, a 26 × 7 grid that
+     stretches across the card, a hairline, then the headline number. Keeping the
+     same shape means the grid owns the whole width instead of hugging its right
+     edge, which is what made the first cut read as a stray blob. */
+  width: min(100%, 560px);
+  /* The whole block rides the same right edge as the repository pill below it,
+     so the row still ends on the host task bar's right edge (2.6.5). */
   margin-left: auto;
+  margin-right: 0;
+  padding: 14px 16px 13px;
+  border-radius: 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-specific-menu);
+  box-sizing: border-box;
   min-width: 0;
 }
 .ct-heat-head {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   min-width: 0;
 }
 .ct-heat-title {
   font-size: 12px;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  letter-spacing: 0;
   color: var(--dsw-alias-label-secondary);
 }
-.ct-heat-range {
-  margin-left: auto;
-  font-size: 11px;
+.ct-heat-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  font-size: 10px;
   color: var(--dsw-alias-label-tertiary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
+/* 26 周 × 7 天：列优先，列宽均分卡片，格子按方格等比缩放。 */
 .ct-heat-grid {
   display: grid;
+  grid-template-columns: repeat(26, minmax(0, 1fr));
+  grid-template-rows: repeat(7, auto);
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 10px);
-  grid-auto-columns: 10px;
   gap: 3px;
-  justify-content: end;
 }
-.ct-heat-cell,
-.ct-heat-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
+.ct-heat-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 3px;
   background: color-mix(in srgb, var(--dsw-alias-label-secondary) 6%, transparent);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.ct-heat-cell:hover {
+  z-index: 1;
+  transform: scale(1.25);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 55%, transparent);
 }
 .ct-heat-cell[data-future='true'] {
   background: color-mix(in srgb, var(--dsw-alias-label-secondary) 3%, transparent);
 }
-.ct-heat-cell[data-level='1'],
+.ct-heat-cell[data-level='1'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);
+}
+.ct-heat-cell[data-level='2'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 34%, transparent);
+}
+.ct-heat-cell[data-level='3'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 52%, transparent);
+}
+.ct-heat-cell[data-level='4'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 72%, transparent);
+}
+.ct-heat-cell[data-level='5'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 92%, transparent);
+}
+.ct-heat-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--dsw-alias-label-secondary) 6%, transparent);
+}
 .ct-heat-swatch[data-level='1'] {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);
 }
-.ct-heat-cell[data-level='2'],
 .ct-heat-swatch[data-level='2'] {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 34%, transparent);
 }
-.ct-heat-cell[data-level='3'],
 .ct-heat-swatch[data-level='3'] {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 52%, transparent);
 }
-.ct-heat-cell[data-level='4'],
 .ct-heat-swatch[data-level='4'] {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 72%, transparent);
 }
-.ct-heat-cell[data-level='5'],
 .ct-heat-swatch[data-level='5'] {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 92%, transparent);
 }
-.ct-heat-legend {
+.ct-heat-foot {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  font-size: 11px;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.ct-heat-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.ct-heat-hero-num {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--dsw-alias-label-primary);
+  font-variant-numeric: tabular-nums;
+}
+.ct-heat-hero-unit {
+  font-size: 12px;
   color: var(--dsw-alias-label-tertiary);
+}
+.ct-heat-sub {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
 }
 .ct-repo-group {
   display: inline-flex;
@@ -4109,29 +4167,37 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         })
       })
       const summary = t('heatRange').replace('{weeks}', String(Number(heat.weeks) || heat.columns.length))
-        + ' · ' + tokenLabel(Number(heat.totalTokens) || 0) + ' token'
+        + ' · ' + (Number(heat.sessions) || 0) + ' ' + t('heatSessions')
         + ' · ' + (Number(heat.activeDays) || 0) + ' ' + t('heatDays')
-      return h('div', { className: 'ct-heat' },
+      const total = tokenLabel(Number(heat.totalTokens) || 0)
+      // Same shape as upstream Studio's 活跃轨迹 card: head row (title + legend),
+      // the grid across the full card width, a hairline, then the headline number
+      // with the boring numbers underneath it.
+      return h('section', { className: 'ct-heat', 'aria-label': t('heatTitle') },
         h('div', { key: 'head', className: 'ct-heat-head' },
           h('span', { className: 'ct-heat-title' }, t('heatTitle')),
-          h('span', { className: 'ct-heat-range' }, summary)),
+          h('span', { key: 'legend', className: 'ct-heat-legend' },
+            h('span', null, t('heatLess')),
+            HEAT_LEVELS.map(function (level) {
+              return h('i', {
+                key: 'level-' + level,
+                className: 'ct-heat-swatch',
+                'data-level': String(level),
+                'aria-hidden': 'true',
+              })
+            }),
+            h('span', null, t('heatMore')))),
         h('div', {
           key: 'grid',
           className: 'ct-heat-grid',
           role: 'img',
-          'aria-label': t('heatTitle') + ' ' + summary,
+          'aria-label': t('heatTitle') + ' ' + summary + ' · ' + total + ' ' + t('heatTokens'),
         }, cells),
-        h('div', { key: 'legend', className: 'ct-heat-legend' },
-          h('span', null, t('heatLess')),
-          HEAT_LEVELS.map(function (level) {
-            return h('i', {
-              key: 'level-' + level,
-              className: 'ct-heat-swatch',
-              'data-level': String(level),
-              'aria-hidden': 'true',
-            })
-          }),
-          h('span', null, t('heatMore'))))
+        h('div', { key: 'foot', className: 'ct-heat-foot' },
+          h('div', { key: 'hero', className: 'ct-heat-hero' },
+            h('span', { className: 'ct-heat-hero-num' }, total),
+            h('span', { className: 'ct-heat-hero-unit' }, t('heatTokens'))),
+          h('div', { key: 'sub', className: 'ct-heat-sub' }, summary)))
     }
 
     /**
