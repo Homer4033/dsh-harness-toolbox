@@ -2,6 +2,12 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.7.3 — 2026-11-27
+
+- **看板贴到输入区上沿**（用户发截图、从对话栏画了一条往下的箭头：「移下来不行吗？」）：2.7.2 把卡片垂直居中在「聊天区顶 → 输入区顶」之间，空聊天区里它浮在半空、离下面的对话栏还差一截。现在改成底部对齐——卡片底边落在输入区上沿再减 `HEAT_BOTTOM_GAP`（16px），顶到聊天区顶时保底 12px；窗口矮时先缩宽度再贴边。`placeHeatLayer()` 的公式从 `(room - height) / 2` 换成 `room - height - 16`，其余不动。测试仍 **270**。
+- 顺带核实：宿主的空会话 hero（问候语 + 快捷按钮）与输入卡由宿主自己在聊天区里居中，插件行有没有都不改变它们的位置——所以「对话栏在底下」这一条属于宿主布局，插件只挪自己的浮层卡，不碰宿主 DOM（第 14 条）。
+- 第 14 条、验证要求、[docs/UI.md](docs/UI.md)、README、CHANGELOG 同步；版本 2.7.3。
+
 ## 2.7.2 — 2026-11-27
 
 - **看板搬进聊天区、补齐上游双栏底盘**（用户连着三条：「他的热力图是不是在中间、对话栏是不是在底下？」「为什么热力图抄一半另一半不抄？」「左边红圈放原版DSH位置。」）：①位置。上游把「活跃轨迹」画在对话区里、输入框钉在窗口底部；2.7.1 却把卡片塞进输入框上方那一行，等于把宿主的空会话 hero（问候语 + 快捷按钮）往上顶了一行。现在空白会话里 **`conversation.input.dock` 这一行整行不渲染**（`RepoBinding` 直接返回浮层），卡片经 `ReactDOM.createPortal` 挂到 `document.body` 的 `.ct-heat-layer`（`position: fixed`、`pointer-events: none`、`container-type: inline-size`、`z-index: 20`），按 `[data-conversation-region='chat']` 与 `[data-conversation-region='composer']` 的实测矩形水平居中、在输入区上方垂直居中；窗口不够高就 900 → 360px 逐级缩小，绝不盖住宿主 hero。`HeatOverlay` 监听 `resize` + `ResizeObserver`（层 / chat / composer）重算，只读几何、不写宿主节点。宿主的 hero 回到原版位置，输入卡仍在最底部。

@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.7.2'
+    const PLUGIN_VERSION = '2.7.3'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -2994,6 +2994,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
      * to the selected window, not to the whole board.
      */
     const USAGE_HEATMAP_MS = 60_000
+    /* Gap between the card and the composer block above it: the card hangs just
+       above the input area instead of floating at the top of an empty chat. */
+    const HEAT_BOTTOM_GAP = 16
     const HEAT_RANGES = [
       { id: '7d', label: 'heatRange7d' },
       { id: '30d', label: 'heatRange30d' },
@@ -4586,7 +4589,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         if (room <= 0 || height <= room - 24 || width <= 360) break
         width = Math.max(360, width - 40)
       }
-      const top = roomTop + Math.max(12, (room - height) / 2)
+      const top = roomTop + Math.max(12, room - height - HEAT_BOTTOM_GAP)
       layer.style.left = Math.round(chatRect.left + (chatRect.width - Math.max(360, Math.min(width, chatRect.width))) / 2) + 'px'
       layer.style.top = Math.round(top) + 'px'
     }
