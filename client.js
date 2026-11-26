@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.7.5'
+    const PLUGIN_VERSION = '2.7.6'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -4681,7 +4681,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
      */
     function RepoBinding(props) {
       const t = props.t
-      const sessionId = props.sessionId || (props.session && props.session.id) || ''
+      const session = props.session || null
+      const sessionId = props.sessionId || (session && (session.id || session.sessionId)) || ''
       const [repos, setRepos] = React.useState(repoCache.repos)
       // The first load has to say something while the list is on its way.
       const [bound, setBound] = React.useState('')
@@ -4711,12 +4712,20 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const sessionStats = useProjection ? useProjection('sessionStats') : undefined
       const usage = vialUsage(tokenUsage, sessionStats)
       const meter = vialMeter(pressure, spec)
+      // Blank is the host's own flag, never "the reading is missing": switching
+      // Sessions remounts this row before the new projection arrives, and a
+      // missing reading would paint the board (and push the host block down) in
+      // a conversation that has messages. `blank` is what the host uses for its
+      // welcome row, so the two surfaces agree by construction.
+      const blankSession = session && typeof session.blank === 'boolean'
+        ? session.blank === true && session.awaitingFirstTurn !== true
+        : meter == null
 
       // A blank Session has no context reading: that is exactly where the host
       // board would be, so the row draws the local token grid instead. Once the
       // first turn produces a reading the grid makes room for the vial.
       React.useEffect(function () {
-        if (meter || heat) return undefined
+        if (!blankSession || heat) return undefined
         let alive = true
         loadUsageHeatmap('all').then(function (body) {
           if (alive && body) setHeat(body)
@@ -4724,7 +4733,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           // No grid is better than an invented one; the row stays as it was.
         })
         return function () { alive = false }
-      }, [meter ? 1 : 0])
+      }, [blankSession ? 1 : 0])
 
       React.useEffect(function () {
         mounted.current = true
@@ -4925,7 +4934,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const repoSlot = h('span', { key: 'repo-slot', className: 'ct-repo-inline' },
         note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
         repoGroup)
-      if (meter == null && heat) {
+      if (blankSession && heat) {
         return h(HeatOverlay, { key: 'heat', t: t, appearance: appearance },
           h(EffortBridge, {
             key: 'effort',

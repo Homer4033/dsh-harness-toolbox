@@ -1588,6 +1588,7 @@ function renderVial(options) {
   const dock = registrations.find((item) => item.options.name === 'conversation.input.dock')
   const dockNodes = collect(dock.component({
     sessionId: config.sessionId || 'session-vial',
+    session: config.session,
     t: (key) => key,
     useProjection: useProjection,
   }))
@@ -1768,6 +1769,26 @@ test('the heatmap gives way to the vial once the session has a reading', () => {
   const pressure = { projectedTokens: 260000, contextWindow: 512000 }
   const { dockNodes } = renderVial({ heat: heatPayload, pressure })
   assert.equal(dockNodes.some((node) => node.props && 'heat' in node.props), false)
+})
+
+test('a Session with history never shows the board, even before its reading arrives', () => {
+  // Switching Sessions remounts this row before the new projection lands, so
+  // "blank" has to come from the host flag (`session.blank`) rather than from a
+  // missing reading — otherwise the card flashes in conversations that have
+  // messages (and the host block is pushed down with it).
+  const { dockNodes } = renderVial({ heat: heatPayload, session: { blank: false } })
+  assert.equal(dockNodes.some((node) => hasClass(node, 'ct-heat')), false)
+  assert.ok(dockNodes.some((node) => hasClass(node, 'ct-repo-dock')), 'the dock row renders')
+})
+
+test('a Session waiting for its first reply keeps the row, not the board', () => {
+  const { dockNodes } = renderVial({ heat: heatPayload, session: { blank: true, awaitingFirstTurn: true } })
+  assert.equal(dockNodes.some((node) => hasClass(node, 'ct-heat')), false)
+})
+
+test('the host blank flag mounts the board without any reading', () => {
+  const { dockNodes } = renderVial({ heat: heatPayload, session: { blank: true } })
+  assert.ok(dockNodes.some((node) => node.props && 'heat' in node.props), 'the card is mounted')
 })
 
 test('no grid is painted without cached usage data', () => {
