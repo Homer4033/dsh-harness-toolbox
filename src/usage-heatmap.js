@@ -22,8 +22,15 @@ import { join } from 'node:path'
 export const USAGE_CACHE_DIR = ['storages', 'session_projcache', 'sessions']
 /** Columns of the grid: half a year of weeks, like the upstream board. */
 export const HEATMAP_WEEKS = 26
+/** Range tabs on the card, mirroring the upstream "7天 / 30天 / 全部" control. */
+export const USAGE_RANGES = { '7d': 7, '30d': 30, all: 0 }
 /** A runaway cache directory must not turn one request into a scan of thousands. */
 export const MAX_USAGE_FILES = 5000
+
+/** Unknown or missing range values fall back to the full board rather than 500. */
+export function normalizeUsageRange(value) {
+  return Object.prototype.hasOwnProperty.call(USAGE_RANGES, value) ? value : 'all'
+}
 
 export function usageCacheDir(home) {
   return join(home, ...USAGE_CACHE_DIR)
@@ -68,6 +75,22 @@ export function sessionTokens(record) {
 }
 
 /** Every readable session entry in the cache; bad files are skipped, never fatal. */
+/**
+ * The model a session ran on, from its own `modelSelection` row. A session can
+ * switch models mid-flight and the cache only keeps the last choice, so the
+ * whole session's tokens are attributed to that last model — the card says so.
+ */
+export function sessionModel(record) {
+  const rows = record && record.rows
+  const value = rows && rows.modelSelection && rows.modelSelection.val
+  const last = value && value.lastUsed
+  if (!last || typeof last !== 'object') return null
+  const provider = typeof last.provider === 'string' ? last.provider : ''
+  const model = typeof last.model === 'string' ? last.model : ''
+  if (!provider && !model) return null
+  return { provider, model }
+}
+
 export function readSessionUsage(home) {
   const dir = usageCacheDir(home)
   if (!existsSync(dir)) return []
@@ -90,10 +113,13 @@ export function readSessionUsage(home) {
     const createdAt = identity && identity.createdAt
     const tokens = sessionTokens(record)
     if (!Number.isFinite(createdAt) || tokens === null) continue
+    const model = sessionModel(record)
     entries.push({
       createdAt,
       tokens,
       cwd: typeof identity.cwd === 'string' ? identity.cwd : '',
+      provider: model ? model.provider : '',
+      model: model ? model.model : '',
     })
   }
   return entries
@@ -114,8 +140,17 @@ export function levelOf(tokens, max) {
  * Grid payload for the client: `columns[w].days[d]`, oldest week first, Monday
  * at the top. Days after today are flagged so the client can leave them blank
  * rather than paint a misleading empty day.
+ *
+ * `range` mirrors the upstream card's 7天 / 30天 / 全部 tabs: the grid keeps all
+ * 26 weeks, but only days inside the window stay lit, and the intensity steps
+ * are computed against the window's own peak so a quiet week still reads.
  */
-export function buildUsageHeatmap(entries, { today = new Date(), weeks = HEATMAP_WEEKS } = {}) {
+export function buildUsageHeatmap(entries, { today = new Date(), weeks = HEATMAP_WEEKS, range = 'all' } = {}) {
+  const selected = normalizeUsageRange(range)
+  const rangeDays = USAGE_RANGES[selected]
+  const cutoff = rangeDays > 0 ? localMidnight(today) : null
+  if (cutoff) cutoff.setDate(cutoff.getDate() - (rangeDays - 1))
+
   const perDay = new Map()
   for (const entry of Array.isArray(entries) ? entries : []) {
     if (!entry || !Number.isFinite(entry.createdAt)) continue
@@ -127,8 +162,10 @@ export function buildUsageHeatmap(entries, { today = new Date(), weeks = HEATMAP
     perDay.set(key, bucket)
   }
 
-  let max = 0
-  for (const bucket of perDay.values()) max = Math.max(max, bucket.tokens)
+  const inWindow = (day) => {
+    if (!cutoff) return true
+    return day.getTime() >= cutoff.getTime()
+  }
 
   const columns = []
   const lastMonday = mondayOf(today)
@@ -145,38 +182,101 @@ export function buildUsageHeatmap(entries, { today = new Date(), weeks = HEATMAP
       const key = dayKey(day)
       const bucket = perDay.get(key)
       const tokens = bucket ? bucket.tokens : 0
+      const future = day.getTime() > today.getTime()
       days.push({
         date: key,
         tokens,
         sessions: bucket ? bucket.sessions : 0,
-        level: levelOf(tokens, max),
-        future: day.getTime() > today.getTime(),
+        level: 0,
+        future,
+        active: !future && inWindow(day),
       })
     }
     columns.push({ start: dayKey(start), days })
   }
 
+  let max = 0
   let totalTokens = 0
   let activeDays = 0
   let sessions = 0
+  let peakDay = null
   for (const column of columns) {
     for (const day of column.days) {
-      totalTokens += day.tokens
+      if (!day.active) continue
       if (day.tokens > 0) activeDays += 1
+      totalTokens += day.tokens
       sessions += day.sessions
+      if (day.tokens > max) {
+        max = day.tokens
+        peakDay = day.date
+      }
     }
   }
+  for (const column of columns) {
+    for (const day of column.days) {
+      day.level = day.active ? levelOf(day.tokens, max) : 0
+    }
+  }
+
+  // "连续活跃 N 天" under the card: walk back from the newest day that actually
+  // carries tokens (today may still be empty) while days stay active. No data
+  // means 0, never a guess.
+  let streak = 0
+  const flat = columns.flatMap((column) => column.days).filter((day) => day.active)
+  let cursor = flat.length - 1
+  while (cursor >= 0 && flat[cursor].tokens <= 0) cursor -= 1
+  for (; cursor >= 0; cursor -= 1) {
+    if (flat[cursor].tokens <= 0) break
+    streak += 1
+  }
+
+  // Right column of the card, mirroring upstream's quota pools: which models
+  // wrote those tokens. The cache keeps only each session's last model, so the
+  // whole session lands under that one — the card labels the split as such.
+  const gridStart = firstMonday.getTime()
+  const gridEnd = localMidnight(today).getTime() + 24 * 60 * 60 * 1000 - 1
+  const modelBuckets = new Map()
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    if (!entry || !Number.isFinite(entry.createdAt)) continue
+    const created = entry.createdAt
+    if (created < gridStart || created > gridEnd) continue
+    if (cutoff && created < cutoff.getTime()) continue
+    const provider = typeof entry.provider === 'string' ? entry.provider : ''
+    const model = typeof entry.model === 'string' ? entry.model : ''
+    const key = provider + '|' + model
+    const bucket = modelBuckets.get(key) || { provider, model, tokens: 0, sessions: 0 }
+    const tokens = Number(entry.tokens)
+    bucket.tokens += Number.isFinite(tokens) && tokens > 0 ? tokens : 0
+    bucket.sessions += 1
+    modelBuckets.set(key, bucket)
+  }
+  const models = [...modelBuckets.values()]
+    .filter((bucket) => bucket.tokens > 0)
+    .sort((left, right) => right.tokens - left.tokens)
+    .slice(0, 6)
+    .map((bucket) => ({
+      id: bucket.provider + '/' + bucket.model,
+      provider: bucket.provider,
+      model: bucket.model,
+      tokens: bucket.tokens,
+      sessions: bucket.sessions,
+      share: totalTokens > 0 ? bucket.tokens / totalTokens : 0,
+    }))
 
   const first = columns[0] ? columns[0].days[0].date : null
   const last = columns[columns.length - 1] ? columns[columns.length - 1].days[6].date : null
   return {
     weeks,
+    range: selected,
     firstDay: first,
     lastDay: last,
     totalTokens,
     maxDayTokens: max,
     activeDays,
     sessions,
+    streak,
+    models,
+    peakDay,
     columns,
   }
 }

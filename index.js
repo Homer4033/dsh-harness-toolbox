@@ -957,7 +957,9 @@ export function apply(ctx) {
     // Local token heatmap for a blank Session. The host board Obsidian Prism
     // draws does not exist here, and the composer slot is ours, so the grid is
     // read from the official projection cache on demand — read-only, and the
-    // dock renders it only while the session has no context reading yet.
+    // dock renders it only while the session has no context reading yet. The
+    // `range` query mirrors the card's 7天 / 30天 / 全部 tabs; anything else
+    // falls back to the full 26 weeks instead of failing the card.
     register('/compression-tiers/api/usage', async (req, res) => {
       if (guard(child, req, res)) return
       try {
@@ -965,7 +967,7 @@ export function apply(ctx) {
           sendJson(res, 405, { error: 'GET' })
           return
         }
-        sendJson(res, 200, { ok: true, ...usageHeatmap(homeDir()) })
+        sendJson(res, 200, { ok: true, ...usageHeatmap(homeDir(), { range: queryParam(req, 'range') || 'all' }) })
       } catch (error) {
         sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
       }

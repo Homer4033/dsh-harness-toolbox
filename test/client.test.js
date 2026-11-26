@@ -1520,12 +1520,20 @@ test('a five-page rail keeps appearance in the navigation', () => {
 const heatPayload = {
   ok: true,
   weeks: 26,
+  range: 'all',
   firstDay: '2026-06-01',
   lastDay: '2026-11-29',
   totalTokens: 5_120_000_000,
   maxDayTokens: 1_500_000_000,
   activeDays: 24,
   sessions: 95,
+  streak: 6,
+  peakDay: '2026-11-20',
+  models: [
+    { id: 'deepseek-account/deepseek-flash', provider: 'deepseek-account', model: 'deepseek-flash', tokens: 3_400_000_000, sessions: 60, share: 0.664 },
+    { id: 'deepseek-account/deepseek-pro', provider: 'deepseek-account', model: 'deepseek-pro', tokens: 1_200_000_000, sessions: 25, share: 0.234 },
+    { id: 'local/qwen', provider: 'local', model: 'qwen', tokens: 520_000_000, sessions: 10, share: 0.102 },
+  ],
   columns: Array.from({ length: 26 }, (unusedWeek, week) => ({
     start: '2026-06-' + String(week).padStart(2, '0'),
     days: Array.from({ length: 7 }, (unusedDay, day) => ({
@@ -1534,13 +1542,18 @@ const heatPayload = {
       sessions: 1,
       level: day === 0 ? 0 : Math.min(5, day),
       future: week === 25 && day > 3,
+      active: !(week === 25 && day > 3),
     })),
   })),
 }
 
 /** Render the heatmap element the dock mounts for a blank Session. */
 function renderHeat(options) {
-  const { dockNodes } = renderVial(options || {})
+  const config = Object.assign({}, options || {})
+  // The card costs two hooks (range, grid) and the vial is not rendered in the
+  // blank branch, so those two slots hold its state instead of the vial's.
+  config.vialStates = ['all', config.heat || null]
+  const { dockNodes } = renderVial(config)
   const heat = dockNodes.find((node) => typeof node.type === 'function'
     && node.props && 'heat' in node.props)
   assert.ok(heat, 'the dock mounts the heatmap element')
@@ -1580,11 +1593,13 @@ function renderVial(options) {
   }))
   const vial = dockNodes.find((node) => typeof node.type === 'function'
     && node.props && 'meter' in node.props && 'breakdown' in node.props)
-  assert.ok(vial, 'the dock mounts the context vial')
+  // A blank Session with a cached board renders the portalled card instead of
+  // the row, so the vial element is only there once a reading exists.
+  if (pressure) assert.ok(vial, 'the dock mounts the context vial')
   return {
-    nodes: collect(vial.type(vial.props)),
+    nodes: vial ? collect(vial.type(vial.props)) : [],
     dockNodes,
-    element: vial,
+    element: vial || null,
   }
 }
 
@@ -1677,25 +1692,76 @@ test('a blank Session draws the token heatmap card above the repository pill', (
   const cells = nodes.filter((node) => hasClass(node, 'ct-heat-cell'))
   assert.equal(cells.length, 182, '26 weeks by 7 days')
   assert.equal(cells.filter((node) => node.props['data-future'] === 'true').length, 3)
+  assert.equal(cells.filter((node) => node.props['data-active'] === 'false').length, 3)
   assert.equal(cells.filter((node) => node.props['data-level'] === '0').length, 26)
-  // The hover label carries the day, its tokens and how many sessions fed it.
-  assert.match(cells[0].props.title, /2026-06-00-0 · 1M token · 1 heatSessions/)
-  // Upstream's card: the legend rides the head row next to the title, and the
-  // number it all adds up to is the headline in the foot, not a crowded caption.
+  // The hover capsule reads the day, its tokens and how many sessions fed it.
+  assert.match(cells[0].props['data-tip'], /2026-06-00-0\|1M token · 1 heatSessions/)
+  // Upstream's head row: the title on the left, the 7天 / 30天 / 全部 tabs right.
   const head = nodes.find((node) => hasClass(node, 'ct-heat-head'))
   assert.ok(head, 'the head row renders')
   assert.match(deepText(head), /heatTitle/)
-  assert.match(deepText(head), /heatLess/)
-  assert.match(deepText(head), /heatMore/)
-  assert.equal(nodes.filter((node) => hasClass(node, 'ct-heat-swatch')).length, 5)
-  assert.equal(nodes.filter((node) => hasClass(node, 'ct-heat-legend')).length, 1)
+  const ranges = nodes.find((node) => hasClass(node, 'ct-heat-ranges'))
+  assert.ok(ranges, 'the range tabs render')
+  const buttons = nodes.filter((node) => hasClass(node, 'ct-heat-range'))
+  assert.deepEqual(buttons.map((node) => node.props['data-range']), ['7d', '30d', 'all'])
+  assert.deepEqual(buttons.map((node) => node.props['data-active']), ['false', 'false', 'true'])
+  assert.equal(buttons[2].props['aria-pressed'], 'true')
+  assert.equal(typeof buttons[0].props.onClick, 'function')
+  // The glass capsule lives inside the wrap, not in the DOM flow.
+  const wrap = nodes.find((node) => hasClass(node, 'ct-heat-wrap'))
+  assert.ok(wrap, 'the grid wrap renders')
+  const tip = nodes.find((node) => hasClass(node, 'ct-heat-tip'))
+  assert.ok(tip, 'the hover capsule renders')
+  assert.equal(tip.props['data-show'], undefined)
+  // Foot: hero number, then the small print (upstream's scale zone).
   const hero = nodes.find((node) => hasClass(node, 'ct-heat-hero'))
   assert.ok(hero, 'the headline number renders')
+  assert.match(deepText(hero), /heatLead/)
   assert.match(deepText(hero), /5\.12B/)
   assert.match(deepText(hero), /heatTokens/)
+  assert.match(deepText(hero), /heatHeroNote/)
   const sub = nodes.find((node) => hasClass(node, 'ct-heat-sub'))
   assert.match(deepText(sub), /heatSessions/)
   assert.match(deepText(sub), /heatDays/)
+  assert.match(deepText(sub), /heatPeak/)
+  // 2.7.3 copies the right half too: the pools column with one row per model.
+  const chassis = nodes.find((node) => hasClass(node, 'ct-heat-chassis'))
+  assert.ok(chassis, 'the two-column chassis renders')
+  const right = nodes.find((node) => hasClass(node, 'ct-heat-right'))
+  assert.ok(right, 'the right column renders')
+  assert.match(deepText(right), /heatModels/)
+  assert.match(deepText(right), /heatModelNote/)
+  const rows = nodes.filter((node) => hasClass(node, 'ct-heat-pool'))
+  assert.equal(rows.length, 3, 'one pool row per model')
+  assert.match(deepText(rows[0]), /deepseek-flash/)
+  assert.match(deepText(rows[0]), /66%/)
+  const fills = nodes.filter((node) => hasClass(node, 'ct-heat-track-fill'))
+  assert.equal(fills.length, 3)
+  assert.equal(fills[0].props.style.width, '66%')
+  assert.match(String(fills[0].props.style['--ct-heat-pool']), /chart-1/)
+  const rightFoot = nodes.find((node) => hasClass(node, 'ct-heat-right-foot'))
+  assert.match(deepText(rightFoot), /heatStreak/)
+  assert.match(deepText(rightFoot), /heatWindow/)
+  // The telemetry bar under the chassis holds the dock slot we hand in.
+  const bar = nodes.find((node) => hasClass(node, 'ct-heat-bar'))
+  assert.ok(bar, 'the telemetry bar renders')
+  // 2.7.2 dropped the swatch legend: upstream puts the range tabs in that slot.
+  assert.equal(nodes.some((node) => hasClass(node, 'ct-heat-swatch')), false)
+})
+
+test('the heat card leaves the dock row for a fixed layer over the chat area', () => {
+  const { module } = loadClient()
+  const plugin = module.factory(() => fakeReact(null))
+  plugin.apply(sectionContext([]))
+  const { overlay } = plugin.__test.heatmap
+  assert.equal(typeof overlay, 'function')
+  // Node has no document, so the component returns the layer element unwrapped
+  // (in the browser it goes through ReactDOM.createPortal into document.body).
+  const layer = overlay({ children: 'card' })
+  assert.ok(layer, 'the layer renders')
+  assert.match(layer.props.className, /ct-heat-layer/)
+  assert.match(layer.props.className, /ct-skin/)
+  assert.deepEqual(layer.props.children, ['card'])
 })
 
 test('the heatmap gives way to the vial once the session has a reading', () => {
@@ -1706,9 +1772,10 @@ test('the heatmap gives way to the vial once the session has a reading', () => {
 
 test('no grid is painted without cached usage data', () => {
   const { dockNodes } = renderVial({ heat: null })
-  const heat = dockNodes.find((node) => node.props && 'heat' in node.props)
-  assert.ok(heat, 'the slot stays so a later read can fill it')
-  assert.equal(collect(heat.type(heat.props)).some((node) => hasClass(node, 'ct-heat')), false)
+  // Without a cached board there is nothing to portal; the row keeps its pill.
+  assert.ok(dockNodes.some((node) => hasClass(node, 'ct-repo-dock')), 'the dock row stays')
+  assert.equal(dockNodes.some((node) => hasClass(node, 'ct-heat')), false)
+  assert.equal(dockNodes.some((node) => node.props && 'heat' in node.props), false)
 })
 
 test('the dock is a column so the grid sits above the pill, never beside it', () => {
@@ -1719,23 +1786,38 @@ test('the dock is a column so the grid sits above the pill, never beside it', ()
   // 2.7.0: the row stacks a heatmap above the tools line; both keep the right edge.
   assert.match(css, /\.ct-repo-dock \{[^}]*flex-direction: column;/)
   assert.match(css, /\.ct-repo-dock \{[^}]*justify-content: flex-end;/)
-  // 2.7.1: the grid fills a card (upstream Studio's 活跃轨迹), columns share the
-  // width, cells stay square — no fixed 10px squares hugging the right edge.
+  // 2.7.3: the full upstream chassis — 62fr heat column, 38fr pools column,
+  // hairline between them, scale zone under the grid, telemetry bar at the bottom.
+  assert.match(css, /\.ct-heat-chassis \{[^}]*grid-template-columns: 62fr 38fr;/)
+  assert.match(css, /\.ct-heat-zone \{[^}]*padding: 15px 18px 14px;/)
+  assert.match(css, /\.ct-heat-zone \{[^}]*gap: 11px;/)
+  assert.match(css, /\.ct-heat-right \{[^}]*padding: 15px 18px;/)
+  assert.match(css, /\.ct-heat-left \{[^}]*border-right: 1px solid var\(--dsw-alias-border-l1\);/)
+  assert.match(css, /\.ct-heat-pools \{[^}]*gap: 13px;/)
+  assert.match(css, /\.ct-heat-track \{[^}]*height: 5px;/)
+  assert.match(css, /\.ct-heat-track-fill \{[^}]*background-image: linear-gradient\(180deg, rgba\(255, 255, 255, 0\.24\)/)
+  assert.match(css, /\.ct-heat-right-foot \{[^}]*border-top: 1px solid var\(--dsw-alias-border-l1\);/)
+  assert.match(css, /\.ct-heat-bar \{[^}]*justify-content: flex-end;/)
+  assert.match(css, /@container \(max-width: 660px\) \{[\s\S]*?\.ct-heat-chassis \{\n    grid-template-columns: minmax\(0, 1fr\);/)
+  assert.match(css, /\.ct-heat-layer \{[^}]*container-type: inline-size;/)
   assert.match(css, /\.ct-heat-grid \{[^}]*grid-template-columns: repeat\(26, minmax\(0, 1fr\)\);/)
   assert.match(css, /\.ct-heat-grid \{[^}]*grid-auto-flow: column;/)
-  assert.match(css, /\.ct-heat \{[\s\S]*?width: min\(100%, 560px\);/)
-  assert.match(css, /\.ct-heat \{[\s\S]*?margin-left: auto;/)
-  assert.match(css, /\.ct-heat \{[\s\S]*?margin-right: 0;/)
   assert.match(css, /\.ct-heat \{[\s\S]*?background: var\(--dsw-specific-menu\);/)
   assert.match(css, /\.ct-heat-cell \{[^}]*aspect-ratio: 1;/)
+  assert.match(css, /\.ct-heat-cell \{[^}]*border-radius: 2px;/)
+  assert.match(css, /\.ct-heat-cell:hover \{[^}]*transform: scale\(1\.3\);/)
   assert.match(css, /\.ct-heat-head \{[^}]*justify-content: space-between;/)
-  assert.match(css, /\.ct-heat-foot \{[^}]*border-top: 1px solid var\(--dsw-alias-border-l2\);/)
-  assert.match(css, /\.ct-heat-hero-num \{[^}]*font-size: 20px;/)
-  assert.equal(/\.ct-heat-range/.test(css), false, 'the summary moved out of the head row')
+  assert.match(css, /\.ct-heat-ranges \{[^}]*border-radius: 999px;/)
+  assert.match(css, /\.ct-heat-range\[data-active='true'\]/)
+  assert.match(css, /\.ct-heat-tip \{[^}]*position: absolute;/)
+  assert.match(css, /\.ct-heat-tip\[data-show='true'\]/)
+  assert.match(css, /\.ct-heat-foot \{[^}]*padding: 13px 18px 15px;/)
+  assert.match(css, /\.ct-heat-hero \{[^}]*font-size: clamp\(20px, 2vw, 25px\);/)
+  assert.match(css, /\.ct-heat-sub \{[^}]*font-family: ui-monospace/)
+  assert.equal(/\.ct-heat-swatch|\.ct-heat-legend|\.ct-heat-meta/.test(css), false, 'the old legend and single meta line are gone')
   // Five steps on the accent token, plus a subtler empty and future square.
   for (const level of [1, 2, 3, 4, 5]) {
     assert.match(css, new RegExp(`\\.ct-heat-cell\\[data-level='${level}'\\]`))
-    assert.match(css, new RegExp(`\\.ct-heat-swatch\\[data-level='${level}'\\]`))
   }
   assert.match(css, /\.ct-heat-cell\[data-future='true'\]/)
 })

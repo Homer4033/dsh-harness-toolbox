@@ -2,6 +2,15 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.7.2 — 2026-11-27
+
+- **看板搬进聊天区、补齐上游双栏底盘**（用户连着三条：「他的热力图是不是在中间、对话栏是不是在底下？」「为什么热力图抄一半另一半不抄？」「左边红圈放原版DSH位置。」）：①位置。上游把「活跃轨迹」画在对话区里、输入框钉在窗口底部；2.7.1 却把卡片塞进输入框上方那一行，等于把宿主的空会话 hero（问候语 + 快捷按钮）往上顶了一行。现在空白会话里 **`conversation.input.dock` 这一行整行不渲染**（`RepoBinding` 直接返回浮层），卡片经 `ReactDOM.createPortal` 挂到 `document.body` 的 `.ct-heat-layer`（`position: fixed`、`pointer-events: none`、`container-type: inline-size`、`z-index: 20`），按 `[data-conversation-region='chat']` 与 `[data-conversation-region='composer']` 的实测矩形水平居中、在输入区上方垂直居中；窗口不够高就 900 → 360px 逐级缩小，绝不盖住宿主 hero。`HeatOverlay` 监听 `resize` + `ResizeObserver`（层 / chat / composer）重算，只读几何、不写宿主节点。宿主的 hero 回到原版位置，输入卡仍在最底部。
+- ②另一半。补上上游的右栏：`.ct-heat-chassis` 是 `62fr 38fr` 双栏 + 1px 分隔线（窄于 660px 堆叠），右栏「模型用量」把每个会话按 `modelSelection.val.lastUsed` 归到模型桶（`readSessionUsage` 新增 `sessionModel()`；窗口内过滤、`tokens > 0` 才上榜、份额按窗口总量算），每行一条 5px 轨道 + 百分比 + 会话数，底部 10px mono 写「连续活跃 N 天 · 窗口 起 – 止」；份额四舍五入到 0 但确实有量时写 `<1%`。
+- ③左栏照上游补上标题行右侧的 7天 / 30天 / 全部 分段控件（切换重新取数，强度按窗口内峰值重算、总量 / 活跃日 / 峰值日 / 模型分桶都跟着窗口走）、发丝线下的大号总量与 mono 小字、网格悬停 8px 处的玻璃胶囊；仓库胶囊搬进卡片底部 `.ct-heat-bar`，空会话不再有独立 dock 行。
+- `GET /compression-tiers/api/usage` 新增 `?range=7d|30d|all`（未知值回落 `all`），`buildUsageHeatmap()` 多了 `active` / `range` / `streak` / `peakDay` / `models`，客户端按窗口各缓存 60 秒；字典补 `heatModels` / `heatModelNote` / `heatUnknownModel` / `heatNoModels`，删掉 2.7.1 的 `heatRange` 与图例键。
+- 测试 269 → **270**：`test/usage-heatmap.test.js` 新增三窗口用例（窗口外 `active=false` 且归零、强度按窗口峰值重算、总量 / 会话数 / 活跃日 / 峰值日跟着窗口走、未知窗口回落 `all`、`streak` 跳过今天这类空尾）；`test/client.test.js` 改为断言双栏底盘（`ct-heat-chassis` / `ct-heat-left` / `ct-heat-right`）、模型行与 5px 轨道、分段控件三个按钮、浮层（`ct-heat-layer` + `ct-skin`）与卡底栏。
+- 第 14 条、事实来源、验证要求、[docs/UI.md](docs/UI.md)（「本机用量热力图」整节重写成浮层 + 双栏，类名表、禁止项、检查清单同步）、README（亮点、§5、升级说明）、AGENTS 变更记录同步；2.5.1 / 2.6.3 / 2.6.4 的变更记录移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.6.4）；版本 2.7.2。**空白会话的最终渲染只在 headless 注入里验证（见 `temp/heatmap-preview.png`），未在装好 2.7.2 的窗口里复验**。
+
 ## 2.7.1 — 2026-11-27
 
 - **用量热力图按上游 Studio 的排版重做**（用户：「参考obsidian-prism的排版啊，你这样放乱放是吗？」）：2.7.0 把它做成 `width: fit-content` 的裸块——标题与摘要挤在同一行小字里、182 个写死 10px 的方格贴着右缘，读起来像一团随手放上去的控件。上游 `ag-v2-bento-heat-zone` 是一张卡：标题行（左「活跃轨迹」、右时段切换位）→ 满宽网格（`repeat(26, minmax(0,1fr))`，列宽均分、`aspect-ratio: 1` 的方格）→ 发丝线 → 大号总量 + 一行小字（`相当于写下 14.2 本书` + `累计 3.56M Tokens · 1,284 条消息`）。

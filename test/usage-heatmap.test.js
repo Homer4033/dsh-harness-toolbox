@@ -139,3 +139,42 @@ test('days are bucketed in local time, not UTC', () => {
   const day = flat.find((cell) => cell.date === '2026-11-20')
   assert.equal(day.tokens, 42)
 })
+
+test('the 7天 / 30天 / 全部 windows damp the grid and rescale the steps', () => {
+  const entries = [
+    { createdAt: LOCAL_NOON(2026, 10, 1), tokens: 9_000_000 },
+    { createdAt: LOCAL_NOON(2026, 11, 20), tokens: 1_000_000 },
+    { createdAt: LOCAL_NOON(2026, 11, 24), tokens: 5_000_000 },
+    { createdAt: LOCAL_NOON(2026, 11, 25), tokens: 2_000_000 },
+  ]
+  const today = new Date(2026, 10, 26, 12)
+  const all = buildUsageHeatmap(entries, { today })
+  const month = buildUsageHeatmap(entries, { today, range: '30d' })
+  const week = buildUsageHeatmap(entries, { today, range: '7d' })
+  const dayAt = (payload, date) => payload.columns.flatMap((column) => column.days).find((day) => day.date === date)
+
+  // 全部 keeps all four days lit; 30天 drops the October day; 7天 keeps only the
+  // last seven days (20th onward), so the 24th/25th still count.
+  assert.equal(all.activeDays, 4)
+  assert.equal(dayAt(all, '2026-10-01').active, true)
+  assert.equal(dayAt(month, '2026-10-01').active, false)
+  assert.equal(dayAt(month, '2026-10-01').level, 0, 'out-of-window days go dark')
+  assert.equal(month.totalTokens, 8_000_000)
+  assert.equal(month.sessions, 3)
+  assert.equal(month.maxDayTokens, 5_000_000)
+  assert.equal(week.range, '7d')
+  assert.equal(week.totalTokens, 8_000_000, 'the 20th is seven days before the 26th')
+  assert.equal(week.activeDays, 3)
+
+  // Steps are scaled to the window's own peak: the 5M day is the darkest of its
+  // window even though the whole board has a 9M day outside it.
+  assert.equal(dayAt(month, '2026-11-24').level, 5)
+  assert.equal(dayAt(all, '2026-10-01').level, 5)
+  assert.ok(dayAt(month, '2026-11-25').level < 5)
+
+  // The headline numbers follow the window, and an unknown range is the board.
+  assert.equal(month.peakDay, '2026-11-24')
+  assert.equal(all.peakDay, '2026-10-01')
+  assert.equal(buildUsageHeatmap(entries, { today, range: 'bogus' }).range, 'all')
+  assert.equal(all.streak, 2, 'the 24th and 25th are active; today is still empty')
+})

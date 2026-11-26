@@ -12,7 +12,7 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.7.1-0f172a?style=flat-square" alt="Version 2.7.1" />
+  <img src="https://img.shields.io/badge/Version-2.7.2-0f172a?style=flat-square" alt="Version 2.7.2" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Tests-268%20passing-16a34a?style=flat-square" alt="268 tests passing" />
@@ -52,7 +52,7 @@
 
 - **五档压缩，点一下写进去**：`gentle` / `light` / `standard` / `aggressive` / `max` 五档，选中即同步进所有已挂载的预设压缩引擎并留档，不重启；每档都保留官方自动压力压缩。
 - **看见的上下文与摸得到的推理档**：输入框上方的小试管实时显示占用——液面就是 `已用 / 窗口`，刻度线是对应的压缩阈值；点开能读到已用、窗口、压缩阈值、保留原文、距阈值，以及系统 / 工具 / 对话三段构成。官方模型菜单里则多一条推理滑块，直接改当前会话的推理等级。
-- **空白会话上方是一条活跃轨迹**：第一条消息之前拿不到上下文读数，那一行就画本机用量卡片——照上游 Studio 首页那块「活跃轨迹」排：标题行（左标题、右「少 → 多」图例）、26 周 × 7 天的满宽网格（一格一个本地日，颜色按当日 token 深浅分五档）、下面一条发丝线和大号总量。悬停能看到日期、token 与会话数。数据来自宿主自己写的会话缓存（只读、不复制），发第一条消息后整块让位给试管。
+- **空白会话中间是一块本机用量看板**：第一条消息之前拿不到上下文读数，聊天区中间就浮起一张卡——照上游 Studio 的 bento 双栏排：左栏「活跃轨迹」（标题行 + 26 周 × 7 天满宽网格 + 发丝线 + 大号总量），右栏「模型用量」（每个模型一条 5px 轨道、百分比与会话数），卡底放仓库胶囊；输入框仍钉在窗口最底部。数据来自宿主自己写的会话缓存（只读、不复制），发第一条消息后整块让位给试管。
 - **本地模型单独一个文件夹**：「模型和组件」页能一键下载 **FLUX.2 [klein] 4B** 的蒸馏 4 步版本（`black-forest-labs/FLUX.2-klein-4B`，Apache-2.0、免登录、18 个 diffusers 文件、共约 15.98 GB），装在下载根下单独的 `models/` 目录里，和六套组件分开放；逐文件断点续传，只有完整文件才落盘。
 - **两套配色，换的是整个界面，跟着 DSH 走**：深空黑曜偏靛蓝，白昼冷晶偏冰青；每套都带亮、暗两份 token，DSH 切深色就用深色那份、切浅色就用浅色那份，皮肤不会把宿主的外观偏好掰到另一边。另有默认的「跟随宿主」——不覆盖任何颜色，照官方主题走。选中一套时，侧栏、消息气泡、输入框、菜单、卡片与代码块一起换，不只是插件自己的面板。
 - **主题美术也一起搬**：光换 token 宿主表面还是平的，所以还会画一层美术——对话区底部一条静态底光、16px 圆角的烟熏用户气泡、引用块左侧 accent 竖条、84% 宽的发丝分隔线、6px 细滚动条、输入卡顶部光泽；「跟随宿主」下用 DSH 自己的颜色画（不是关掉这层），外观页还能单独关掉美术。
@@ -135,7 +135,7 @@
 
 下载端点默认**先走 ModelScope，再走镜像 `hf-mirror.com`，最后回落 `huggingface.co`**：`huggingface.co` 在国内多数网络不可达（第一版只认它，用户看到的就是 `fetch failed (gave up after 4 attempts)`）；`hf-mirror.com` 连得上，但大文件被转到 `cas-bridge.xethub.hf.co`，实测只有约 150 KB/s（15.98 GB 要一天）；ModelScope 上有一份官方 BFL 镜像仓库，18 个文件与上游**同路径同字节**（逐个核对过），同一台机器实测大文件约 33–38 MiB/s（整包 14.88 GiB 用时 456 秒）。每个文件都按这个顺序尝试，`.part` 在各端点之间共享（字节相同），所以换了 host 也还是续传、不会从零开始。要换别的镜像就设环境变量 `DSH_HF_ENDPOINT`（带 `https://`，按上游形状 `/resolve/main/` 解析，排在首选）。所有端点都失败时，面板那一行的错误会写清**每个 host 与原因**（例如 `modelscope.cn: fetch failed (ENOTFOUND); hf-mirror.com: …`），不再只有一句 `fetch failed`。
 
-输入框上方那一行仍然只有插件在 `conversation.input.dock` 槽里加的控件：**空白会话先画本机用量卡片**（2.7.0 起），下面照旧是试管触发器、状态小字与当前会话的在线仓库胶囊（像素伙伴在 2.5.0 整块删除了）。行宽照宿主自己的 dock 行收窄（卡宽再每边内缩 `--dsh-composer-dock-inset`），胶囊右缘与智能体任务栏的右缘对齐；试管触发器的底色也是宿主 dock 行那一层表面（`--dsw-specific-menu`）。用量卡与工具区在行内是上下两段（`flex-direction: column`），所以空白会话里那一行会高出一截、把输入卡往下推——这正是上游 Studio 首页那块「活跃轨迹」在 Obsidian Prism 里的位置。
+输入框上方那一行仍然只有插件在 `conversation.input.dock` 槽里加的控件：试管触发器、状态小字与当前会话的在线仓库胶囊（像素伙伴在 2.5.0 整块删除了）。行宽照宿主自己的 dock 行收窄（卡宽再每边内缩 `--dsh-composer-dock-inset`），胶囊右缘与智能体任务栏的右缘对齐；试管触发器的底色也是宿主 dock 行那一层表面（`--dsw-specific-menu`）。**空白会话里这一行整行不渲染**：用量看板是 portal 到 body 的固定浮层，宿主的空会话 hero 留在原版位置，输入卡仍在最底部——上游就是「看板在中间、对话栏在底下」。
 
 ### 6. 推理滑块
 
@@ -171,7 +171,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.7.1`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.7.2`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -201,6 +201,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **2.6.5 → 2.6.6**：没有读数时不再画那支灰色「—」试管。新会话在第一条消息之前拿不到官方 `contextPressure`，宿主那时也不画自己的上下文环，所以空白会话里原来只剩一个点不动的灰胶囊；现在整支试管不出现，发出第一条消息就照常出现（读数消失也会跟着消失）。dock 行与仓库胶囊不变。
 - **2.6.6 → 2.7.0**：空白会话的 dock 行多一张本机用量热力图（26 周 × 7 天、五档色阶），画在试管触发器上面，有读数后让位给试管；`.ct-repo-dock` 因此改成列布局，行宽与胶囊右缘不变。只读宿主的会话投影缓存，不写、不复制，所以设置与已下好的文件都不动；升级后在新会话里就能看到，不需要额外操作。
 - **2.7.0 → 2.7.1**：同一张热力图按上游 Studio 首页的排版重做——不再是一团贴着右缘的小方格，而是一张卡：标题行（左「活跃轨迹」、右「少 → 多」图例）、列宽均分卡面的 26 × 7 网格、发丝线、大号总量与一行小字摘要，卡面与仓库胶囊共用右缘。只动外观，数据与接口不变；2.7.0 的 npm 版本未获批准，可以直接跳到 2.7.1。
+- **2.7.1 → 2.7.2**：看板搬进聊天区并补全上游双栏——空白会话不再占用输入框上方那一行（宿主的问候语回到原版位置），卡片是居中浮层；右栏新增「模型用量」（每个会话按最后使用的模型归桶，5px 轨道），标题行右侧改成 7天 / 30天 / 全部 分段控件，仓库胶囊移到卡片底部。数据仍只读会话缓存，接口多了 `?range=` 参数；设置与已下好的文件都不动。2.7.0 / 2.7.1 的 npm 版本未获批准，可直接跳到 2.7.2。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
 - **卸载**：插件页移除即可，托管组件目录留在原处，删掉目录即彻底清理。
 
@@ -231,16 +232,19 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 槽里按 `order` 升序排队（上小下大），原则是**跟原版输入卡亲密性强的 UI 优先靠近输入卡，插件次之**：智能体用 `todo_write` 起的「任务」清单条（`todo`，order 0，条目 1/2/3/4 排开）、工作树进度（5）、目标条（10）、队列（20）这些宿主自己的行都贴着输入卡，本行取 `order: -1000` 排在它们全部之前。所以上到下固定是 **仓库栏和试管 → 任务栏 → 输入卡**：原生任务条在输入卡正上方，仓库行在任务条上面；没有任务时就是 **仓库栏和试管 → 输入卡**，仓库行直接贴着输入卡。
 
-### 空白会话的用量热力图
+### 空白会话的用量看板
 
-没发过消息的会话拿不到 `contextPressure`，试管按 2.6.6 的规则整支不出现；这一行于是画本机的用量卡片，照搬上游 Studio 首页那块「活跃轨迹」的排版——**标题行 → 满宽网格 → 发丝线 → 大号总量 + 一行小字**，卡面贴右缘、与下面的仓库胶囊落在同一条线上：
+没发过消息的会话拿不到 `contextPressure`，试管按 2.6.6 的规则整支不出现；聊天区中间于是浮起本机用量看板，照搬上游 Studio 首页那张 bento 卡的完整排版：
 
-- **标题行**：左边「活跃轨迹」，右边「少 → 多」五档图例（正是上游标题行右侧那个时段切换位）；
-- **网格**：26 周 × 7 天共 182 格，列优先——一列一周、从上到下周一…周日，周一对齐，今天之后的格子留空；列宽均分卡面、格子是随宽度缩放的方格，不是写死的 10px；
-- **五档强度**：一格一个**本地日**，颜色按当日 token 占窗口内峰值的对数分五档（`color-mix` 的 accent 18% → 92%），没有用量的日子是 6% 的淡底，悬停 `scale(1.25)` 并给「日期 · token · 会话数」；
-- **卡脚**：发丝线下面是大号总量（`5.13B` + `Tokens`，20px 600），再一行 11px 小字写「近 26 周 · 95 个会话 · 23 个活跃日」；
+- **位置**：卡片 portal 到 body（`.ct-heat-layer`，`position: fixed`），按聊天区与输入区的实测矩形居中——水平居中于聊天区、垂直居中在输入区上方；窗口不够高就 900 → 360px 逐级缩小，绝不盖住宿主的问候语。**输入框上方那一行在空白会话里整行不渲染**，宿主的 hero 因此回到原版位置，输入卡仍在最底部；
+- **双栏**：左栏「活跃轨迹」（标题行 → 满宽网格 → 发丝线 → 大号总量 + 小字摘要），右栏「模型用量」（每个模型一条 5px 轨道 + 百分比 + 会话数）；窄于 660px 两栏堆叠；
+- **标题行**：左边「活跃轨迹」，右边 7天 / 30天 / 全部 分段控件——切换会重新取数，强度按窗口内峰值重算，右栏与卡脚跟着窗口走；
+- **网格**：26 周 × 7 天共 182 格，列优先——一列一周、从上到下周一…周日，周一对齐，今天之后与窗口外的格子留空；列宽均分卡面、格子随宽度缩放成方格，不是写死的 10px；
+- **五档强度**：一格一个**本地日**，颜色按当日 token 占窗口内峰值的对数分五档（`color-mix` 的 accent 18% → 92%），没有用量的日子是 6% 的淡底；悬停 `scale(1.3)` 并浮出玻璃胶囊，两行写「日期」与「token · 会话数」；
+- **模型用量**：每个会话按它最后使用的模型归桶（缓存只有 `modelSelection.val.lastUsed`，卡片自己也写「按会话归属」），按份额排序最多六行；份额四舍五入到 0 但确实有量时写 `<1%`；
+- **卡底**：发丝线下面是「连续活跃 N 天 · 窗口 起 – 止」（10px mono），再一条 `.ct-heat-bar` 放仓库胶囊——空会话的仓库入口跟着看板走；
 - **数据只读、不复制**：读的是宿主自己写的 `<DSH home>/storages/session_projcache/sessions/*.json`，一条会话的 token = `uncachedInputTokens + outputTokens + cacheReadTokens + cacheWriteTokens`，按 `identity.createdAt` 的本地日归集（缓存没有逐轮时间戳，跨夜会话记在创建日）；坏 JSON 与没有 usage 行的会话跳过，目录不存在就是空网格，**不编 0 也不摆假数据**；
-- **接口**：`GET /compression-tiers/api/usage` 出整张网格，客户端缓存 60 秒，取不到时保留上一次的结果。
+- **接口**：`GET /compression-tiers/api/usage?range=7d|30d|all` 按窗口出网格与汇总，客户端按窗口各缓存 60 秒，取不到时保留上一次的结果。
 
 这台机器上的真实读数（2026-11-26 快照）是 **95 个会话 / 23 个活跃日 / 5,133,407,254 token**，窗口 2026-06-01 – 2026-11-29，单日峰值 2026-10-22 的 1.50B。
 
@@ -306,10 +310,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.7.1`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.7.2`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.7.1` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.7.2` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。没有任何读数时（新会话的第一条消息之前）整支试管不渲染——宿主自己那时也不画 `ContextMeter`，所以不摆一个点不动的灰「—」；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。

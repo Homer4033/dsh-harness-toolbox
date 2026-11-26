@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.7.1'
+    const PLUGIN_VERSION = '2.7.2'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -539,12 +539,22 @@ window.__ModuleLoader__.load({
         vialTools: '工具',
         vialMessages: '对话',
         heatTitle: '活跃轨迹',
-        heatRange: '近 {weeks} 周',
         heatDays: '个活跃日',
         heatSessions: '个会话',
         heatTokens: 'Tokens',
-        heatLess: '少',
-        heatMore: '多',
+        heatLead: '累计',
+        heatHeroNote: '（近 {weeks} 周）',
+        heatPeak: '单日峰值',
+        heatStreak: '连续活跃 {days} 天',
+        heatWindow: '窗口 {first} – {last}',
+        heatRangeGroup: '统计窗口',
+        heatRange7d: '7天',
+        heatRange30d: '30天',
+        heatRangeAll: '全部',
+        heatModels: '模型用量',
+        heatModelNote: '按会话归属',
+        heatUnknownModel: '未记录模型',
+        heatNoModels: '这个窗口里还没有带模型的会话',
         vialUsage: '本会话用量',
         vialUsageCache: '缓存命中',
         vialUsageSpeed: '生成速度',
@@ -705,12 +715,22 @@ window.__ModuleLoader__.load({
         vialTools: 'Tools',
         vialMessages: 'Conversation',
         heatTitle: 'Active trail',
-        heatRange: 'Last {weeks} weeks',
         heatDays: 'active days',
         heatSessions: 'sessions',
         heatTokens: 'Tokens',
-        heatLess: 'Less',
-        heatMore: 'More',
+        heatLead: 'Total',
+        heatHeroNote: ' (last {weeks} weeks)',
+        heatPeak: 'peak day',
+        heatStreak: '{days}-day streak',
+        heatWindow: 'window {first} – {last}',
+        heatRangeGroup: 'Time range',
+        heatRange7d: '7d',
+        heatRange30d: '30d',
+        heatRangeAll: 'All',
+        heatModels: 'Model usage',
+        heatModelNote: 'by session',
+        heatUnknownModel: 'Unknown model',
+        heatNoModels: 'No session with a recorded model in this window',
         vialUsage: 'This session',
         vialUsageCache: 'Cache hit',
         vialUsageSpeed: 'Decode speed',
@@ -1442,24 +1462,56 @@ window.__ModuleLoader__.load({
   min-width: 0;
   padding: 0;
 }
+.ct-heat-layer {
+  position: fixed;
+  z-index: 20;
+  /* The card itself is interactive (range tabs, hover capsule); the layer is
+     only a placement box, so it must not swallow clicks over the chat area. */
+  pointer-events: none;
+  /* Own container: the two-column chassis stacks below 660px. */
+  container-type: inline-size;
+}
+.ct-heat-layer > .ct-heat {
+  width: 100%;
+  pointer-events: auto;
+}
 .ct-heat {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  /* Upstream Studio draws "活跃轨迹" as a card: a head row, a 26 × 7 grid that
-     stretches across the card, a hairline, then the headline number. Keeping the
-     same shape means the grid owns the whole width instead of hugging its right
-     edge, which is what made the first cut read as a stray blob. */
-  width: min(100%, 560px);
-  /* The whole block rides the same right edge as the repository pill below it,
-     so the row still ends on the host task bar's right edge (2.6.5). */
-  margin-left: auto;
-  margin-right: 0;
-  padding: 14px 16px 13px;
+  /* Upstream ag-v2-bento-heat-zone metrics kept 1:1: 15 / 18 / 14 padding and
+     an 11px rhythm between head, grid and the scale zone. The chassis owns the
+     padding now that the card has the same two columns as upstream. */
+  width: 100%;
   border-radius: 14px;
   border: 1px solid var(--dsw-alias-border-l2);
   background: var(--dsw-specific-menu);
   box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+}
+/* Upstream ag-v2-chassis-grid: heat zone 62fr + pools 38fr, one hairline apart. */
+.ct-heat-chassis {
+  display: grid;
+  grid-template-columns: 62fr 38fr;
+}
+.ct-heat-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--dsw-alias-border-l1);
+}
+.ct-heat-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 15px 18px 14px;
+  min-width: 0;
+}
+.ct-heat-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px 18px;
   min-width: 0;
 }
 .ct-heat-head {
@@ -1475,15 +1527,54 @@ window.__ModuleLoader__.load({
   letter-spacing: 0;
   color: var(--dsw-alias-label-secondary);
 }
-.ct-heat-legend {
+/* Upstream ag-v2-seg-ctrl: 2px padded pill, 11px labels, active surface-2. */
+.ct-heat-ranges {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
+}
+.ct-heat-range {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  flex: none;
-  font-size: 10px;
+  justify-content: center;
+  padding: 2.5px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
   color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, transform 140ms ease;
 }
-/* 26 周 × 7 天：列优先，列宽均分卡片，格子按方格等比缩放。 */
+.ct-heat-range:hover {
+  color: var(--dsw-alias-label-primary);
+}
+.ct-heat-range:active {
+  transform: scale(0.96);
+}
+.ct-heat-range[data-active='true'] {
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 0.5px var(--dsw-alias-border-l1), 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.ct-heat-range:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+/* Upstream ag-v2-heat-wrap + ag-v2-heat-grid: 26 equal columns, 7 auto rows,
+   column-major, 3px gaps, square cells. */
+.ct-heat-wrap {
+  position: relative;
+}
 .ct-heat-grid {
   display: grid;
   grid-template-columns: repeat(26, minmax(0, 1fr));
@@ -1494,17 +1585,24 @@ window.__ModuleLoader__.load({
 .ct-heat-cell {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 3px;
+  border-radius: 2px;
   background: color-mix(in srgb, var(--dsw-alias-label-secondary) 6%, transparent);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
-.ct-heat-cell:hover {
-  z-index: 1;
-  transform: scale(1.25);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 55%, transparent);
+.ct-heat-cell[data-level='3'],
+.ct-heat-cell[data-level='4'],
+.ct-heat-cell[data-level='5'] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
-.ct-heat-cell[data-future='true'] {
+.ct-heat-cell:hover {
+  z-index: 2;
+  transform: scale(1.3);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 55%, transparent), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.ct-heat-cell[data-future='true'],
+.ct-heat-cell[data-active='false'] {
   background: color-mix(in srgb, var(--dsw-alias-label-secondary) 3%, transparent);
+  box-shadow: none;
 }
 .ct-heat-cell[data-level='1'] {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);
@@ -1521,58 +1619,199 @@ window.__ModuleLoader__.load({
 .ct-heat-cell[data-level='5'] {
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 92%, transparent);
 }
-.ct-heat-swatch {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--dsw-alias-label-secondary) 6%, transparent);
+/* Upstream ag-v2-heat-tip: zero-delay glass capsule, two lines, centered over
+   the hovered square and lifted by 8px. */
+.ct-heat-tip {
+  position: absolute;
+  left: var(--tip-x, 0);
+  top: var(--tip-y, 0);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px 6px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--dsw-alias-border-l1), 0 6px 18px -4px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, calc(-100% - 6px)) scale(0.96);
+  transform-origin: 50% 100%;
+  transition: opacity 120ms ease, transform 140ms ease;
 }
-.ct-heat-swatch[data-level='1'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);
+.ct-heat-tip[data-show='true'] {
+  opacity: 1;
+  transform: translate(-50%, calc(-100% - 8px)) scale(1);
 }
-.ct-heat-swatch[data-level='2'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 34%, transparent);
+.ct-heat-tip strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
 }
-.ct-heat-swatch[data-level='3'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 52%, transparent);
+.ct-heat-tip span {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--dsw-alias-label-tertiary);
 }
-.ct-heat-swatch[data-level='4'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 72%, transparent);
-}
-.ct-heat-swatch[data-level='5'] {
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 92%, transparent);
-}
+/* Upstream ag-v2-bento-scale-zone + ag-v2-hero-metric + ag-v2-scale-*. */
 .ct-heat-foot {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding-top: 10px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
+  gap: 5px;
+  padding: 13px 18px 15px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
 }
 .ct-heat-hero {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 0;
   min-width: 0;
-}
-.ct-heat-hero-num {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.2;
+  margin: 0;
+  font-size: clamp(20px, 2vw, 25px);
+  font-weight: 500;
+  line-height: 1.25;
   letter-spacing: -0.02em;
   color: var(--dsw-alias-label-primary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.ct-heat-hero-num {
+  font-weight: 600;
 }
 .ct-heat-hero-unit {
+  margin-left: 6px;
   font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+.ct-heat-hero-note {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
   color: var(--dsw-alias-label-tertiary);
 }
 .ct-heat-sub {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   line-height: 1.35;
   color: var(--dsw-alias-label-tertiary);
-  font-variant-numeric: tabular-nums;
   word-break: keep-all;
+}
+/* Right column: upstream ag-v2-bento-right / ag-v2-pool-* / ag-v2-track-4px. */
+.ct-heat-pool-note {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.ct-heat-pools {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-width: 0;
+}
+.ct-heat-pools-empty {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.ct-heat-pool {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ct-heat-pool-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.ct-heat-pool-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+.ct-heat-pool-stats {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: none;
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+.ct-heat-pool-pct {
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+.ct-heat-track {
+  height: 5px;
+  width: 100%;
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 6%, transparent);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.28), inset 0 0 0 0.5px var(--dsw-alias-border-l1);
+}
+.ct-heat-track-fill {
+  height: 100%;
+  min-width: 5px;
+  border-radius: 3px;
+  background-color: var(--ct-heat-pool, var(--dsw-alias-state-business-primary));
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 70%);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.35);
+  transition: width 420ms ease;
+}
+.ct-heat-right-foot {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--dsw-alias-label-tertiary);
+  word-break: keep-all;
+}
+/* Telemetry bar under the chassis: our own row for the repository pill. */
+.ct-heat-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px 18px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+}
+.ct-heat-bar:empty {
+  display: none;
+}
+.ct-repo-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* Narrow cards stack the two columns, like upstream's split view. */
+@container (max-width: 660px) {
+  .ct-heat-chassis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ct-heat-left {
+    border-right: none;
+    border-bottom: 1px solid var(--dsw-alias-border-l1);
+  }
 }
 .ct-repo-group {
   display: inline-flex;
@@ -2748,34 +2987,43 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     }
 
     /**
-     * The local token heatmap for a blank Session, cached for a minute: the dock
-     * remounts on every session switch, while the grid only moves when a session
-     * ends. A failed read keeps whatever was already painted (or nothing).
+     * The local token heatmap for a blank Session, cached for a minute per range:
+     * the dock remounts on every session switch, while the grid only moves when a
+     * session ends. A failed read keeps whatever was already painted (or nothing).
+     * The range tabs call the route again because the intensity steps are scaled
+     * to the selected window, not to the whole board.
      */
     const USAGE_HEATMAP_MS = 60_000
-    const usageHeat = { body: null, at: 0, pending: null }
+    const HEAT_RANGES = [
+      { id: '7d', label: 'heatRange7d' },
+      { id: '30d', label: 'heatRange30d' },
+      { id: 'all', label: 'heatRangeAll' },
+    ]
+    const usageHeat = { bodies: {}, at: {}, pending: {} }
 
-    function loadUsageHeatmap() {
-      if (usageHeat.body && Date.now() - usageHeat.at < USAGE_HEATMAP_MS) {
-        return Promise.resolve(usageHeat.body)
+    function loadUsageHeatmap(range) {
+      const key = range === '7d' || range === '30d' ? range : 'all'
+      const cached = usageHeat.bodies[key]
+      if (cached && Date.now() - (usageHeat.at[key] || 0) < USAGE_HEATMAP_MS) {
+        return Promise.resolve(cached)
       }
-      if (usageHeat.pending) return usageHeat.pending
-      usageHeat.pending = fetch(USAGE_API, { credentials: 'same-origin' })
+      if (usageHeat.pending[key]) return usageHeat.pending[key]
+      usageHeat.pending[key] = fetch(USAGE_API + '?range=' + key, { credentials: 'same-origin' })
         .then(readJson)
         .then(function (body) {
           const grid = body && body.ok && Array.isArray(body.columns) ? body : null
           if (grid) {
-            usageHeat.body = grid
-            usageHeat.at = Date.now()
+            usageHeat.bodies[key] = grid
+            usageHeat.at[key] = Date.now()
           }
-          return usageHeat.body
+          return usageHeat.bodies[key] || null
         })
-        .catch(function () { return usageHeat.body })
+        .catch(function () { return usageHeat.bodies[key] || null })
         .then(function (result) {
-          usageHeat.pending = null
+          usageHeat.pending[key] = null
           return result
         })
-      return usageHeat.pending
+      return usageHeat.pending[key]
     }
 
     function repoErrorText(t, error) {
@@ -4136,68 +4384,264 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     }
 
     /**
-     * The "active trail" grid Obsidian Prism paints on its home board, folded
-     * into the composer row for a blank Session: 26 weeks (columns) by weekday
-     * (rows), five intensity steps. Every number comes from the official session
-     * projection cache through our own route — nothing is estimated, and a day
-     * after today stays blank instead of painting an empty square.
+     * The "active trail" card Obsidian Prism paints on its home board, folded
+     * into the composer row for a blank Session: head row with the 7天 / 30天 /
+     * 全部 tabs, 26 weeks (columns) by weekday (rows), five intensity steps, then
+     * the headline number and the small print. Every number comes from the
+     * official session projection cache through our own route — nothing is
+     * estimated, and a day after today stays blank instead of painting an empty
+     * square.
      */
     const HEAT_LEVELS = [1, 2, 3, 4, 5]
 
+    /** Glass capsule above the hovered square, like upstream's `.ag-v2-heat-tip`. */
+    function showHeatTip(wrap, cell) {
+      if (!wrap || !cell || typeof wrap.querySelector !== 'function') return
+      const tip = wrap.querySelector('.ct-heat-tip')
+      if (!tip) return
+      const text = String(cell.getAttribute('data-tip') || '')
+      if (!text) return
+      const bar = text.indexOf('|')
+      const strong = tip.querySelector('strong')
+      const sub = tip.querySelector('span')
+      if (strong) strong.textContent = bar < 0 ? text : text.slice(0, bar)
+      if (sub) sub.textContent = bar < 0 ? '' : text.slice(bar + 1)
+      const wrapRect = wrap.getBoundingClientRect()
+      const rect = cell.getBoundingClientRect()
+      const half = (tip.offsetWidth || 120) / 2
+      const x = Math.max(half, Math.min(wrapRect.width - half, rect.left - wrapRect.left + rect.width / 2))
+      tip.style.setProperty('--tip-x', x.toFixed(1) + 'px')
+      tip.style.setProperty('--tip-y', (rect.top - wrapRect.top).toFixed(1) + 'px')
+      tip.setAttribute('data-show', 'true')
+    }
+
+    function hideHeatTip(wrap) {
+      if (!wrap || typeof wrap.querySelector !== 'function') return
+      const tip = wrap.querySelector('.ct-heat-tip')
+      if (tip) tip.setAttribute('data-show', 'false')
+    }
+
     function UsageHeatmap(props) {
       const t = props.t
-      const heat = props.heat || null
+      // Which window the card is showing; the route rescales the intensity steps
+      // per window, so a range change is a refetch, not a client-side filter.
+      const [range, setRange] = React.useState('all')
+      const [grid, setGrid] = React.useState(props.heat || null)
+      React.useEffect(function () {
+        let alive = true
+        loadUsageHeatmap(range).then(function (body) {
+          if (alive && body) setGrid(body)
+        }, function () {
+          // Keep the previous board rather than blanking the card.
+        })
+        return function () { alive = false }
+      }, [range])
+      const heat = grid
       if (!heat || !Array.isArray(heat.columns) || heat.columns.length === 0) return null
+
       const cells = []
       heat.columns.forEach(function (column) {
         const days = Array.isArray(column.days) ? column.days : []
         days.forEach(function (day) {
           if (!day || typeof day.date !== 'string') return
-          const label = day.future
-            ? ''
-            : day.date + ' · ' + tokenLabel(day.tokens) + ' token · ' + (Number(day.sessions) || 0) + ' ' + t('heatSessions')
+          const tip = day.active
+            ? day.date + '|' + tokenLabel(day.tokens) + ' token · ' + (Number(day.sessions) || 0) + ' ' + t('heatSessions')
+            : ''
           cells.push(h('i', {
             key: day.date,
             className: 'ct-heat-cell',
             'data-level': String(Number(day.level) || 0),
             'data-future': day.future ? 'true' : 'false',
-            title: label,
+            'data-active': day.active ? 'true' : 'false',
+            'data-tip': tip,
             'aria-hidden': 'true',
           }))
         })
       })
-      const summary = t('heatRange').replace('{weeks}', String(Number(heat.weeks) || heat.columns.length))
-        + ' · ' + (Number(heat.sessions) || 0) + ' ' + t('heatSessions')
-        + ' · ' + (Number(heat.activeDays) || 0) + ' ' + t('heatDays')
+
+      const weeks = Number(heat.weeks) || heat.columns.length
       const total = tokenLabel(Number(heat.totalTokens) || 0)
-      // Same shape as upstream Studio's 活跃轨迹 card: head row (title + legend),
-      // the grid across the full card width, a hairline, then the headline number
-      // with the boring numbers underneath it.
-      return h('section', { className: 'ct-heat', 'aria-label': t('heatTitle') },
+      const sub = (Number(heat.sessions) || 0) + ' ' + t('heatSessions')
+        + ' · ' + (Number(heat.activeDays) || 0) + ' ' + t('heatDays')
+        + ' · ' + t('heatPeak') + ' ' + tokenLabel(Number(heat.maxDayTokens) || 0)
+      const meta = t('heatStreak').replace('{days}', String(Number(heat.streak) || 0))
+        + ' · ' + t('heatWindow').replace('{first}', String(heat.firstDay || '')).replace('{last}', String(heat.lastDay || ''))
+      const models = Array.isArray(heat.models) ? heat.models : []
+
+      // Same two-column chassis as upstream: heat zone + scale zone on the left
+      // (62fr), the model pools on the right (38fr), a telemetry bar underneath.
+      const heatZone = h('div', { key: 'zone', className: 'ct-heat-zone' },
         h('div', { key: 'head', className: 'ct-heat-head' },
           h('span', { className: 'ct-heat-title' }, t('heatTitle')),
-          h('span', { key: 'legend', className: 'ct-heat-legend' },
-            h('span', null, t('heatLess')),
-            HEAT_LEVELS.map(function (level) {
-              return h('i', {
-                key: 'level-' + level,
-                className: 'ct-heat-swatch',
-                'data-level': String(level),
-                'aria-hidden': 'true',
-              })
-            }),
-            h('span', null, t('heatMore')))),
+          h('div', { key: 'ranges', className: 'ct-heat-ranges', role: 'group', 'aria-label': t('heatRangeGroup') },
+            HEAT_RANGES.map(function (item) {
+              const active = range === item.id
+              return h('button', {
+                key: item.id,
+                type: 'button',
+                className: 'ct-heat-range',
+                'data-range': item.id,
+                'data-active': String(active),
+                'aria-pressed': String(active),
+                onClick: function () { setRange(item.id) },
+              }, h('span', null, t(item.label)))
+            }))),
         h('div', {
-          key: 'grid',
-          className: 'ct-heat-grid',
-          role: 'img',
-          'aria-label': t('heatTitle') + ' ' + summary + ' · ' + total + ' ' + t('heatTokens'),
-        }, cells),
-        h('div', { key: 'foot', className: 'ct-heat-foot' },
-          h('div', { key: 'hero', className: 'ct-heat-hero' },
-            h('span', { className: 'ct-heat-hero-num' }, total),
-            h('span', { className: 'ct-heat-hero-unit' }, t('heatTokens'))),
-          h('div', { key: 'sub', className: 'ct-heat-sub' }, summary)))
+          key: 'wrap',
+          className: 'ct-heat-wrap',
+          onPointerOver: function (event) {
+            const cell = event.target && event.target.closest ? event.target.closest('.ct-heat-cell') : null
+            if (cell) showHeatTip(event.currentTarget, cell)
+          },
+          onPointerOut: function (event) {
+            const cell = event.target && event.target.closest ? event.target.closest('.ct-heat-cell') : null
+            if (!cell) return
+            const to = event.relatedTarget && event.relatedTarget.closest ? event.relatedTarget.closest('.ct-heat-cell') : null
+            if (!to) hideHeatTip(event.currentTarget)
+          },
+        },
+          h('div', {
+            key: 'grid',
+            className: 'ct-heat-grid',
+            role: 'img',
+            'aria-label': t('heatTitle') + ' ' + total + ' ' + t('heatTokens') + ' · ' + sub,
+          }, cells),
+          h('div', { key: 'tip', className: 'ct-heat-tip', 'aria-hidden': 'true' },
+            h('strong', null),
+            h('span', null))))
+
+      const scaleZone = h('div', { key: 'foot', className: 'ct-heat-foot' },
+        h('div', { key: 'hero', className: 'ct-heat-hero' },
+          h('span', null, t('heatLead') + ' '),
+          h('span', { className: 'ct-heat-hero-num' }, total),
+          h('span', { className: 'ct-heat-hero-unit' }, ' ' + t('heatTokens')),
+          h('span', { className: 'ct-heat-hero-note' },
+            t('heatHeroNote').replace('{weeks}', String(weeks)))),
+        h('div', { key: 'sub', className: 'ct-heat-sub' }, sub))
+
+      const poolHead = h('div', { key: 'pool-head', className: 'ct-heat-head' },
+        h('span', { className: 'ct-heat-title' }, t('heatModels')),
+        h('span', { className: 'ct-heat-pool-note' }, t('heatModelNote')))
+      const pools = h('div', { key: 'pools', className: 'ct-heat-pools' },
+        models.length === 0
+          ? h('p', { key: 'empty', className: 'ct-heat-pools-empty' }, t('heatNoModels'))
+          : models.map(function (item, index) {
+            const label = item.model || item.provider || t('heatUnknownModel')
+            const ratio = Math.max(0, Math.min(1, Number(item.share) || 0))
+            const share = Math.round(ratio * 100)
+            const pctText = share === 0 && ratio > 0 ? '<1%' : share + '%'
+            return h('div', { key: item.id || 'model-' + index, className: 'ct-heat-pool' },
+              h('div', { key: 'top', className: 'ct-heat-pool-top' },
+                h('span', { className: 'ct-heat-pool-name', title: item.id || label }, label),
+                h('span', { className: 'ct-heat-pool-stats' },
+                  h('strong', { className: 'ct-heat-pool-pct' }, pctText),
+                  h('span', null, (Number(item.sessions) || 0) + ' ' + t('heatSessions')))),
+              h('div', { key: 'track', className: 'ct-heat-track' },
+                h('div', {
+                  className: 'ct-heat-track-fill',
+                  style: { width: Math.max(1, share) + '%', '--ct-heat-pool': 'var(--dsw-alias-chart-' + ((index % 6) + 1) + ', var(--dsw-alias-state-business-primary))' },
+                })))
+          }))
+      const rightFoot = h('div', { key: 'right-foot', className: 'ct-heat-right-foot' }, meta)
+
+      return h('section', { className: 'ct-heat', 'aria-label': t('heatTitle') },
+        h('div', { key: 'chassis', className: 'ct-heat-chassis' },
+          h('div', { key: 'left', className: 'ct-heat-left' }, heatZone, scaleZone),
+          h('div', { key: 'right', className: 'ct-heat-right' }, poolHead, pools, rightFoot)),
+        h('div', { key: 'bar', className: 'ct-heat-bar' }, props.footer || null))
+    }
+
+    /**
+     * Upstream paints the trail card inside the conversation area, with the
+     * composer pinned to the bottom of the window — not squeezed into the row
+     * right above the input. So the card leaves the dock row entirely: it is
+     * portaled to the body and centered in the host's chat region, above the
+     * composer, and the dock row keeps only the vial trigger and the pill.
+     *
+     * Geometry is read from the host's own semantic regions and recomputed on
+     * any resize; the layer never writes to host nodes. A short window shrinks
+     * the card (down to a floor) so it never covers the host's own empty-state
+     * row that sits at the top of the composer seat.
+     */
+    function placeHeatLayer(layer) {
+      if (!layer || typeof window === 'undefined' || typeof document === 'undefined') return
+      const chat = document.querySelector('[data-conversation-region="chat"]')
+      const composer = document.querySelector('[data-conversation-region="composer"]')
+      const viewHeight = window.innerHeight || 0
+      const chatRect = chat
+        ? chat.getBoundingClientRect()
+        : { left: 0, top: 0, width: window.innerWidth || 0, height: viewHeight }
+      const composerRect = composer ? composer.getBoundingClientRect() : null
+      const roomTop = chatRect.top
+      const roomBottom = composerRect ? composerRect.top : chatRect.top + chatRect.height
+      const room = Math.max(0, roomBottom - roomTop)
+      const maxWidth = Math.max(360, Math.min(900, chatRect.width - 64))
+      // The card shrinks (until the grid stops reading) rather than overlap the
+      // host's empty state; on a normal desktop window it stays at full width.
+      let width = maxWidth
+      let height = 0
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        layer.style.width = Math.round(width) + 'px'
+        height = layer.offsetHeight || 0
+        if (room <= 0 || height <= room - 24 || width <= 360) break
+        width = Math.max(360, width - 40)
+      }
+      const top = roomTop + Math.max(12, (room - height) / 2)
+      layer.style.left = Math.round(chatRect.left + (chatRect.width - Math.max(360, Math.min(width, chatRect.width))) / 2) + 'px'
+      layer.style.top = Math.round(top) + 'px'
+    }
+
+    function HeatOverlay(props) {
+      const layerRef = React.useRef(null)
+      React.useEffect(function () {
+        const layer = layerRef.current
+        if (!layer || typeof document === 'undefined') return undefined
+        const raf = typeof requestAnimationFrame === 'function'
+          ? requestAnimationFrame
+          : function (fn) { return setTimeout(fn, 16) }
+        const cancel = typeof cancelAnimationFrame === 'function'
+          ? cancelAnimationFrame
+          : function (handle) { clearTimeout(handle) }
+        let frame = 0
+        const place = function () {
+          if (frame) return
+          frame = raf(function () {
+            frame = 0
+            placeHeatLayer(layer)
+          })
+        }
+        placeHeatLayer(layer)
+        place()
+        window.addEventListener('resize', place)
+        let observer = null
+        if (typeof ResizeObserver === 'function') {
+          observer = new ResizeObserver(place)
+          observer.observe(layer)
+          const chat = document.querySelector('[data-conversation-region="chat"]')
+          if (chat) observer.observe(chat)
+          const composer = document.querySelector('[data-conversation-region="composer"]')
+          if (composer) observer.observe(composer)
+        }
+        return function () {
+          window.removeEventListener('resize', place)
+          if (observer) {
+            try { observer.disconnect() } catch { /* already gone */ }
+          }
+          if (frame) cancel(frame)
+        }
+      }, [])
+      if (!props.children) return null
+      const appearance = props.appearance || {}
+      const layer = h('div', {
+        key: 'layer',
+        className: 'ct-heat-layer ct-skin',
+        'data-palette': appearance.palette,
+        'data-motion': appearance.motion,
+        ref: layerRef,
+      }, props.children)
+      return typeof document !== 'undefined' && ReactDOM && typeof ReactDOM.createPortal === 'function'
+        ? ReactDOM.createPortal(layer, document.body)
+        : layer
     }
 
     /**
@@ -4219,7 +4663,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [settings, setSettings] = React.useState(settingsCache.body)
       // The heatmap is only for a blank Session, so its grid is read lazily and
       // kept across session switches (module cache inside loadUsageHeatmap).
-      const [heat, setHeat] = React.useState(usageHeat.body)
+      const [heat, setHeat] = React.useState(usageHeat.bodies.all || null)
       const pillRef = React.useRef(null)
       const menuRef = React.useRef(null)
       const placement = React.useRef(null)
@@ -4244,7 +4688,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       React.useEffect(function () {
         if (meter || heat) return undefined
         let alive = true
-        loadUsageHeatmap().then(function (body) {
+        loadUsageHeatmap('all').then(function (body) {
           if (alive && body) setHeat(body)
         }, function () {
           // No grid is better than an invented one; the row stays as it was.
@@ -4442,6 +4886,26 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         }, menuChildren), document.body)
         : null
 
+      // A blank Session draws the upstream-style trail card instead of a row
+      // above the input: the card is portaled into the chat area (composer stays
+      // at the bottom), and the repository pill rides the card's footer. That
+      // way the host's own empty-state row keeps the exact position stock DSH
+      // gives it — our row is not there to push it up.
+      const repoGroup = h('span', { key: 'repo', className: 'ct-repo-group' }, pill, menu)
+      const repoSlot = h('span', { key: 'repo-slot', className: 'ct-repo-inline' },
+        note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
+        repoGroup)
+      if (meter == null && heat) {
+        return h(HeatOverlay, { key: 'heat', t: t, appearance: appearance },
+          h(EffortBridge, {
+            key: 'effort',
+            sessionId: sessionId,
+            motion: appearance.motion,
+            t: t,
+          }),
+          h(UsageHeatmap, { key: 'card', t: t, heat: heat, footer: repoSlot }))
+      }
+
       // The dock row renders in place above the composer: the vial trigger, an
       // optional network note and the repository pill, all flush with the input
       // card's right edge.
@@ -4450,7 +4914,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         'data-palette': appearance.palette,
         'data-motion': appearance.motion,
       },
-      meter ? null : h(UsageHeatmap, { key: 'heat', t: t, heat: heat }),
       h('div', { key: 'tools', className: 'ct-dock-tools' },
         h(EffortBridge, {
           key: 'effort',
@@ -4467,7 +4930,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           appearance: appearance,
         }),
         note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
-        h('span', { className: 'ct-repo-group' }, pill, menu)))
+        repoGroup))
     }
 
     /**
@@ -5735,6 +6198,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         heatmap: {
           cache: usageHeat,
           load: loadUsageHeatmap,
+          overlay: HeatOverlay,
         },
         // The shared settings snapshot: the panel writes it, the dock subscribes.
         settings: {
