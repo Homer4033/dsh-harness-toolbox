@@ -51,6 +51,7 @@ Five tiers · a moving context vial · a local usage board for blank sessions ·
   - [Theme art and the glow](#theme-art-and-the-glow)
   - [The models and components page](#the-models-and-components-page)
   - [The row above the input](#the-row-above-the-input)
+  - [The optics on the composer](#the-optics-on-the-composer)
   - [The usage board of a blank session](#the-usage-board-of-a-blank-session)
   - [The reasoning slider inside the official model menu](#the-reasoning-slider-inside-the-official-model-menu)
   - [The four agent tools](#the-four-agent-tools)
@@ -231,6 +232,17 @@ Endpoints are tried **ModelScope first, then the `hf-mirror.com` mirror, then `h
 The slot sorts rows by `order` ascending (small on top) and the principle is **native UI that belongs next to the input card comes first, plugin surfaces after**: the agent's task list (`todo`, order 0), worktree progress (5), goal bar (10) and queue (20) all hug the input card, and this row takes `order: -1000` to sit above all of them. Top to bottom is therefore always **repository row and vial → task bar → input card**.
 
 The liquid in the vial is not an image: the ported `vial-core.js` runs a 24-node shallow-water simulation on a 96×220 canvas, so the surface sloshes when you tilt or open the popover. Menus open upward by default and only flip down when there is less than 200px above and more below; ↑ / ↓ / Home / End / Enter / Esc all work.
+
+### The optics on the composer
+
+A read-only optics layer sits on the composer card (2.8.0; upstream Obsidian Prism's language, redrawn by this plugin):
+
+- **Prism rim** — a 1px four-colour gradient on the card's own border, lit only when the pointer is within 280px of the card; the colour band slides along the edge as the pointer moves and fades away when it leaves.
+- **Stop-button rainbow ring** — while a turn runs, the stop button wears a five-stop conic ring (1.9s per turn, 38 steps). It recognises the square stop glyph, not a locale string.
+- **Lift-off ring** — pressing send expands a ring out of the button and fades it in 520ms.
+- **Caustic sweep** — when a turn that lasted at least six seconds ends, a 1px cyan/white/amber band travels right to left along the card's top edge with a faint four-colour wash for 880ms.
+
+All four are drawn in one `pointer-events: none` fixed layer portalled to `<body>`; the host card's background, border and children are never touched — the layer only reads its rect and button state. The existing appearance switches drive them: 光学外观 is the master switch and the motion tier sets the strength (full shows all four; subtle keeps only the rim and the ring; off shows none). With the OS reduce-motion preference the ring stops turning and the two one-shot effects are skipped.
 
 ### The usage board of a blank session
 

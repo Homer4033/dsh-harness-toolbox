@@ -2,6 +2,10 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.8.0 — 2026-11-27
+
+- **输入框光学层：上游输入卡的四种光效加入插件**（用户：「停止按钮彩虹环、升空彩虹环、焦散扫光。这4个效果加入插件」，按用户列出的四项实现：棱镜流光边 / 停止按钮彩虹环 / 升空彩虹环 / 焦散扫光，不做换模型的阵营弧光）：`client.js` 新增 `opticsPlan()` 开关表与 `rimPoint` / `stopRingBox` / `liftoffOrigin` / `sweepDue` 四个纯函数，`ComposerOptics` 把一个 `pointer-events: none` 的 `.ct-optics-layer` portal 到 `<body>`，只读宿主 `[data-composer-card]` 的矩形与按钮：① 1px 棱镜流光边（`radial-gradient` 以指针为圆心、两层 mask 只留 1px 描边，指针进入卡片 280px 内点亮、强度随距离递减）；② 停止按钮彩虹环（认 `button > svg > rect` 的方形停止字形，不认本地化 `aria-label`；5 段 conic + `steps(38)` 1.9s，只在 `session.running` 时挂上）；③ 发送升空环（点主按钮时从按钮中心扩散 520ms）；④ 焦散扫光（一轮 ≥6s 的 turn 结束后，1px 光带从右往左掠过卡片上边并整卡淡染 880ms）。宿主输入卡**不改任何样式或子节点**：层是只读叠层，几何用 `getBoundingClientRect` + `ResizeObserver` + 捕获 `scroll` + `resize` 重算，卡片被 React 换掉时重取重绑，指针合并进一个 rAF。开关沿用现有的 `appearance.art` / `appearance.motion`：`full` 全开、`subtle` 只留流光边与彩虹环、`off` 与「光学外观」关闭时整层不渲染，`prefers-reduced-motion` 下停转并隐藏两个瞬时效果。棱镜四色是这层的常量（浅色 / 深色各一套），换三套配色不改彩虹。`test/client.test.js` 新增 10 条（273 → **283**），覆盖开关表、几何纯函数、停止按钮识别、按会话找卡片、mount 的矩形写入与卸载清理、宿主换卡片后重绑、组件树与样式约定。第 23 条、事实来源、验证要求、[UI.md](UI.md)、README 同步；2.7.6 / 2.7.7 移入 [HISTORY.md](HISTORY.md)（归档范围改为 1.0 – 2.7.7）；版本 2.8.0。**渲染未在装好 2.8.0 的窗口里复验（当前装的是 2.7.7，插件在 npm 上）**。
+
 ## 2.7.7 — 2026-11-27
 
 - **文档中英双语**（用户：「更新github说明、中英双语」）：`README.md` 保持中文，顶部加 `简体中文 | English` 切换；新增英文版 [README.en.md](README.en.md)，章节顺序、目录、徽章、表格与中文版一一对应，链接改成从 `docs/` 出发的相对路径。两份 README 的版本引用与徽章一起更新到 2.7.7，测试徽章从 268 修正为 **273**（2.7.6 起就是 273，之前一直是旧数字）。
