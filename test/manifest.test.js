@@ -41,17 +41,36 @@ test('the patch inserts this bundle by its package name', () => {
 })
 
 test('both locales carry display metadata and a real detail document', () => {
-  for (const [locale, detail] of [['en', 'docs/DETAIL.md'], ['zh', 'docs/DETAIL.zh.md']]) {
+  for (const [locale, detail, contents] of [
+    ['en', 'docs/DETAIL.md', '## Table of contents'],
+    ['zh', 'docs/DETAIL.zh.md', '## 目录'],
+  ]) {
     const data = JSON.parse(read(`locale/${locale}.json`))
     assert.ok(data.meta.title.length > 0)
     assert.ok(data.meta.description.length > 40)
     assert.equal(data.meta.detail, detail)
     assert.ok(existsSync(join(root, detail)), `${detail} is missing`)
-    const lines = read(detail).split(/\r?\n/).filter((line) => line.trim().length > 0)
-    assert.equal(lines.length, 1, `${detail} must be exactly one image line`)
-    const match = lines[0].match(/^!\[[^\]]*\]\(([^)]+)\)$/)
-    assert.ok(match, `${detail} is not a single markdown image`)
-    assert.ok(existsSync(join(root, dirname(detail), match[1])), `${match[1]} is missing`)
+    // The detail page is a small document, not a single screenshot: a contents
+    // block, several sections, real prose and images that are actually shipped.
+    const text = read(detail)
+    assert.ok(text.includes(contents), `${detail} has no contents block`)
+    const heads = text.split(/\r?\n/).filter((line) => /^##\s+/.test(line))
+    assert.ok(heads.length >= 5, `${detail} needs its own sections, got ${heads.length}`)
+    const anchors = [...text.matchAll(/^\s*[-*]\s+\[[^\]]+\]\(#([^)]+)\)/gm)].map((match) => match[1])
+    assert.ok(anchors.length >= 5, `${detail} must link its sections from the contents block`)
+    for (const image of text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) {
+      assert.ok(existsSync(join(root, dirname(detail), image[1])), `${image[1]} is missing`)
+    }
+    const body = text.split(/\r?\n/).filter((line) => {
+      const value = line.trim()
+      if (!value) return false
+      if (/^#{1,6}\s/.test(value)) return false
+      if (/^!\[/.test(value)) return false
+      if (/^\|?\s*:?-{3,}/.test(value)) return false
+      if (/^<\/?p\b/.test(value)) return false
+      return true
+    })
+    assert.ok(body.length > 25, `${detail} needs real prose next to the pictures, got ${body.length} lines`)
   }
 })
 

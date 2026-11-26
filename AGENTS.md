@@ -112,21 +112,21 @@
 ## 文档索引
 
 - [README.md](README.md)：安装、使用、档位表、工具、光学层（试管 / 配色）、模型和组件页的本地模型、原理、限制、许可与版本。
+- [docs/README.en.md](docs/README.en.md)：英文版说明（与 README.md 同章节顺序、同三张图，链接从 `docs/` 出发）。
 - [docs/CHANGELOG.md](docs/CHANGELOG.md)：按版本记录变更与 tag。
 - [LICENSE](LICENSE)、[NOTICE](NOTICE)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)：GPL-3.0 全文、衍生作品署名与修改说明、上游及其吸收项目的完整声明。
 - [scripts/check-secrets.mjs](scripts/check-secrets.mjs)：`npm run check:secrets`，CI 与本地共用的密钥扫描入口。
-- [docs/DETAIL.md](docs/DETAIL.md)：插件详情页（英文，单图）。
-- [docs/DETAIL.zh.md](docs/DETAIL.zh.md)：插件详情页（中文，单图）。
+- [docs/DETAIL.md](docs/DETAIL.md)：插件详情页（英文，目录 + 正文 + 三张图）。
+- [docs/DETAIL.zh.md](docs/DETAIL.zh.md)：插件详情页（中文，目录 + 正文 + 三张图）。
 - [docs/UI.md](docs/UI.md)：面板、外观页、输入框上方那一行与自绘弹层的 UI 规范（表面层级、配色皮肤、栅格、卡片、下拉、动效、检查清单）。
-- [docs/HISTORY.md](docs/HISTORY.md)：1.0 – 2.7.3 的逐条变更记录归档（AGENTS.md 只保留最近几个版本）。
-- [docs/screenshots/](docs/screenshots/)：README 与详情页用的截图（离线渲染舞台产物，示例内容为虚构）。
+- [docs/HISTORY.md](docs/HISTORY.md)：1.0 – 2.7.5 的逐条变更记录归档（AGENTS.md 只保留最近几个版本）。
+- [docs/screenshots/](docs/screenshots/)：README 与详情页共用的三张截图（`hero.png` / `panel.png` / `heat.png`，离线渲染舞台产物，示例内容为虚构）。
 - [locale/en.json](locale/en.json)、[locale/zh.json](locale/zh.json)：插件管理器元数据与描述。
 - [test/](test/)：单元测试与 manifest 规范检查。
 
 ## 变更记录
 
-> 1.0 – 2.7.3 的逐条历史见 [docs/HISTORY.md](docs/HISTORY.md)，这里只保留最近几个版本。
+> 1.0 – 2.7.5 的逐条历史见 [docs/HISTORY.md](docs/HISTORY.md)，这里只保留最近几个版本。
 
-- 2026-11-27：**2.7.4 空白会话把宿主那一段（欢迎语 + 快捷按钮 + 输入卡）整块下移**（用户先发截图画圈、再纠正「啥啊，红圈地方往下移，我说卡片了吗？」——红框圈的是宿主的空会话块，2.7.3 只挪了我们的卡片，所以只动了几像素）：空会话里宿主的 `.composerStack` 在聊天区居中，1584×905 实测 seat `y 265 → 680`、下方空着 225px 死区，插件行在不在都不改变它。现在 `placeHeatLayer()` 先算 `shift = max(0, chatBottom − HEAT_SEAT_GAP(24) − seatBottom)`（该窗口 201px）写进根节点 `--ct-seat-shift`，样式表只加一条 `body[data-ct-blank='on'] [data-conversation-region='composer'] { transform: translateY(var(--ct-seat-shift, 0px)) }`；`data-ct-blank` 由 `HeatOverlay` 挂载时写入、卸载时连变量一起删除，有 `contextPressure` 读数时整条失效。（该条在 2.7.5 更正：测量前先把变量清零、卡片按宿主原始座位定位，见下一条。）这是**明确由用户要求的宿主布局覆写**，与第 23 条的 `display: none` 同类，范围收紧到空白会话这两个开关。测试仍 **270**（client 补一条样式规则断言）。第 14 条、验证要求、[docs/UI.md](docs/UI.md)、README、CHANGELOG 同步；2.6.5 / 2.6.6 / 2.7.0 移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.7.0）；版本 2.7.4。**空白会话的最终渲染只在 headless 注入里验证，未在装好 2.7.4 的窗口里复验**。
-- 2026-11-27：**2.7.5 热力图不跟着宿主那一块下移**（用户：「红圈没有圈热力图，你移下来干什么？」——2.7.4 把座位推下去之后，卡片按移位后的座标贴边，等于连带把热力图也挪下去了）：现在 `placeHeatLayer()` **测量前先把 `--ct-seat-shift` 清零**，量到的永远是宿主自己的座位；移位量只写回变量，卡片一律按这个**原始座位**算位置，于是只有红圈那块往下走、热力图留在原地。顺带修掉一个真实 bug：旧实现第二次测量读到的是移位后的矩形，`shift` 会算成 0，窗口一 resize 整块就弹回原位。同时按用户要求把变更记录归档进 `docs/`（「除了 AGENTS.md，其余文档收到 docs」）：**只把 `CHANGELOG.md` 移成 [docs/CHANGELOG.md](docs/CHANGELOG.md)**（README 留根，GitHub 首页与 npm 包页才有内容；LICENSE / NOTICE / THIRD_PARTY_NOTICES.md 留根，许可识别不受影响），`package.json` 的 `files` 去掉根级 CHANGELOG（`docs` 整个目录本来就在 `files` 里）。测试仍 **270**（只改定位顺序与文档位置）。第 14 条、验证要求、[docs/UI.md](docs/UI.md)、README、[docs/CHANGELOG.md](docs/CHANGELOG.md) 同步；2.7.1 / 2.7.2 移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.7.2）；版本 2.7.5。
 - 2026-11-27：**2.7.6 空白只看宿主的 `session.blank`**（用户：「切换不同的会话时为什么会看到热力图」）：2.7.0–2.7.5 用「没有 `contextPressure` 读数」推断空白，可投影是异步的——切到别的会话时这一行先拿不到新读数（冷会话根本不发），模块缓存的用量卡片就画了出来，连带把宿主那一段按空白态往下推（headless 实测切到 6 天前的会话时卡片 + 位移存在约 17 帧 / 250ms）。现在 `RepoBinding` 读 `props.session.blank`：`blank === true` 且 `awaitingFirstTurn !== true` 才画卡片，`blank === false` 时哪怕一个读数都没有也只画 dock 行；旧宿主没给这个字段时才回落到读数判断。`test/client.test.js` 补三条（有历史但没读数 → 只有行、等首轮回复 → 不画、`blank` 为真 → 直接挂卡片），测试 270 → **273**。第 14 条、验证要求、[docs/UI.md](docs/UI.md)、README、[docs/CHANGELOG.md](docs/CHANGELOG.md) 同步；2.7.3 移入 [docs/HISTORY.md](docs/HISTORY.md)（归档范围改为 1.0 – 2.7.3）；版本 2.7.6。
+- 2026-11-27：**2.7.7 说明中英双语 + 截图重拍 + 详情页改「目录 + 正文」**（用户：「更新github说明、中英双语，图片换无多余插件截图。DSH端插件说明更新，目录+内容的形式。」，随后「简单2/3张图片展示就可以了」）：`README.md` 保持中文、顶部加 `简体中文 | English` 切换并新增 [docs/README.en.md](docs/README.en.md)（同章节、同目录、同三张图的完整英文版）；`docs/screenshots/` 只留 **hero.png（对话里的试管浮窗 + 输入框上方那一行）/ panel.png（模型和组件页）/ heat.png（空白会话的用量看板）** 三张，`palettes.png` / `skins.png` / `art.png` / `background.png` / `vial.png` / `effort.png` 删除——旧图是 1.10 时代的产物，还画着 2.5.0 已删的像素伙伴、已下线的暖炭玄岩 / 暖白画册与旧的分页结构。截图改由新的离线渲染舞台生成（`scripts/stage/render.mjs` + `shoot.mjs` + `install.mjs`，不进包）：从 `client.js` 原样抽出 `CSS`，在 `node:vm` 里用队列驱动的 hooks 跑真实 `apply()` 与组件树，把五页面板 / dock 行 / 空白会话卡片 / 试管浮窗序列化成 HTML，再套 DSH 主题 token 用无头 Chrome 以 2x 截图；试管液体由真实的 `vial-core.js` 在页面里画。旧的 `temp/preview-build.mjs` 是手写 HTML，因此会出现样式表里已删除的 `.ct-component` 这类漂移。`docs/DETAIL.zh.md` 与 [docs/DETAIL.md](docs/DETAIL.md) 从「一行图片」改成目录 + 正文（它是什么 / 三个界面 / 五个分页 / 四个工具 / 安装 / 边界与许可），`test/manifest.test.js` 的断言随之改写（要求目录块、≥5 个分节、目录锚点、图片都存在、正文行数）。只动文档、截图与 `PLUGIN_VERSION`，测试仍 **273**。版本 2.7.7。**渲染未在装好 2.7.7 的窗口里复验**。

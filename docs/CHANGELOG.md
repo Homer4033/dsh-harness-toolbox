@@ -2,6 +2,14 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.7.7 — 2026-11-27
+
+- **文档中英双语**（用户：「更新github说明、中英双语」）：`README.md` 保持中文，顶部加 `简体中文 | English` 切换；新增英文版 [README.en.md](README.en.md)，章节顺序、目录、徽章、表格与中文版一一对应，链接改成从 `docs/` 出发的相对路径。两份 README 的版本引用与徽章一起更新到 2.7.7，测试徽章从 268 修正为 **273**（2.7.6 起就是 273，之前一直是旧数字）。
+- **截图全部重拍，只留三张**（用户：「图片换无多余插件截图」，随后「简单2/3张图片展示就可以了」）：旧图是 1.10 时代的产物——`hero.png` 里还挂着 2.5.0 已删除的像素伙伴、旧的侧栏与旧试管样式，`palettes.png` 与 `panel.png` 还画着已经下线的暖炭玄岩 / 暖白画册两套配色和「像素伙伴」开关。现在 `docs/screenshots/` 只有三张：`hero.png`（对话里的试管浮窗 + 输入框上方那一行）、`panel.png`（「模型和组件」页）、`heat.png`（空白会话的用量看板）；`palettes.png` / `skins.png` / `art.png` / `background.png` / `vial.png` / `effort.png` 全部删除。
+- **截图由离线渲染舞台重做**（`scripts/stage/render.mjs` + `scripts/stage/shoot.mjs` + `scripts/stage/install.mjs`，不进包）：从 `client.js` 原样抽出 `CSS` 模板串，在 `node:vm` 里用一套队列驱动的 hooks 跑真实的 `apply()` 与组件树，把面板五页、dock 行、空白会话卡片与试管浮窗序列化成 HTML，再套 DSH 主题 token 用无头 Chrome 截图（2x DPR）。试管里的液体由真实的 `vendor/obsidian-prism/vial-core.js` 在页面里绘制；推理滑块用 `__test.effort.createSlider` 在页面里现搭。旧的 `temp/preview-build.mjs` 上手写 HTML，因此才会出现「样式表里有、页面里没有」的组件（例如早已删除的 `.ct-component`）。
+- **DSH 端插件说明改成「目录 + 正文」**（用户：「DSH端插件说明更新，目录+内容的形式」）：[DETAIL.zh.md](DETAIL.zh.md) 与 [DETAIL.md](DETAIL.md) 从「只有一行图片」变成真正的说明页——目录、它是什么、三个界面（三张新图）、五个分页、四个工具、安装、边界与许可。`test/manifest.test.js` 的断言随之改写：不再要求「恰好一行图片」，改为要求目录块、至少五个分节、目录里的锚点、图片都真实存在，以及正文行数。
+- 只动文档、截图与 `PLUGIN_VERSION`；`package.json` 的 `files` 本来就含 `docs`，所以三张新图随包发布，六张旧图从包里消失（包体积略降）。测试仍 **273**（`test/manifest.test.js` 的详情页断言重写，条数不变）。[docs/README.en.md](README.en.md) 新增到文档索引；2.7.4 移入 [docs/HISTORY.md](HISTORY.md)（归档范围改为 1.0 – 2.7.4）；版本 2.7.7。**渲染未在装好 2.7.7 的窗口里复验**。
+
 ## 2.7.6 — 2026-11-27
 
 - **空白只看宿主的 `session.blank`，不再用「没有读数」推断**（用户：「切换不同的会话时为什么会看到热力图」）：2.7.0–2.7.5 的条件是 `meter == null`（拿不到 `contextPressure` 就认为空白）。可投影是异步的：切到别的会话时这一行先拿不到新会话的读数，冷会话（重启后没继续聊过的）甚至根本不发，于是模块缓存的用量卡片被画了出来，`data-ct-blank` 一起生效，宿主那一段也跟着被推下去。headless 实测切到 6 天前的会话时有 **17 帧 / 约 250ms** 的卡片 + 位移。
