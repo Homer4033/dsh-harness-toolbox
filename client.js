@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
     const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.6.5'
+    const PLUGIN_VERSION = '2.6.6'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -2495,10 +2495,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
   color: var(--dsw-alias-label-secondary);
   font-variant-numeric: tabular-nums;
 }
-.ct-vial-empty {
-  max-width: 220px;
-  color: var(--dsw-alias-label-tertiary);
-}
 `
 
     function percent(value) {
@@ -3072,6 +3068,15 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
 
       useMenuDismiss(open, closeVial, triggerRef, panelRef)
 
+      // A brand new Session has no official reading yet, and the host does not
+      // paint its own context meter there either. A disabled "—" capsule would
+      // be the only token UI in that state, so render nothing: the vial shows up
+      // with the first reading and leaves again if the projection goes away.
+      React.useEffect(function () {
+        if (!meter) setOpen(false)
+      }, [meter ? 1 : 0])
+      if (!meter) return null
+
       function closeVial() {
         setOpen(false)
         const node = triggerRef.current
@@ -3091,24 +3096,19 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         setOpen(true)
       }
 
-      const percentValue = meter ? Math.min(100, Math.round(meter.percent * 100)) : null
-      const percentText = percentValue === null ? '—' : percentValue + '%'
-      const ariaLabel = t('vialAria') + ' ' + (meter ? percentText : t('vialUnavailable'))
-      const fillRatio = meter ? Math.max(0.06, Math.min(1, meter.percent)) : 0
+      const percentText = Math.min(100, Math.round(meter.percent * 100)) + '%'
+      const ariaLabel = t('vialAria') + ' ' + percentText
+      const fillRatio = Math.max(0.06, Math.min(1, meter.percent))
       const liquidHeight = 15 * fillRatio
       const liquidY = 16.5 - liquidHeight
-      const thresholdY = 16.5 - 15 * (meter ? meter.thresholdPercent : 0.6)
+      const thresholdY = 16.5 - 15 * meter.thresholdPercent
 
       const trigger = h('button', {
         key: 'vial-trigger',
         type: 'button',
         ref: triggerRef,
         className: 'ct-vial',
-        'data-critical': meter && meter.critical ? 'true' : 'false',
-        'data-empty': meter ? 'false' : 'true',
-        // Without the official projection there is nothing to show; the reading
-        // is not invented and the trigger stays out of the tab order.
-        disabled: !meter,
+        'data-critical': meter.critical ? 'true' : 'false',
         'aria-haspopup': 'dialog',
         'aria-expanded': open ? 'true' : 'false',
         'aria-label': ariaLabel,
@@ -3117,12 +3117,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       },
       h('svg', { className: 'ct-vial-mini', viewBox: '0 0 10 18', 'aria-hidden': 'true' },
         h('rect', { className: 'ct-vial-track', x: '2', y: '1.5', width: '6', height: '15', rx: '2.4' }),
-        meter
-          ? h('rect', { className: 'ct-vial-liquid', x: '2.8', y: String(liquidY), width: '4.4', height: String(liquidHeight), rx: '1.6' })
-          : null,
-        meter
-          ? h('line', { className: 'ct-vial-threshold', x1: '1.2', x2: '8.8', y1: String(thresholdY), y2: String(thresholdY) })
-          : null),
+        h('rect', { className: 'ct-vial-liquid', x: '2.8', y: String(liquidY), width: '4.4', height: String(liquidHeight), rx: '1.6' }),
+        h('line', { className: 'ct-vial-threshold', x1: '1.2', x2: '8.8', y1: String(thresholdY), y2: String(thresholdY) })),
       h('span', { className: 'ct-vial-pct' }, percentText))
 
       if (!open) return trigger
@@ -3149,52 +3145,46 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           h('dd', null, value))
       }
 
-      const body = meter
-        ? [
-            h('div', { className: 'ct-vial-stats', key: 'stats' },
-              h('div', { className: 'ct-vial-percent' }, percentText),
-              h('div', { className: 'ct-vial-numbers' }, tokenLabel(meter.used) + ' / ' + tokenLabel(meter.window)),
-              h('dl', { className: 'ct-vial-rows' },
-                row('used', t('vialUsed'), tokenLabel(meter.used)),
-                row('window', t('vialWindow'), tokenLabel(meter.window)),
-                row('threshold', t('vialThreshold'), tokenLabel(meter.threshold) + ' · ' + Math.round(meter.thresholdPercent * 100) + '%'),
-                row('retain', t('vialRetain'), tokenLabel(meter.retain)),
-                row('until', t('vialUntil'), tokenLabel(meter.until))),
-              h('div', { className: 'ct-vial-bar', role: 'presentation' },
-                barSegments.map(function (part) {
-                  return h('i', { key: part.kind, 'data-kind': part.kind, style: { width: part.width + '%' } })
-                })),
-              usedParts
-                ? h('div', { className: 'ct-vial-legend' },
-                    h('div', { className: 'ct-vial-legend-row' },
-                      h('span', { className: 'ct-vial-dot', 'data-kind': 'system' }),
-                      h('span', null, t('vialSystem')),
-                      h('span', null, tokenLabel(usedParts.system))),
-                    h('div', { className: 'ct-vial-legend-row' },
-                      h('span', { className: 'ct-vial-dot', 'data-kind': 'tools' }),
-                      h('span', null, t('vialTools')),
-                      h('span', null, tokenLabel(usedParts.tools))),
-                    h('div', { className: 'ct-vial-legend-row' },
-                      h('span', { className: 'ct-vial-dot', 'data-kind': 'messages' }),
-                      h('span', null, t('vialMessages')),
-                      h('span', null, tokenLabel(usedParts.messages))))
-                : null,
-              usage.total !== null || usage.speed !== null || usage.turns !== null
-                ? h('dl', { className: 'ct-vial-rows ct-vial-usage' },
-                    usage.total !== null ? row('usageTotal', t('vialUsage'), tokenLabel(usage.total)) : null,
-                    usage.cacheHit !== null ? row('usageCache', t('vialUsageCache'), usage.cacheHit + '%') : null,
-                    usage.speed !== null ? row('usageSpeed', t('vialUsageSpeed'), (Math.round(usage.speed * 10) / 10) + ' tok/s') : null,
-                    usage.turns !== null || usage.steps !== null
-                      ? row('usageTurns', t('vialUsageTurns'),
-                          (usage.turns === null ? '—' : usage.turns) + ' / ' + (usage.steps === null ? '—' : usage.steps))
-                      : null)
-                : null)
-          ]
-        : [
-            h('div', { className: 'ct-vial-stats', key: 'empty' },
-              h('div', { className: 'ct-vial-percent' }, '—'),
-              h('p', { className: 'ct-vial-empty' }, t('vialUnavailable')))
-          ]
+      const body = [
+        h('div', { className: 'ct-vial-stats', key: 'stats' },
+          h('div', { className: 'ct-vial-percent' }, percentText),
+          h('div', { className: 'ct-vial-numbers' }, tokenLabel(meter.used) + ' / ' + tokenLabel(meter.window)),
+          h('dl', { className: 'ct-vial-rows' },
+            row('used', t('vialUsed'), tokenLabel(meter.used)),
+            row('window', t('vialWindow'), tokenLabel(meter.window)),
+            row('threshold', t('vialThreshold'), tokenLabel(meter.threshold) + ' · ' + Math.round(meter.thresholdPercent * 100) + '%'),
+            row('retain', t('vialRetain'), tokenLabel(meter.retain)),
+            row('until', t('vialUntil'), tokenLabel(meter.until))),
+          h('div', { className: 'ct-vial-bar', role: 'presentation' },
+            barSegments.map(function (part) {
+              return h('i', { key: part.kind, 'data-kind': part.kind, style: { width: part.width + '%' } })
+            })),
+          usedParts
+            ? h('div', { className: 'ct-vial-legend' },
+                h('div', { className: 'ct-vial-legend-row' },
+                  h('span', { className: 'ct-vial-dot', 'data-kind': 'system' }),
+                  h('span', null, t('vialSystem')),
+                  h('span', null, tokenLabel(usedParts.system))),
+                h('div', { className: 'ct-vial-legend-row' },
+                  h('span', { className: 'ct-vial-dot', 'data-kind': 'tools' }),
+                  h('span', null, t('vialTools')),
+                  h('span', null, tokenLabel(usedParts.tools))),
+                h('div', { className: 'ct-vial-legend-row' },
+                  h('span', { className: 'ct-vial-dot', 'data-kind': 'messages' }),
+                  h('span', null, t('vialMessages')),
+                  h('span', null, tokenLabel(usedParts.messages))))
+            : null,
+          usage.total !== null || usage.speed !== null || usage.turns !== null
+            ? h('dl', { className: 'ct-vial-rows ct-vial-usage' },
+                usage.total !== null ? row('usageTotal', t('vialUsage'), tokenLabel(usage.total)) : null,
+                usage.cacheHit !== null ? row('usageCache', t('vialUsageCache'), usage.cacheHit + '%') : null,
+                usage.speed !== null ? row('usageSpeed', t('vialUsageSpeed'), (Math.round(usage.speed * 10) / 10) + ' tok/s') : null,
+                usage.turns !== null || usage.steps !== null
+                  ? row('usageTurns', t('vialUsageTurns'),
+                      (usage.turns === null ? '—' : usage.turns) + ' / ' + (usage.steps === null ? '—' : usage.steps))
+                  : null)
+            : null)
+      ]
 
       const popover = h('div', {
         key: 'vial-popover',

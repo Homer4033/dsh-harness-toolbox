@@ -1614,25 +1614,25 @@ test('the vial trigger reads the live pressure and opens a dialog', () => {
   assert.equal(open.filter((node) => hasClass(node, 'ct-vial-legend-row')).length, 3)
 })
 
-test('a vial without a reading says so instead of inventing zero', () => {
-  const { nodes } = renderVial({ vialStates: [true, false] })
-  const trigger = nodes.find((node) => hasClass(node, 'ct-vial'))
-  assert.equal(deepText(trigger), '—')
-  assert.match(trigger.props['aria-label'], /vialUnavailable/)
-  const dialog = nodes.find((node) => hasClass(node, 'ct-vial-popover'))
-  assert.ok(dialog)
-  assert.match(deepText(dialog), /vialUnavailable/)
-  assert.equal(nodes.some((node) => hasClass(node, 'ct-vial-row')), false)
+test('a brand new Session renders no vial — the host paints no meter there either', () => {
+  // 2.6.6: before the first turn the official `contextPressure` projection has
+  // no value and the host paints no context meter of its own. A disabled "—"
+  // capsule would then be the only token UI in a blank Session, so the vial is
+  // not rendered at all; the dock row and the repository pill stay.
+  const { nodes, dockNodes } = renderVial({ vialStates: [true, false] })
+  assert.ok(dockNodes.some((node) => hasClass(node, 'ct-repo-pill')), 'the repository pill stays')
+  assert.equal(nodes.some((node) => hasClass(node, 'ct-vial')), false)
+  assert.equal(nodes.some((node) => hasClass(node, 'ct-vial-popover')), false)
 })
 
-test('a vial without a projection is disabled instead of only empty', () => {
-  const empty = renderVial({ vialStates: [false, false] }).nodes
-  const disabledTrigger = empty.find((node) => hasClass(node, 'ct-vial'))
-  assert.equal(disabledTrigger.props.disabled, true)
-  assert.equal(disabledTrigger.props['data-empty'], 'true')
+test('the vial appears as soon as the official projection has a reading', () => {
   const pressure = { projectedTokens: 260000, contextWindow: 512000 }
-  const live = renderVial({ pressure, vialStates: [false, false] }).nodes
-  assert.equal(live.find((node) => hasClass(node, 'ct-vial')).props.disabled, false)
+  const { nodes } = renderVial({ pressure, vialStates: [false, false] })
+  const trigger = nodes.find((node) => hasClass(node, 'ct-vial'))
+  assert.ok(trigger, 'the vial renders once a reading exists')
+  assert.equal('data-empty' in trigger.props, false)
+  assert.equal(trigger.props.disabled, undefined)
+  assert.equal(deepText(trigger), '51%')
 })
 
 test('motion off pauses every effort animation, the sweep included', () => {

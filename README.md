@@ -12,7 +12,7 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.6.5-0f172a?style=flat-square" alt="Version 2.6.5" />
+  <img src="https://img.shields.io/badge/Version-2.6.6-0f172a?style=flat-square" alt="Version 2.6.6" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Tests-258%20passing-16a34a?style=flat-square" alt="258 tests passing" />
@@ -117,7 +117,7 @@
   <img src="docs/screenshots/vial.png" width="100%" alt="上下文试管浮窗：液面、阈值、保留量与三段构成" />
 </p>
 
-试管里的液体不是一张图：`vial-core.js` 在 96×220 的 canvas 上跑一个 24 个节点的浅水波模拟，倾斜或开关浮窗时液面会荡一下。浮窗里的数字全部来自官方投影 `contextPressure` 与 `contextBreakdown`；宿主没提供投影时写「—」，不会编一个 0。
+试管里的液体不是一张图：`vial-core.js` 在 96×220 的 canvas 上跑一个 24 个节点的浅水波模拟，倾斜或开关浮窗时液面会荡一下。浮窗里的数字全部来自官方投影 `contextPressure` 与 `contextBreakdown`；宿主没提供投影时（例如新会话的第一条消息之前）整支试管不出现，不会编一个 0。
 
 ### 5. 本地模型
 
@@ -170,7 +170,7 @@ DSH 的模型菜单根面板有两行：模型、推理等级。插件在「推�
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.6.5`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.6.6`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -197,6 +197,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **2.6.2 → 2.6.3**：输入框上方那一行（仓库栏 + 试管）在 `conversation.input.dock` 里的 `order` 从 90 抬到 1000，把次序写死并补了回归测试（方向在 2.6.4 按用户更正反转，2.6.3 可以跳过、直接升 2.6.4）。数据、设置与界面布局都不动。
 - **2.6.3 → 2.6.4**：同一个 dock 行的次序反转——插件行改取 `order: -1000`，排到宿主自己的行（任务清单条 0 / 工作树 5 / 目标 10 / 队列 20）**上面**，上到下变成「仓库栏和试管 → 任务栏 → 输入卡」：跟原版输入卡亲密性强的宿主 UI 贴着输入卡，插件行次之。数据、设置与界面布局都不动，升级后不需要任何操作。
 - **2.6.4 → 2.6.5**：同一行的横向几何与底色修正——行宽改成照宿主 dock 行收（卡宽再每边内缩 `--dsh-composer-dock-inset`），胶囊右缘从此压在任务栏右缘上（2.6.4 压在输入卡右缘，比任务栏多出 16px）；试管触发器的底色换成宿主 dock 行那一层表面 `--dsw-specific-menu`，不再比任务栏与输入卡暗一档。数据、设置与界面布局都不动，升级后不需要任何操作。
+- **2.6.5 → 2.6.6**：没有读数时不再画那支灰色「—」试管。新会话在第一条消息之前拿不到官方 `contextPressure`，宿主那时也不画自己的上下文环，所以空白会话里原来只剩一个点不动的灰胶囊；现在整支试管不出现，发出第一条消息就照常出现（读数消失也会跟着消失）。dock 行与仓库胶囊不变。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
 - **卸载**：插件页移除即可，托管组件目录留在原处，删掉目录即彻底清理。
 
@@ -288,12 +289,12 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.6.5`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.6.6`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.6.5` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.6.6` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个，`horizon-glow.js` 与 `dual-mascot-rig.js` 都不再随包发布。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
-- **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。投影缺失时渲染「—」并禁用触发器（`title` 说明读不到），不伪造 0；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
+- **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`（`systemTokens` / `toolsTokens` / `messageTokens`）。没有任何读数时（新会话的第一条消息之前）整支试管不渲染——宿主自己那时也不画 `ContextMeter`，所以不摆一个点不动的灰「—」；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量，侧栏、气泡、输入框、菜单、卡片、代码块一并跟着换。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
 - **配色只覆盖自己的根**：`.ct-skin[data-palette='…']` 定义在面板页、dock 行与 portal 出去的菜单上，这些值不会渗到宿主界面；`host` 是空集，保持官方主题不变。两个配色的本地 token 也按宿主模式分两份：默认块是浅色宿主读到的值，`body[data-ds-dark-theme]`（官方主题 presenter 自己写的属性）下换成深色那份；这里不写 `color-scheme`，`html` 上已经有宿主设的那一份。
 - **皮肤不掰用户的主题**：2.0.0 选深色配色会把宿主外观偏好一并切到深色，2.2.0 去掉了这次写入——配色自带亮暗两份值，用户切官方主题时皮肤跟着走。

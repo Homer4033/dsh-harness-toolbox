@@ -2,6 +2,12 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.6.6 — 2026-11-26
+
+- **没有读数就不画试管**（用户：「新会话的token HUD好像还没有」）：实机核对（headless Chrome 连桌面端 `127.0.0.1:1250`）——空白会话里 `conversation.input.dock` 照常渲染，但 `.ct-vial` 是 `disabled` 的灰胶囊、只写「—」、点不开，而宿主自己的 `ContextMeter` 在第一条消息之前压根不渲染（`[data-composer-dock]` 里 0 个按钮）；对照有内容的会话，试管显示 `9%` 并接管了被美术层隐藏的宿主占用环。根因是 `contextPressure` 在首条消息之前没有值，旧规则要求「取不到就渲染『—』并禁用触发器」，于是空白会话里这支灰胶囊成了唯一的 token UI。
+- 现在 `ContextVial` 在 `meter` 为 null 时直接 `return null`：触发器、浮窗、`data-empty` 属性与 `.ct-vial-empty` 样式一并删除，有读数才出现、读数消失（换会话）就跟着消失；dock 行与仓库胶囊照旧渲染，headless 实测空白会话里胶囊右缘仍在任务栏右缘上（`dockRight = pillRight = 1345`，行宽不变）。
+- 测试仍 **258** 条：两条旧用例改为「新会话不渲染试管」「有读数才出现」（并断言不再有 `data-empty` / `disabled`）。第 23 条、验证要求、[docs/UI.md](docs/UI.md)、README §5 与升级说明同步；版本 2.6.6。
+
 ## 2.6.5 — 2026-11-26
 
 - **2.6.4 装到实机后的两处视觉修正**（用户发截图：「右边缘没对齐，仓库那行左移动对齐任务栏的右边缘。试管底色好像跟对话栏和任务栏底色不一样。」）：

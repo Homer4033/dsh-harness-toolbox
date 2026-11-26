@@ -217,7 +217,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - **输入框 / 文本域**：透明底 + `border-l2` + 10px 圆角，聚焦时 `outline: 2px solid accent; outline-offset: 2px`；文本域可纵向 resize。
 - **下拉触发器** `.ct-select`：`aria-haspopup="listbox"`、`aria-expanded`，宽 `min(100%, 360px)`、高 34px、左对齐（`justify-self: start`），展开时描边转 `border-selected`、箭头 180° 旋转；禁用态用 `label-tertiary`。
 - **胶囊** `.ct-repo-pill`：26px 高、999px 圆角、图标 + 标签 + 值 + 箭头；绑定态用 accent 淡染底与 accent 混合描边。
-- **试管触发器** `.ct-vial`：26px 高胶囊，`flex: none`；里面是 10 × 16 的 SVG 迷你试管（液面 `rect` + 阈值 `line`）与百分比文字，`font-variant-numeric: tabular-nums`（数字变化时宽度不跳）。展开时 `aria-expanded='true'`，占用已贴近阈值时 `data-critical='true'` 转 warn 色。它**不是**动作按钮的例外——任何时候都渲染，投影缺失时显示「—」并禁用。
+- **试管触发器** `.ct-vial`：26px 高胶囊，`flex: none`；里面是 10 × 16 的 SVG 迷你试管（液面 `rect` + 阈值 `line`）与百分比文字，`font-variant-numeric: tabular-nums`（数字变化时宽度不跳）。展开时 `aria-expanded='true'`，占用已贴近阈值时 `data-critical='true'` 转 warn 色。**官方的 `contextPressure` 没有读数时整个试管不渲染**（2.6.6）：新会话在第一条消息之前拿不到投影，宿主自己在那时也不画 `ContextMeter`，画一个点不动的灰「—」只会让空会话看起来像坏了；有读数就出现，读数消失（例如换会话）就跟着消失。
 - **胶囊对齐的是宿主的 dock 行，不是输入卡本身**：`conversation.input.dock` 渲染在整宽的 `.composerStack` 里，输入卡用 `--dsh-composer-card-max-width` 居中，而宿主自己的行（智能体任务栏、目标条、队列）在卡宽的基础上**每边再内缩 `--dsh-composer-dock-inset`**（它们的规则是 `100% - 2 × clearance - 4 × inset`，`max-width` 是 `card-max - 4 × inset`）。`.ct-repo-dock` 因此照抄这个盒子：
   `width: calc(100% - var(--dsh-composer-side-clearance, 16px) * 2 - var(--dsh-composer-dock-inset, 8px) * 4); max-width: calc(var(--dsh-composer-card-max-width, 720px) - var(--dsh-composer-dock-inset, 8px) * 4); margin: 0 auto`，
   行内 `justify-content: flex-end`，胶囊右缘就落在任务栏右缘上（2.6.4 只按卡宽收窄，右缘压过任务栏 16px，2.6.5 修正）。整宽行配 `padding: 0 var(--dsh-composer-side-clearance)` 只解决「不贴窗口边」，锚不到任务栏（1.9.x 的观测结果），不要再改回去。
@@ -310,7 +310,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - ❌ 选配色时顺手 `theme.setTheme()` 改用户的外观偏好（2.2.0 已删除这次写入）。
 - ❌ 往官方模型菜单里塞一个拨动后不影响推理等级的装饰控件，或用哈希类名认锚点（只能用语义属性，认不出就不注入）。
 - ❌ 让 `client.js` import 移植模块（它们是 UMD，只能走同源 `<script src="/compression-tiers/vendor/…">`）。
-- ❌ 用条件渲染隐藏试管触发器（投影缺失时也要渲染，显示「—」并禁用）。
+- ❌ 在投影缺失时画一个禁用状态的试管（2.6.6：没有读数就整个不渲染，见第 220 行）。
 - ❌ 恢复像素伙伴或给输入框上方那一行重新引入容器查询（2.5.0 已整块删除，见 [AGENTS.md](../AGENTS.md) 第 23 条）。
 
 ## 落地映射
@@ -357,7 +357,7 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - [ ] 两套皮肤的 token 只写在 `.ct-skin[data-palette='…']` 上，每套都有浅色段与 `body[data-ds-dark-theme]` 深色段；「跟随宿主」是空集。
 - [ ] 外观页三组控件（配色 / 动效 / 光学外观）都能改、失败会回滚；「光学外观」是 `aria-pressed` 的按钮，不是复选框；卡片里**没有**「伙伴」开关。
 - [ ] 「模型和组件」页是**一张卡片里的两段列表**（组件六行 + 本地模型一行，`.ct-item`）：每行行尾两个按钮常显、状态未到时置灰，行内的路径 / 进度 / 错误横跨整行，单行不套卡片；下载目录是列表下方的 `.ct-section`。
-- [ ] 试管触发器任何时候都在（投影缺失显示「—」），浮窗里有数字、构成条与图例。
+- [ ] 试管只在有官方读数时出现：新会话（第一条消息之前）看不到试管，发第一条消息后出现且能点开，浮窗里有数字、构成条与图例。
 - [ ] 推理滑块只出现在官方「推理等级」行下面：行按标签认（两行兜底），多于两行又没有标签命中就不加；锚点是语义属性，`role="slider"` 带 min/max/now/valuetext；写不进去就回滚并写原因；注入后不派发 `resize`；会话目录每次重取、丢了节点会重建。
 - [ ] 输入框上方那一行只有工具区（试管触发器 + 状态小字 + 胶囊），没有伙伴槽、没有 `container-type`、没有 `@container` 收伙伴的规则。
 - [ ] 动效三档都试过：`subtle` 只关进场与液面过渡，`off` 还把 `reducedMotion` 传给了试管、并暂停了星尘与扫光。
