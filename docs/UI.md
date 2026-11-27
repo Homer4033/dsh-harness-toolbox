@@ -373,14 +373,14 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 
 ## 输入框的光学层（2.8.0）
 
-四个画在宿主输入卡上的光效。它们共享**一个** portal 到 `<body>` 的 `.ct-optics-layer`（`position: fixed`、`pointer-events: none`、`z-index: 30`、`ct-skin`、`aria-hidden="true"`、带 `data-palette` / `data-motion`），**只读**宿主 `[data-composer-card]`：不写它的样式、不加子节点、不改底色 / 边框 / seat 遮罩。
+输入卡上只有一道**银白流光边**（2.8.1 按用户要求删掉了停止按钮彩虹环 / 升空环 / 焦散扫光）。它画在**一个** portal 到 `<body>` 的 `.ct-optics-layer`（`position: fixed`、`pointer-events: none`、`z-index: 30`、`ct-skin`、`aria-hidden="true"`、带 `data-palette` / `data-motion`），**只读**宿主 `[data-composer-card]`：不写它的样式、不加子节点、不改底色 / 边框 / seat 遮罩。
 
-- **类名映射**：`.ct-optics-rim`（1px 棱镜边）、`.ct-optics-stop` + 子节点 `.ct-optics-stop-spin`（停止按钮环）、`.ct-optics-liftoff`（升空环）、`.ct-optics-sweep` + `.ct-optics-sweep-line` / `.ct-optics-sweep-tint`（焦散扫光）。这些节点由 React 渲染，几何与一次性动画由 mount 函数写成行内样式 / 属性（`data-on`、`data-run`、`--ct-rim-*`、`--ct-lift-*`、`--ct-sweep-*`）。
-- **颜色**：棱镜四色 `--ct-prism-cobalt / iris / coral / amber` 只写在 `.ct-optics-layer` 上（浅色 `#2563eb / #7c3aed / #ea4335 / #d97706`，深色 `#4285f4 / #9b72cb / #ea4335 / #fbbc04`，另有绿 `#34a853` 只用于停止环）：彩虹就是效果本身，**不随三套配色变化**。这是「配色只写在 `.ct-skin[data-palette]`」的唯一例外。
-- **锚点**：卡片按 `[data-conversation-session]` 找本会话那一张（找不到才回落到页面第一张）；停止按钮 = 卡片里 `button > svg > rect` 的字形（主按钮另有 `aria-busy`，优先）；发送 = 主按钮（有 `aria-busy` 且当前不是停止字形）；生成态只读 `props.session.running`。
-- **动效档位**：`art === false` 或 `motion === 'off'` 时整层不渲染；`subtle` 只留流光边与停止环；`full` 才有升空环与焦散扫光。`prefers-reduced-motion: reduce` 下停止环不转、升空环与扫光 `display: none`。
-- **几何**：`ResizeObserver`（卡片）+ `window resize` + 捕获阶段的 `scroll` 触发一次 rAF 重算；卡片节点 `isConnected === false` 时下一帧重取并重绑观察者与 click 监听；指针移动合并进一个 rAF，没有常驻帧循环。
-- **样式约束**：每条规则以 `body[data-ct-art='on']` 开头；圆环用两层 `mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0)` 掏成 1px；棱镜边用 `radial-gradient(240px circle at var(--ct-rim-x) var(--ct-rim-y), …)`；停止环用 5 段 conic + `steps(38, end)`；三个 keyframes：`ct-prism-orbit` / `ct-prism-liftoff` / `ct-prism-sweep`（扫光另有一条 `ct-prism-sweep-tint`）。
+- **类名映射**：`.ct-optics-rim`（1px 边）。这个节点由 React 渲染，几何由 mount 函数写成行内样式（`--ct-rim-x` / `--ct-rim-y` / `--ct-rim-strength`、方框与圆角）与 `data-on` 属性；指针移动只换这三个变量，所以「流光」是指针带着渐变圆心走，不是自播动画。
+- **颜色**：三段银白 `--ct-rim-hi / mid / lo` 只写在 `.ct-optics-layer` 上（浅色 `#ffffff / #dfe4ea / #8f98a5`，深色 `#ffffff / #e6eaef / #b3bcc7`）：银白就是效果本身，**不随三套配色变化**。这是「配色只写在 `.ct-skin[data-palette]`」的唯一例外。
+- **锚点**：卡片按 `[data-conversation-session]` 找本会话那一张（找不到才回落到页面第一张）。不再读任何按钮，也不读 `session.running`。
+- **动效档位**：`art === false` 或 `motion === 'off'` 时整层不渲染；`subtle` 与 `full` 相同（只剩这一道边）。`prefers-reduced-motion: reduce` 不隐藏它，只把 220ms 的淡入淡出改成 `transition: none`。
+- **几何**：`ResizeObserver`（卡片）+ `window resize` + 捕获阶段的 `scroll` 触发一次 rAF 重算；卡片节点 `isConnected === false` 时下一帧重取并重绑观察者；指针移动合并进一个 rAF，没有常驻帧循环。
+- **样式约束**：每条规则以 `body[data-ct-art='on']` 开头；边用两层 `mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0)` 掏成 1px，填充是 `radial-gradient(240px circle at var(--ct-rim-x) var(--ct-rim-y), …)`；样式表里不再有 `ct-optics-stop` / `-liftoff` / `-sweep` / `ct-prism`，也没有任何 `@keyframes ct-prism*`。
 - **禁止**：不写 `[data-composer-card]` 的 `background-color`、不碰 `[data-composer-seat]`、不把层放进 composer 区域（宿主 `.composerStack` 是 fixed 的包含块）、不用宿主哈希类名。
 
 ## 检查清单
@@ -414,6 +414,6 @@ token 换色只解决颜色，宿主表面仍然是平的一片。2.3.0 起把�
 - [ ] 对话区背景只有一条静态 `linear-gradient`，样式表里没有 canvas、没有背景关键帧。
 - [ ] `npm test` 通过（`test/client.test.js` 覆盖外壳、导航、分页、玻璃变量、授权范围行、规则页两张卡、外观页、试管、热力图、模型行与自绘下拉；`test/usage-heatmap.test.js` 覆盖四桶求和、26 周对齐与强度分档；`test/workspace-rules.test.js` 覆盖受管块的读写；`test/vendor.test.js` 覆盖移植模块与 GPL 文件）。
 - [ ] 视觉效果无法在真实窗口确认时，交付说明写「渲染未验证」。
-- [ ] 输入框光学层只读宿主卡片：层固定、点击穿透、`z-index: 30`，卡片没有新样式或子节点；四个节点都在（`full`），`subtle` 只有流光边与停止环，`off` / 光学外观关闭时整层不出现。
-- [ ] 棱镜边只在指针靠近卡片 280px 内点亮，指针沿边走时色带跟着滑；停止环只在生成中且找得到方形停止字形时出现；发送时有一圈升空环；一轮 ≥6s 的回答结束后有扫光，短 turn 没有。
-- [ ] 系统开启减少动态效果时停止环停转、升空环与扫光不播放；宿主换掉卡片节点后四个效果仍然跟着新卡片。
+- [ ] 输入框光学层只读宿主卡片：层固定、点击穿透、`z-index: 30`，卡片没有新样式或子节点；只有 `.ct-optics-rim` 一个节点，`off` / 光学外观关闭时整层不出现，`subtle` 与 `full` 一样。
+- [ ] 银白边只在指针靠近卡片 280px 内点亮，指针沿边走时渐变圆心跟着滑；没有停止环、升空环与扫光。
+- [ ] 系统开启减少动态效果时不隐藏边、只是不做淡入淡出；宿主换掉卡片节点后边仍然跟着新卡片。

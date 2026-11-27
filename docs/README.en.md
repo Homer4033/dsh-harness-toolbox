@@ -237,12 +237,9 @@ The liquid in the vial is not an image: the ported `vial-core.js` runs a 24-node
 
 A read-only optics layer sits on the composer card (2.8.0; upstream Obsidian Prism's language, redrawn by this plugin):
 
-- **Prism rim** — a 1px four-colour gradient on the card's own border, lit only when the pointer is within 280px of the card; the colour band slides along the edge as the pointer moves and fades away when it leaves.
-- **Stop-button rainbow ring** — while a turn runs, the stop button wears a five-stop conic ring (1.9s per turn, 38 steps). It recognises the square stop glyph, not a locale string.
-- **Lift-off ring** — pressing send expands a ring out of the button and fades it in 520ms.
-- **Caustic sweep** — when a turn that lasted at least six seconds ends, a 1px cyan/white/amber band travels right to left along the card's top edge with a faint four-colour wash for 880ms.
+- **Silver rim** — a 1px silver-white gradient (white → pale silver → deeper silver; a light host uses a darker silver so the 1px band stays visible) on the card's own border, lit only when the pointer is within 280px of the card and fading with distance; the sheen slides along the edge as the pointer moves and fades away when it leaves.
 
-All four are drawn in one `pointer-events: none` fixed layer portalled to `<body>`; the host card's background, border and children are never touched — the layer only reads its rect and button state. The existing appearance switches drive them: 光学外观 is the master switch and the motion tier sets the strength (full shows all four; subtle keeps only the rim and the ring; off shows none). With the OS reduce-motion preference the ring stops turning and the two one-shot effects are skipped.
+Since 2.8.1 this is the only effect: the stop-button rainbow ring, the send lift-off ring and the caustic sweep were removed on request (2.8.0 had shipped all four). It is drawn in a `pointer-events: none` fixed layer portalled to `<body>`; the host card's background, border and children are never touched — the layer only reads its rect. The existing appearance switches drive it: 光学外观 is the master switch and the motion tier's off state hides it too. With the OS reduce-motion preference the fade is skipped (the rim only follows the pointer, nothing runs on its own).
 
 ### The usage board of a blank session
 

@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.8.0'
+    const PLUGIN_VERSION = '2.8.1'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -46,14 +46,10 @@ window.__ModuleLoader__.load({
     ]
     const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', art: true }
     // ---- Composer optics (2.8.0) -------------------------------------------
-    // Four pointer- and event-driven effects drawn over the host composer card,
-    // ported from upstream Obsidian Prism's optical layer. Every number is a CSS
-    // pixel in the viewport, the way the card's own rect reports it.
+    // One pointer-driven effect drawn over the host composer card, ported from
+    // upstream Obsidian Prism's optical layer: the silver-white rim. Every number
+    // is a CSS pixel in the viewport, the way the card's own rect reports it.
     const RIM_REACH = 280 // how close the pointer has to get before the rim lights
-    const STOP_RING_PAD = 3 // the rainbow ring sits 3px outside the stop button
-    const LIFTOFF_MS = 520 // send ring; upstream's ag-cs-liftoff-ring duration
-    const SWEEP_MS = 880 // caustic sweep; upstream's ag-c-sw duration
-    const SWEEP_FLOOR_MS = 6000 // a turn shorter than this ends without a sweep
 
     /**
      * Whole-app skins, as opposed to this plugin's own `.ct-skin` surfaces.
@@ -2323,49 +2319,42 @@ body[data-ct-art='on'] [data-composer-stat] {
   display: none !important;
 }
 /* ---- Composer optics (2.8.0) ---------------------------------------------
-   Four effects on the host composer card, in the optical language ported from
-   Obsidian Prism:
+   One effect on the host composer card, in the optical language ported from
+   Obsidian Prism: a 1px silver-white rim that lights the card's own border and
+   follows the pointer along it — the sheen slides with the pointer instead of
+   running on its own. 2.8.1 dropped upstream's other three flourishes (the
+   stop-button orbit, the send ring, the caustic sweep), so this layer paints
+   exactly one band.
 
-     1. a 1px prism rim that lights the card's own border and follows the
-        pointer along it (the four-stop spectrum slides with the pointer);
-     2. an orbiting rainbow ring around the stop button while a turn runs;
-     3. a launch ring that expands from the send button the moment a prompt
-        launches;
-     4. a caustic sweep over the card when a turn that lasted >= 6s ends.
-
-   All four are drawn on ONE fixed layer portalled to <body>. It only reads the
+   The rim is drawn on a fixed layer portalled to <body>. It only reads the
    card's geometry and takes no clicks: the host card keeps its background,
    border and seat mask, because 2.4.2–2.4.8 proved that repainting the card
    lets the transcript show through it. Every rule below is scoped to the art
    switch; the layer's nodes are not even mounted while 光学外观 is off or the
    motion tier is 'off'.
 
-   The four prism colours are constants of this layer rather than of a skin:
-   the spectrum IS the effect, so switching between host / obsidian / crystal
-   never recolours it. They are the stops upstream ships, one step darker on a
-   light host so the rim stays legible on white. */
+   The silver stops are constants of this layer rather than of a skin: the sheen
+   IS the effect, so switching between host / obsidian / crystal never recolours
+   it. A light host needs a darker stop so the 1px line stays legible on white. */
 body[data-ct-art='on'] .ct-optics-layer {
   position: fixed;
   inset: 0;
   z-index: 30;
   pointer-events: none;
-  --ct-prism-cobalt: #2563eb;
-  --ct-prism-iris: #7c3aed;
-  --ct-prism-coral: #ea4335;
-  --ct-prism-amber: #d97706;
-  --ct-prism-green: #34a853;
+  --ct-rim-hi: #ffffff;
+  --ct-rim-mid: #dfe4ea;
+  --ct-rim-lo: #8f98a5;
 }
 body[data-ct-art='on'][data-ds-dark-theme] .ct-optics-layer {
-  --ct-prism-cobalt: #4285f4;
-  --ct-prism-iris: #9b72cb;
-  --ct-prism-coral: #ea4335;
-  --ct-prism-amber: #fbbc04;
-  --ct-prism-green: #34a853;
+  --ct-rim-hi: #ffffff;
+  --ct-rim-mid: #e6eaef;
+  --ct-rim-lo: #b3bcc7;
 }
-/* The rim is a 1px ring carved out of a solid fill: the fill is the radial
-   spectrum centred on the pointer, and the two-layer mask keeps only the 1px
-   padding band (content-box excluded). Moving the pointer slides the colour
-   stops along the border — the "流光" is that shift, not a self-running loop. */
+/* The rim is a 1px ring carved out of a solid fill: the fill is the silver
+   radial sheen centred on the pointer, and the two-layer mask keeps only the
+   1px padding band (content-box excluded). Moving the pointer slides the
+   gradient along the border — the "流光" is that shift, not a self-running
+   loop. */
 body[data-ct-art='on'] .ct-optics-rim {
   position: fixed;
   left: -9999px;
@@ -2373,10 +2362,9 @@ body[data-ct-art='on'] .ct-optics-rim {
   padding: 1px;
   pointer-events: none;
   background: radial-gradient(240px circle at var(--ct-rim-x, -9999px) var(--ct-rim-y, -9999px),
-    var(--ct-prism-cobalt) 0%,
-    var(--ct-prism-iris) 34%,
-    var(--ct-prism-coral) 68%,
-    var(--ct-prism-amber) 92%,
+    var(--ct-rim-hi) 0%,
+    var(--ct-rim-mid) 46%,
+    var(--ct-rim-lo) 78%,
     transparent 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
@@ -2386,140 +2374,11 @@ body[data-ct-art='on'] .ct-optics-rim {
 body[data-ct-art='on'] .ct-optics-rim[data-on='true'] {
   opacity: var(--ct-rim-strength, 1);
 }
-/* The stop ring: the same 1px-band mask, but the paint under it is a five-stop
-   conic wheel that steps through 38 positions per 1.9s turn — the faceted
-   orbit upstream draws around its stop button. The duration is inline (the
-   mount writes nothing else here), so a stylesheet rule never has to win. */
-body[data-ct-art='on'] .ct-optics-stop {
-  position: fixed;
-  left: -9999px;
-  top: -9999px;
-  padding: 1.5px;
-  overflow: hidden;
-  border-radius: 999px;
-  pointer-events: none;
-  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-body[data-ct-art='on'] .ct-optics-stop[data-on='true'] {
-  opacity: 1;
-}
-body[data-ct-art='on'] .ct-optics-stop-spin {
-  position: absolute;
-  inset: -40%;
-  background: conic-gradient(from 0deg,
-    var(--ct-prism-cobalt) 0deg,
-    var(--ct-prism-iris) 95deg,
-    var(--ct-prism-coral) 185deg,
-    var(--ct-prism-amber) 275deg,
-    var(--ct-prism-green) 325deg,
-    var(--ct-prism-cobalt) 360deg);
-  animation-name: ct-prism-orbit;
-  animation-duration: 1.9s;
-  animation-timing-function: steps(38, end);
-  animation-iteration-count: infinite;
-}
-@keyframes ct-prism-orbit {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-/* The launch ring: a 300px conic halo masked to a band, expanding and fading
-   from the control that was pressed. It is rebuilt (class toggled off/on) for
-   every send rather than kept running. */
-body[data-ct-art='on'] .ct-optics-liftoff {
-  position: fixed;
-  left: var(--ct-lift-x, -9999px);
-  top: var(--ct-lift-y, -9999px);
-  width: 300px;
-  height: 300px;
-  margin: -150px 0 0 -150px;
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0;
-  background: conic-gradient(from 180deg,
-    color-mix(in srgb, var(--ct-prism-cobalt) 68%, transparent),
-    color-mix(in srgb, var(--ct-prism-iris) 62%, transparent),
-    color-mix(in srgb, var(--ct-prism-coral) 56%, transparent),
-    color-mix(in srgb, var(--ct-prism-amber) 60%, transparent),
-    color-mix(in srgb, var(--ct-prism-cobalt) 68%, transparent));
-  -webkit-mask-image: radial-gradient(closest-side, transparent 60%, rgba(0, 0, 0, 0.95) 78%, rgba(0, 0, 0, 0.38) 90%, transparent);
-  mask-image: radial-gradient(closest-side, transparent 60%, rgba(0, 0, 0, 0.95) 78%, rgba(0, 0, 0, 0.38) 90%, transparent);
-}
-body[data-ct-art='on'] .ct-optics-liftoff[data-run='true'] {
-  animation: ct-prism-liftoff 520ms cubic-bezier(0.18, 1, 0.32, 1) forwards;
-}
-@keyframes ct-prism-liftoff {
-  0% { opacity: 0; transform: scale(0.62); }
-  16% { opacity: 0.9; }
-  100% { opacity: 0; transform: scale(1.35); }
-}
-/* The caustic sweep: a hairline highlight that travels right to left across the
-   card's top edge, with a faint four-colour wash over the card underneath. */
-body[data-ct-art='on'] .ct-optics-sweep {
-  position: fixed;
-  left: var(--ct-sweep-x, -9999px);
-  top: var(--ct-sweep-y, -9999px);
-  width: var(--ct-sweep-w, 0px);
-  height: var(--ct-sweep-h, 0px);
-  pointer-events: none;
-  overflow: hidden;
-}
-body[data-ct-art='on'] .ct-optics-sweep-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 1px;
-  opacity: 0;
-  background: linear-gradient(90deg,
-    transparent 32%,
-    rgba(140, 224, 255, 0.8) 46%,
-    rgba(255, 255, 255, 0.96) 50%,
-    rgba(251, 188, 4, 0.7) 55%,
-    transparent 68%) 114% 0 / 250% 1px no-repeat;
-}
-body[data-ct-art='on'] .ct-optics-sweep-tint {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background: linear-gradient(115deg,
-    transparent 33%,
-    color-mix(in srgb, var(--ct-prism-cobalt) 18%, transparent) 40%,
-    color-mix(in srgb, var(--ct-prism-iris) 20%, transparent) 45%,
-    rgba(255, 255, 255, 0.22) 49.5%,
-    color-mix(in srgb, var(--ct-prism-coral) 16%, transparent) 54%,
-    color-mix(in srgb, var(--ct-prism-amber) 18%, transparent) 59%,
-    transparent 67%) 114% 0 / 250% 100% no-repeat;
-}
-body[data-ct-art='on'] .ct-optics-sweep[data-run='true'] .ct-optics-sweep-line {
-  animation: ct-prism-sweep 880ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-body[data-ct-art='on'] .ct-optics-sweep[data-run='true'] .ct-optics-sweep-tint {
-  animation: ct-prism-sweep-tint 880ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-@keyframes ct-prism-sweep {
-  0% { opacity: 0; background-position: 114% 0; }
-  14% { opacity: 1; }
-  82% { opacity: 0.92; }
-  100% { opacity: 0; background-position: -14% 0; }
-}
-@keyframes ct-prism-sweep-tint {
-  0% { opacity: 0; background-position: 114% 0; }
-  18% { opacity: 1; }
-  82% { opacity: 0.86; }
-  100% { opacity: 0; background-position: -14% 0; }
-}
-/* An OS-level reduced-motion request keeps the two state readouts (a static
-   ring, the pointer rim) and drops the two flourishes. */
+/* A reduced-motion request keeps the rim — it only follows the pointer, nothing
+   moves on its own — and drops the fade. */
 @media (prefers-reduced-motion: reduce) {
-  body[data-ct-art='on'] .ct-optics-stop-spin {
-    animation: none;
-  }
-  body[data-ct-art='on'] .ct-optics-liftoff,
-  body[data-ct-art='on'] .ct-optics-sweep {
-    display: none;
+  body[data-ct-art='on'] .ct-optics-rim {
+    transition: none;
   }
 }
 /* ---- Appearance page ---------------------------------------------------- */
@@ -3272,23 +3131,15 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     }
 
     /**
-     * The composer optics switchboard. One appearance snapshot decides which of
-     * the four effects exist at all: the art switch is the master (光学外观), the
-     * motion tier splits the calm pointer effects from the two flourishes, and an
-     * OS-level prefers-reduced-motion behaves like `subtle`. Nothing here is
-     * persisted per effect: the panel keeps its two existing controls.
+     * The composer optics switchboard. One appearance snapshot decides whether
+     * the rim exists at all: the art switch is the master (光学外观) and the
+     * motion tier's `off` hides it too. 2.8.1 removed the three other effects,
+     * so there is no per-effect switch left to keep — the panel's two existing
+     * controls are the whole surface.
      */
-    function opticsPlan(appearance, reduced) {
+    function opticsPlan(appearance) {
       const spec = normalizeAppearance(appearance)
-      const art = spec.art !== false
-      const motion = spec.motion
-      const calm = reduced === true
-      return {
-        rim: art && motion !== 'off',
-        stopRing: art && motion !== 'off',
-        liftoff: art && motion === 'full' && !calm,
-        sweep: art && motion === 'full' && !calm,
-      }
+      return { rim: spec.art !== false && spec.motion !== 'off' }
     }
 
     /**
@@ -3314,35 +3165,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       }
     }
 
-    /** The ring's fixed box: the stop button plus the padding on every side. */
-    function stopRingBox(rect, padding) {
-      const pad = Number.isFinite(padding) && padding > 0 ? padding : STOP_RING_PAD
-      if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)
-        || !(rect.width > 0) || !(rect.height > 0)) return null
-      return {
-        left: rect.left - pad,
-        top: rect.top - pad,
-        width: rect.width + pad * 2,
-        height: rect.height + pad * 2,
-      }
-    }
-
-    /** The launch ring starts at the control that was clicked. */
-    function liftoffOrigin(rect) {
-      if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-    }
-
-    /** Only a turn at least this long earns the sweep when it ends. */
-    function sweepDue(elapsedMs, floorMs) {
-      const floor = Number.isFinite(floorMs) && floorMs >= 0 ? floorMs : SWEEP_FLOOR_MS
-      return Number.isFinite(elapsedMs) && elapsedMs >= floor
-    }
-
     // The optics layer resolves the document lazily: the same seam the effort
     // bridge uses, so tests can point it at a fake document.
     const opticsRuntime = { doc: null }
-    const opticsTurnStart = new WeakMap()
     function opticsDocument() {
       if (opticsRuntime.doc) return opticsRuntime.doc
       return typeof document === 'undefined' ? null : document
@@ -3359,56 +3184,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       if (!id) return
       if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id)
       if (typeof clearTimeout === 'function') clearTimeout(id)
-    }
-    function prefersReducedMotion() {
-      if (typeof window === 'undefined' || !window || typeof window.matchMedia !== 'function') return false
-      try {
-        return window.matchMedia('(prefers-reduced-motion: reduce)').matches === true
-      } catch {
-        return false
-      }
-    }
-
-    /**
-     * The host's stop glyph is the only action icon that is a rounded square:
-     * both stop buttons (the standalone one and the primary button while it is
-     * in stop mode) render `<svg><rect rx=3/></svg>`. Reading that shape is more
-     * robust than matching a localized aria-label ("停止生成" / "Stop generating"
-     * / …), and the primary button is the one that also carries `aria-busy`.
-     */
-    function isStopControl(button) {
-      if (!button) return false
-      let child = button.firstElementChild
-      while (child) {
-        if (String(child.tagName || '').toLowerCase() === 'svg') {
-          const kids = child.children || []
-          for (let i = 0; i < kids.length; i += 1) {
-            const glyph = kids[i]
-            if (glyph && String(glyph.tagName || '').toLowerCase() === 'rect') return true
-          }
-          return false
-        }
-        child = child.nextElementSibling
-      }
-      return false
-    }
-
-    /**
-     * The control the ring wraps: the primary action when it flips to stop,
-     * otherwise the standalone stop button the host adds while a prompt is
-     * queued/sent. `null` whenever the composer offers neither.
-     */
-    function stopControlOf(card) {
-      if (!card || typeof card.querySelectorAll !== 'function') return null
-      const list = card.querySelectorAll('button')
-      let fallback = null
-      for (let i = 0; i < list.length; i += 1) {
-        const button = list[i]
-        if (!isStopControl(button)) continue
-        if (typeof button.hasAttribute === 'function' && button.hasAttribute('aria-busy')) return button
-        if (!fallback) fallback = button
-      }
-      return fallback
     }
 
     /**
@@ -3449,7 +3224,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     }
 
     /**
-     * Mounts the four effects against one composer card. The layer is inert
+     * Mounts the rim against one composer card. The layer is inert
      * (pointer-events: none) and only *reads* the card: no host node is touched,
      * no background is repainted. Everything is event-driven; there is no
      * standing frame loop — pointer moves are coalesced into one rAF, geometry
@@ -3458,40 +3233,22 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     function mountComposerOptics(options) {
       const doc = opticsDocument()
       const layer = options && options.layer
-      const plan = options && options.plan ? options.plan : opticsPlan(null)
       const noop = function () {}
       if (!doc || !layer || typeof layer.querySelector !== 'function') return noop
       const card = findComposerCard(doc, options.sessionId)
       if (!card || typeof card.getBoundingClientRect !== 'function') return noop
       const win = doc.defaultView || (typeof window !== 'undefined' ? window : null)
-      const rim = plan.rim ? layer.querySelector('.ct-optics-rim') : null
-      const stop = plan.stopRing ? layer.querySelector('.ct-optics-stop') : null
-      const lift = plan.liftoff ? layer.querySelector('.ct-optics-liftoff') : null
-      const sweep = plan.sweep ? layer.querySelector('.ct-optics-sweep') : null
-      const timers = []
+      const rim = layer.querySelector('.ct-optics-rim')
       // The host may replace the card node while the conversation view stays
       // mounted (hero → composer, a re-render that swaps the card subtree), so
       // the mount keeps a re-resolvable target instead of pinning the first hit.
       let target = card
       let observer = null
-      let mutations = null
-      let cardBound = false
       let rect = null
       let frame = 0
       let pointFrame = 0
       let lastPoint = null
       let disposed = false
-
-      const later = function (fn, ms) {
-        if (typeof setTimeout !== 'function') return 0
-        const id = setTimeout(function () {
-          const at = timers.indexOf(id)
-          if (at >= 0) timers.splice(at, 1)
-          fn()
-        }, ms)
-        timers.push(id)
-        return id
-      }
 
       const paintRim = function () {
         if (!rim || disposed || !lastPoint) return
@@ -3502,30 +3259,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         rim.style.setProperty('--ct-rim-strength', hit.strength.toFixed(3))
         if (hit.on) rim.setAttribute('data-on', 'true')
         else rim.removeAttribute('data-on')
-      }
-
-      const placeStop = function () {
-        if (!stop) return
-        if (options.running !== true) {
-          stop.hidden = true
-          stop.removeAttribute('data-on')
-          return
-        }
-        const button = stopControlOf(target)
-        const box = button && typeof button.getBoundingClientRect === 'function'
-          ? stopRingBox(button.getBoundingClientRect(), STOP_RING_PAD)
-          : null
-        if (!box) {
-          stop.hidden = true
-          stop.removeAttribute('data-on')
-          return
-        }
-        stop.hidden = false
-        stop.style.left = box.left + 'px'
-        stop.style.top = box.top + 'px'
-        stop.style.width = box.width + 'px'
-        stop.style.height = box.height + 'px'
-        stop.setAttribute('data-on', 'true')
       }
 
       const measure = function () {
@@ -3540,38 +3273,18 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         const next = target.getBoundingClientRect()
         if (!next || !(next.width > 0) || !(next.height > 0)) return
         rect = { left: next.left, top: next.top, width: next.width, height: next.height }
-        const radius = composerRadius(doc, target, rect)
-        if (rim) {
-          rim.style.left = rect.left + 'px'
-          rim.style.top = rect.top + 'px'
-          rim.style.width = rect.width + 'px'
-          rim.style.height = rect.height + 'px'
-          rim.style.borderRadius = radius + 'px'
-        }
-        if (sweep) {
-          sweep.style.setProperty('--ct-sweep-x', rect.left + 'px')
-          sweep.style.setProperty('--ct-sweep-y', rect.top + 'px')
-          sweep.style.setProperty('--ct-sweep-w', rect.width + 'px')
-          sweep.style.setProperty('--ct-sweep-h', rect.height + 'px')
-          sweep.style.borderRadius = radius + 'px'
-        }
-        placeStop()
-        if (rim && lastPoint) paintRim()
+        if (!rim) return
+        rim.style.left = rect.left + 'px'
+        rim.style.top = rect.top + 'px'
+        rim.style.width = rect.width + 'px'
+        rim.style.height = rect.height + 'px'
+        rim.style.borderRadius = composerRadius(doc, target, rect) + 'px'
+        if (lastPoint) paintRim()
       }
 
       const schedule = function () {
         if (frame || disposed) return
         frame = opticsFrame(measure)
-      }
-
-      const playSweep = function () {
-        if (!sweep) return
-        sweep.removeAttribute('data-run')
-        void sweep.offsetWidth
-        sweep.setAttribute('data-run', 'true')
-        later(function () {
-          if (sweep) sweep.removeAttribute('data-run')
-        }, SWEEP_MS + 60)
       }
 
       const onPointerMove = function (event) {
@@ -3586,66 +3299,20 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         lastPoint = null
         if (rim) rim.removeAttribute('data-on')
       }
-      const onCardClick = function (event) {
-        if (!lift || disposed) return
-        const node = event && event.target
-        const button = node && typeof node.closest === 'function' ? node.closest('button') : null
-        if (!button || typeof target.contains !== 'function' || !target.contains(button)) return
-        // Only the primary action sends; it is the one host button with
-        // `aria-busy`, and it stops being a send while it shows the stop glyph.
-        if (typeof button.hasAttribute !== 'function' || !button.hasAttribute('aria-busy')) return
-        if (isStopControl(button)) return
-        const origin = liftoffOrigin(button.getBoundingClientRect())
-        if (!origin) return
-        lift.style.setProperty('--ct-lift-x', origin.x + 'px')
-        lift.style.setProperty('--ct-lift-y', origin.y + 'px')
-        lift.removeAttribute('data-run')
-        void lift.offsetWidth
-        lift.setAttribute('data-run', 'true')
-        later(function () {
-          if (lift) lift.removeAttribute('data-run')
-        }, LIFTOFF_MS + 40)
-      }
-
-      // A turn's length decides the sweep. The start is kept per layer node so
-      // an appearance change mid-turn (the effect remounts) does not reset it.
-      const started = opticsTurnStart.get(layer)
-      if (options.running === true) {
-        if (started === undefined) opticsTurnStart.set(layer, Date.now())
-      } else if (started !== undefined) {
-        opticsTurnStart.delete(layer)
-        if (sweepDue(Date.now() - started, SWEEP_FLOOR_MS)) playSweep()
-      }
 
       const observeCard = function () {
-        if (typeof ResizeObserver === 'function') {
-          observer = new ResizeObserver(schedule)
-          try { observer.observe(target) } catch { observer = null }
-        }
-        if (stop && options.running === true && typeof MutationObserver === 'function') {
-          mutations = new MutationObserver(schedule)
-          try {
-            mutations.observe(target, { childList: true, subtree: true })
-          } catch { mutations = null }
-        }
-        if (typeof target.addEventListener === 'function') {
-          target.addEventListener('click', onCardClick, true)
-          cardBound = true
+        if (typeof ResizeObserver !== 'function') return
+        observer = new ResizeObserver(schedule)
+        try {
+          observer.observe(target)
+        } catch {
+          observer = null
         }
       }
       const unobserveCard = function () {
-        if (observer) {
-          try { observer.disconnect() } catch { /* already gone */ }
-          observer = null
-        }
-        if (mutations) {
-          try { mutations.disconnect() } catch { /* already gone */ }
-          mutations = null
-        }
-        if (cardBound && typeof target.removeEventListener === 'function') {
-          target.removeEventListener('click', onCardClick, true)
-        }
-        cardBound = false
+        if (!observer) return
+        try { observer.disconnect() } catch { /* already gone */ }
+        observer = null
       }
       const rebind = function (nextCard) {
         unobserveCard()
@@ -3664,18 +3331,14 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         }
       }
       observeCard()
-
       measure()
+
       return function () {
         disposed = true
         opticsCancel(frame)
         opticsCancel(pointFrame)
         frame = 0
         pointFrame = 0
-        for (let i = 0; i < timers.length; i += 1) {
-          if (typeof clearTimeout === 'function') clearTimeout(timers[i])
-        }
-        timers.length = 0
         unobserveCard()
         if (win && typeof win.removeEventListener === 'function') {
           win.removeEventListener('resize', schedule)
@@ -3686,12 +3349,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           }
         }
         if (rim) rim.removeAttribute('data-on')
-        if (stop) {
-          stop.removeAttribute('data-on')
-          stop.hidden = true
-        }
-        if (lift) lift.removeAttribute('data-run')
-        if (sweep) sweep.removeAttribute('data-run')
       }
     }
 
@@ -5033,28 +4690,20 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
      * containing block for fixed descendants there, and a layer inside it would
      * move with the card instead of sitting over it.
      *
-     * The nodes are announced by React (their class names are the contract the
-     * mount function queries); geometry and one-shot animations are written
-     * imperatively because they follow the pointer and the host's own layout.
+     * The rim node is announced by React (its class name is the contract the
+     * mount function queries); geometry is written imperatively because it
+     * follows the pointer and the host's own layout.
      */
     function ComposerOptics(props) {
       const appearance = normalizeAppearance(props.appearance)
       const session = props.session && typeof props.session === 'object' ? props.session : null
       const sessionId = props.sessionId || (session && session.sessionId) || ''
-      const running = !!(session && session.running === true)
-      const reduced = typeof props.reduced === 'boolean' ? props.reduced : prefersReducedMotion()
-      const plan = opticsPlan(appearance, reduced)
+      const plan = opticsPlan(appearance)
       const layerRef = React.useRef(null)
-      const live = plan.rim || plan.stopRing || plan.liftoff || plan.sweep
       React.useEffect(function () {
-        return mountComposerOptics({
-          layer: layerRef.current,
-          sessionId: sessionId,
-          running: running,
-          plan: plan,
-        })
-      }, [sessionId, running, plan.rim, plan.stopRing, plan.liftoff, plan.sweep])
-      if (!live) return null
+        return mountComposerOptics({ layer: layerRef.current, sessionId: sessionId })
+      }, [sessionId, plan.rim])
+      if (!plan.rim) return null
       if (typeof document === 'undefined' || !ReactDOM || typeof ReactDOM.createPortal !== 'function') return null
       return ReactDOM.createPortal(h('div', {
         ref: layerRef,
@@ -5065,17 +4714,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         // reader to announce.
         'aria-hidden': 'true',
       },
-      plan.rim ? h('div', { key: 'rim', className: 'ct-optics-rim' }) : null,
-      plan.stopRing ? h('div', {
-        key: 'stop',
-        className: 'ct-optics-stop',
-        'data-on': 'false',
-        hidden: !running,
-      }, h('i', { key: 'spin', className: 'ct-optics-stop-spin' })) : null,
-      plan.liftoff ? h('div', { key: 'lift', className: 'ct-optics-liftoff' }) : null,
-      plan.sweep ? h('div', { key: 'sweep', className: 'ct-optics-sweep' },
-        h('i', { key: 'line', className: 'ct-optics-sweep-line' }),
-        h('i', { key: 'tint', className: 'ct-optics-sweep-tint' })) : null,
+      h('div', { key: 'rim', className: 'ct-optics-rim' }),
       ), document.body)
     }
 
@@ -6947,18 +6586,10 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         optics: {
           plan: opticsPlan,
           rimPoint: rimPoint,
-          stopRingBox: stopRingBox,
-          liftoffOrigin: liftoffOrigin,
-          sweepDue: sweepDue,
-          isStopControl: isStopControl,
-          stopControlOf: stopControlOf,
           findCard: findComposerCard,
           mount: mountComposerOptics,
           setDocument: setOpticsDocument,
           reach: RIM_REACH,
-          sweepFloorMs: SWEEP_FLOOR_MS,
-          liftoffMs: LIFTOFF_MS,
-          sweepMs: SWEEP_MS,
         },
 
         setSkinTheme: function (theme) {

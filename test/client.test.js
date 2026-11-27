@@ -2507,7 +2507,7 @@ function renderDockWith(settings, props) {
 /**
  * The dock only *mounts* the optics component; its portalled layer is what the
  * browser would paint. Run the component the way React would so the layer and
- * its four nodes can be inspected.
+ * its rim can be inspected.
  */
 function opticsNodes(dockNodes) {
   const element = dockNodes.find((node) => typeof node.type === 'function'
@@ -2518,23 +2518,21 @@ function opticsNodes(dockNodes) {
 
 test('the optics switchboard follows the art switch and the motion tier', () => {
   const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const keys = ['rim', 'stopRing', 'liftoff', 'sweep']
-  const on = (appearance, reduced) => {
-    const plan = optics.plan(appearance, reduced)
-    return keys.filter((key) => plan[key])
+  const on = (appearance) => {
+    const plan = optics.plan(appearance)
+    return Object.keys(plan).filter((key) => plan[key])
   }
-  assert.deepEqual(on({ palette: 'host', motion: 'full', art: true }), keys)
-  assert.deepEqual(on({ palette: 'host', motion: 'subtle', art: true }), ['rim', 'stopRing'],
-    'the calm tier keeps the two state readouts')
+  assert.deepEqual(Object.keys(optics.plan({})), ['rim'], '2.8.1 draws the rim and nothing else')
+  assert.deepEqual(on({ palette: 'host', motion: 'full', art: true }), ['rim'])
+  assert.deepEqual(on({ palette: 'host', motion: 'subtle', art: true }), ['rim'],
+    'the calm tier keeps the rim')
   assert.deepEqual(on({ palette: 'host', motion: 'off', art: true }), [], 'motion off has no optics')
   assert.deepEqual(on({ palette: 'host', motion: 'full', art: false }), [], 'the art switch is the master')
-  assert.deepEqual(on({ palette: 'host', motion: 'full', art: true }, true), ['rim', 'stopRing'],
-    'an OS reduced-motion request behaves like subtle')
-  assert.deepEqual(on(null), keys, 'the default appearance is full art')
-  assert.deepEqual(on({ palette: 'nope', motion: 'nope', art: true }), keys, 'unknown values fall back to full')
+  assert.deepEqual(on(null), ['rim'], 'the default appearance lights the rim')
+  assert.deepEqual(on({ palette: 'nope', motion: 'nope', art: true }), ['rim'], 'unknown values fall back to full')
 })
 
-test('the prism rim lights only near the card and slides with the pointer', () => {
+test('the silver rim lights only near the card and slides with the pointer', () => {
   const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
   const rect = { left: 100, top: 500, width: 400, height: 120 }
   const near = optics.rimPoint(rect, { x: 300, y: 470 }, 280)
@@ -2553,38 +2551,6 @@ test('the prism rim lights only near the card and slides with the pointer', () =
   assert.equal(optics.reach, 280)
 })
 
-test('the stop ring anchors on the square stop glyph, not on a label', () => {
-  const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const glyph = (tag) => ({ tagName: tag, children: [] })
-  const button = (kids, attrs) => ({
-    firstElementChild: kids.length
-      ? { tagName: 'svg', children: kids, nextElementSibling: null }
-      : null,
-    attrs: attrs || {},
-    hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attrs, name) },
-  })
-  const stop = button([glyph('rect')], { 'aria-busy': '' })
-  const plainStop = button([glyph('rect')], {})
-  const send = button([glyph('path')], { 'aria-busy': '' })
-  assert.equal(optics.isStopControl(stop), true)
-  assert.equal(optics.isStopControl(send), false, 'the send arrow is not a stop')
-  assert.equal(optics.isStopControl(null), false)
-  const card = (buttons) => ({ querySelectorAll: () => buttons })
-  assert.equal(optics.stopControlOf(card([send, stop, plainStop])), stop, 'the primary stop wins')
-  assert.equal(optics.stopControlOf(card([send, plainStop])), plainStop, 'the standalone stop is the fallback')
-  assert.equal(optics.stopControlOf(card([send])), null)
-  assert.equal(optics.stopControlOf(null), null)
-  assert.deepEqual({ ...optics.stopRingBox({ left: 600, top: 700, width: 32, height: 32 }, 3) },
-    { left: 597, top: 697, width: 38, height: 38 })
-  assert.equal(optics.stopRingBox({ width: 0, height: 0 }), null)
-  assert.deepEqual({ ...optics.liftoffOrigin({ left: 600, top: 700, width: 32, height: 32 }) }, { x: 616, y: 716 })
-  assert.equal(optics.liftoffOrigin(null), null)
-  assert.equal(optics.sweepDue(5999), false, 'a quick turn ends without a sweep')
-  assert.equal(optics.sweepDue(6000), true)
-  assert.equal(optics.sweepDue(Number.NaN), false)
-  assert.equal(optics.sweepFloorMs, 6000)
-})
-
 test('the optics find the composer card of their own session', () => {
   const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
   const cardA = { id: 'a' }
@@ -2601,39 +2567,20 @@ test('the optics find the composer card of their own session', () => {
   assert.equal(optics.findCard(null, 's1'), null)
 })
 
-test('the optics mount traces the card and arms the stop ring', () => {
+test('the optics mount traces the card edge', () => {
   const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const node = (className) => {
-    const style = {
-      setProperty(name, value) { style[name] = value },
-      removeProperty(name) { delete style[name] },
-    }
-    return {
-      className,
-      style,
-      hidden: false,
-      attrs: {},
-      setAttribute(name, value) { this.attrs[name] = value },
-      removeAttribute(name) { delete this.attrs[name] },
-    }
+  const rim = {
+    className: 'ct-optics-rim',
+    style: {
+      setProperty(name, value) { this[name] = value },
+    },
+    attrs: {},
+    setAttribute(name, value) { this.attrs[name] = value },
+    removeAttribute(name) { delete this.attrs[name] },
   }
-  const rim = node('ct-optics-rim')
-  const ring = node('ct-optics-stop')
-  const layer = {
-    querySelector: (sel) => (sel === '.ct-optics-rim' ? rim : sel === '.ct-optics-stop' ? ring : null),
-  }
-  const stopButton = {
-    firstElementChild: { tagName: 'svg', children: [{ tagName: 'rect' }], nextElementSibling: null },
-    attrs: { 'aria-busy': '' },
-    hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attrs, name) },
-    getBoundingClientRect() { return { left: 600, top: 700, width: 32, height: 32 } },
-  }
+  const layer = { querySelector: (sel) => (sel === '.ct-optics-rim' ? rim : null) }
   const card = {
     getBoundingClientRect: () => ({ left: 100, top: 500, width: 400, height: 120 }),
-    querySelectorAll: (sel) => (sel === 'button' ? [stopButton] : []),
-    addEventListener() {},
-    removeEventListener() {},
-    contains: () => true,
   }
   const win = {
     addEventListener() {},
@@ -2647,30 +2594,18 @@ test('the optics mount traces the card and arms the stop ring', () => {
     querySelector: (sel) => (sel === '[data-composer-card]' ? card : null),
   }
   optics.setDocument(doc)
-  const dispose = optics.mount({
-    layer,
-    sessionId: 's1',
-    running: true,
-    plan: { rim: true, stopRing: true, liftoff: false, sweep: false },
-  })
+  const dispose = optics.mount({ layer, sessionId: 's1' })
   assert.equal(rim.style.left, '100px')
   assert.equal(rim.style.top, '500px')
   assert.equal(rim.style.width, '400px')
   assert.equal(rim.style.height, '120px')
   assert.equal(rim.style.borderRadius, '14px')
-  assert.equal(ring.hidden, false)
-  assert.equal(ring.style.left, '597px')
-  assert.equal(ring.style.top, '697px')
-  assert.equal(ring.style.width, '38px')
-  assert.equal(ring.attrs['data-on'], 'true')
   dispose()
-  assert.equal(ring.hidden, true, 'the ring is disarmed on unmount')
-  assert.equal(ring.attrs['data-on'], undefined)
-  assert.equal(rim.attrs['data-on'], undefined)
+  assert.equal(rim.attrs['data-on'], undefined, 'the rim is dark again on unmount')
   optics.setDocument(null)
 })
 
-test('full motion mounts all four composer optics on one inert layer', () => {
+test('full motion mounts the silver rim on one inert layer', () => {
   const nodes = opticsNodes(renderDockWith({ appearance: { palette: 'obsidian', motion: 'full', art: true } }, {
     t: (key) => key,
     sessionId: 'session-optics',
@@ -2681,19 +2616,13 @@ test('full motion mounts all four composer optics on one inert layer', () => {
   assert.equal(layer.props['data-palette'], 'obsidian')
   assert.equal(layer.props['data-motion'], 'full')
   assert.equal(layer.props['aria-hidden'], 'true')
-  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-rim'))
-  const ring = nodes.find((node) => String(node.props.className) === 'ct-optics-stop')
-  assert.ok(ring, 'the stop ring rides the same layer')
-  assert.equal(ring.props.hidden, false, 'the ring is armed while the turn runs')
-  assert.equal(ring.props['data-on'], 'false', 'the mount decides when it is lit')
-  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-stop-spin'))
-  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-liftoff'))
-  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-sweep'))
-  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-sweep-line'))
-  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-sweep-tint'))
+  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-rim'), 'the rim is the whole layer')
+  for (const gone of ['ct-optics-stop', 'ct-optics-stop-spin', 'ct-optics-liftoff', 'ct-optics-sweep', 'ct-optics-sweep-line', 'ct-optics-sweep-tint']) {
+    assert.equal(nodes.some((node) => String(node.props.className) === gone), false, `${gone} was removed in 2.8.1`)
+  }
 })
 
-test('the calm tiers keep the readouts and drop the flourishes', () => {
+test('the calm tiers keep the rim; off and the art switch mount nothing', () => {
   const props = {
     t: (key) => key,
     sessionId: 's',
@@ -2702,10 +2631,6 @@ test('the calm tiers keep the readouts and drop the flourishes', () => {
   const subtle = opticsNodes(renderDockWith({ appearance: { palette: 'host', motion: 'subtle', art: true } }, props))
   assert.ok(subtle.find((node) => hasClass(node, 'ct-optics-layer')))
   assert.ok(subtle.find((node) => String(node.props.className) === 'ct-optics-rim'))
-  const ring = subtle.find((node) => String(node.props.className) === 'ct-optics-stop')
-  assert.equal(ring.props.hidden, true, 'idle turns carry no armed ring')
-  assert.equal(subtle.some((node) => String(node.props.className) === 'ct-optics-liftoff'), false)
-  assert.equal(subtle.some((node) => String(node.props.className) === 'ct-optics-sweep'), false)
 
   const off = renderDockWith({ appearance: { palette: 'host', motion: 'off', art: true } }, props)
   assert.equal(off.some((node) => hasClass(node, 'ct-optics-layer')), false, 'motion off mounts nothing')
@@ -2727,7 +2652,7 @@ test('a blank session mounts the optics layer over its hero composer too', () =>
   assert.equal(layer.props['data-palette'], 'crystal')
 })
 
-test('the composer optics stylesheet is art-scoped and never repaints the card', () => {
+test('the composer optics stylesheet is art-scoped, silver and never repaints the card', () => {
   const { module, styles } = loadClient()
   const ctx = {
     effect(fn) {
@@ -2751,21 +2676,18 @@ test('the composer optics stylesheet is art-scoped and never repaints the card',
   assert.match(css, /body\[data-ct-art='on'\] \.ct-optics-layer \{/)
   assert.match(css, /body\[data-ct-art='on'\]\[data-ds-dark-theme\] \.ct-optics-layer \{/)
   assert.match(css, /body\[data-ct-art='on'\] \.ct-optics-rim \{/)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-optics-stop \{/)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-optics-liftoff \{/)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-optics-sweep \{/)
   assert.match(css, /background: radial-gradient\(240px circle at var\(--ct-rim-x/)
   assert.match(css, /mask: linear-gradient\(#000 0 0\) content-box exclude/)
-  assert.match(css, /conic-gradient\(from 0deg,\n    var\(--ct-prism-cobalt\) 0deg,/)
-  assert.match(css, /steps\(38, end\)/)
-  assert.match(css, /animation-duration: 1\.9s/)
-  assert.match(css, /@keyframes ct-prism-orbit/)
-  assert.match(css, /@keyframes ct-prism-liftoff/)
-  assert.match(css, /@keyframes ct-prism-sweep/)
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/)
   assert.match(css, /\.ct-optics-layer \{[^}]*position: fixed;[^}]*pointer-events: none;/s)
-  assert.match(css, /--ct-prism-cobalt: #2563eb/)
-  assert.match(css, /--ct-prism-cobalt: #4285f4/)
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/)
+  // Silver-white: a white hotspot, a pale mid stop and a darker silver so the
+  // 1px band still reads on a light card; the dark host uses the same trio.
+  assert.match(css, /--ct-rim-hi: #ffffff;\n  --ct-rim-mid: #dfe4ea;\n  --ct-rim-lo: #8f98a5;/)
+  assert.match(css, /--ct-rim-hi: #ffffff;\n  --ct-rim-mid: #e6eaef;\n  --ct-rim-lo: #b3bcc7;/)
+  // 2.8.1 removed the other three effects: no orbit, no launch ring, no sweep
+  // and no prism spectrum is left in the stylesheet.
+  assert.doesNotMatch(css, /ct-optics-stop|ct-optics-liftoff|ct-optics-sweep|ct-prism/)
+  assert.doesNotMatch(css, /@keyframes ct-prism/)
   // The host card is read, never repainted: no background/border override and
   // no host hash class may appear in the optics section.
   assert.doesNotMatch(css, /\.ct-optics[^}]*background-color/)
@@ -2799,12 +2721,7 @@ test('the optics follow a composer card the host replaced', async () => {
     querySelector: (sel) => (sel === '[data-composer-card]' ? card : null),
   }
   optics.setDocument(doc)
-  const dispose = optics.mount({
-    layer,
-    sessionId: 's1',
-    running: false,
-    plan: { rim: true, stopRing: false, liftoff: false, sweep: false },
-  })
+  const dispose = optics.mount({ layer, sessionId: 's1' })
   assert.equal(rim.style.left, '100px')
   // React swaps the card node; the next measure re-resolves and re-observes.
   card.isConnected = false
