@@ -12,10 +12,10 @@ Five tiers · a moving context vial · a local usage board for blank sessions ·
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.7.7-0f172a?style=flat-square" alt="Version 2.7.7" />
+  <img src="https://img.shields.io/badge/Version-2.8.2-0f172a?style=flat-square" alt="Version 2.8.2" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-273%20passing-16a34a?style=flat-square" alt="273 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-270%20passing-16a34a?style=flat-square" alt="270 tests passing" />
   <a href="../LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="../NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -38,20 +38,18 @@ Five tiers · a moving context vial · a local usage board for blank sessions ·
 - [Highlights](#highlights)
 - [Screens](#screens)
   - [1. The conversation: vial and the row above the input](#1-the-conversation-vial-and-the-row-above-the-input)
-  - [2. The panel: glass shell, five pages](#2-the-panel-glass-shell-five-pages)
+  - [2. The panel: glass shell, four pages](#2-the-panel-glass-shell-four-pages)
   - [3. A blank session: the local usage board](#3-a-blank-session-the-local-usage-board)
 - [Install](#install)
   - [Way one: from npm](#way-one-from-npm-recommended)
   - [Way two: from a local checkout](#way-two-from-a-local-checkout-developers)
   - [Upgrading and rolling back](#upgrading-and-rolling-back)
 - [Usage](#usage)
-  - [The five pages](#the-five-pages)
+  - [The four pages](#the-four-pages)
   - [Rules: global and per workspace](#rules-global-and-per-workspace)
-  - [Appearance: palette, motion, optics](#appearance-palette-motion-optics)
   - [Theme art and the glow](#theme-art-and-the-glow)
   - [The models and components page](#the-models-and-components-page)
   - [The row above the input](#the-row-above-the-input)
-  - [The optics on the composer](#the-optics-on-the-composer)
   - [The usage board of a blank session](#the-usage-board-of-a-blank-session)
   - [The reasoning slider inside the official model menu](#the-reasoning-slider-inside-the-official-model-menu)
   - [The four agent tools](#the-four-agent-tools)
@@ -73,8 +71,8 @@ Five tiers · a moving context vial · a local usage board for blank sessions ·
 - **Context you can see, reasoning you can touch**: the vial above the input shows the occupancy in real time — the liquid level is `used / window`, the tick marks are the tier's compact threshold. Opening it lists used, window, threshold, retained tail and the distance to the threshold, plus the system / tools / conversation split. The official model menu gains one reasoning slider that writes the session's reasoning effort.
 - **A blank session gets a local usage board**: before the first message there is no context reading, so a card floats up instead — the upstream Studio bento layout: left column "activity trail" (header row + a full-width 26-week × 7-day grid + a hairline + the big total), right column "model usage" (one 5px track per model, percentage and session count), with the repository pill in the footer. The host's greeting and input card are pushed to the bottom while the board **stays put**. Every number is read from the host's own session cache (read-only, never copied), and the first message hands the space back to the vial.
 - **The local model lives in its own folder**: the models and components page downloads **FLUX.2 [klein] 4B** (the 4-step distilled build of `black-forest-labs/FLUX.2-klein-4B`, Apache-2.0, no login, 18 diffusers files, about 15.98 GB) into a separate `models/` directory under the download root; per-file resume, and only a complete file is renamed into place.
-- **Two palettes that repaint the whole app and follow DSH**: obsidian leans indigo, crystal leans ice-cyan; each ships a light and a dark token set, so switching the official theme switches the skin and the plugin never forces your appearance preference to the other side. The default "follow the host" overrides nothing. Picking a palette repaints the sidebar, bubbles, input card, menus, cards and code blocks — not just this plugin's own surfaces.
-- **The theme art comes with it**: tokens alone leave host surfaces flat, so a layer of art is drawn on top — a static glow at the bottom of the conversation, 16px smoked user bubbles, an accent bar on quotes, an 84%-wide hairline for `hr`, 6px scrollbars, a sheen on the input card. Under "follow the host" it is drawn with DSH's own colours (not turned off), and the appearance page can switch the art off on its own.
+- **One skin pair that repaints the whole app and follows DSH**: the appearance page was removed in 2.8.2, so there is nothing to pick — DSH's own dark / light switch chooses the half. Dark uses 深空黑曜 (near-black slate, indigo accent); light uses 白昼冷晶, upstream Obsidian Prism's white (`#F4F7FB` ground, `#FFF` cards, `#2563EB` accent). The sidebar, bubbles, input card, menus, cards and code blocks repaint together — not just this plugin's own surfaces.
+- **The theme art comes with it, always on**: tokens alone leave host surfaces flat, so a layer of art is drawn on top — a static glow at the bottom of the conversation, 16px smoked user bubbles, an accent bar on quotes, an 84%-wide hairline for `hr`, 6px scrollbars, a sheen on the input card. The skin only decides which tokens paint it.
 - **The glow is one still gradient**: since 2.4.6 the conversation floor carries a single `linear-gradient` (accent 16% → ice blue 9% at 26% → transparent at 54%); since 2.5.0 the slice under the composer is painted by a `::before` on the same layer at the measured height, so the seam is gone. No canvas, no frames, no animation. The 2.4.0–2.4.5 canvas horizon renderer is gone.
 - **Rules exist in exactly one place**: the global rules are `<DSH home>/AGENTS.md`; workspace rules are the `AGENTS.md` at each workspace root (the plugin owns only a managed block at its top, the rest of the file belongs to the workspace). Nothing is copied or cached, no agent tool can rewrite them — only a human, in the panel.
 - **Six components, one download root**: GitHub CLI, git, ffmpeg / ffprobe and Python can use a PATH copy or a managed download (resume, self-check, atomic swap, rollback on failure); ComfyUI and the official ComfyUI MCP are two source trees (GitHub archive, no PATH probing) downloaded and swapped the same way. The whole root can be migrated from the panel.
@@ -97,13 +95,13 @@ The row right above the input card holds only a right-aligned tool cluster: the 
 
 That row also decides where `github_push` publishes: the repository selected in the pill is the target of this session.
 
-### 2. The panel: glass shell, five pages
+### 2. The panel: glass shell, four pages
 
 <p align="center">
   <img src="screenshots/panel.png" width="100%" alt="The models and components page: the page rail on the left, six components and the local model in the same card list" />
 </p>
 
-The panel hangs off the sidebar row "compression tiers" and shows one page at a time, always in this order: **tiers / rules / models and components / appearance / GitHub**. Every page is always in the rail — an empty page still renders and says so inside its card (with no registered workspace, the rules page still shows that card and writes "no workspaces yet").
+The panel hangs off the sidebar row "compression tiers" and shows one page at a time, always in this order: **tiers / rules / models and components / GitHub**. Every page is always in the rail — an empty page still renders and says so inside its card (with no registered workspace, the rules page still shows that card and writes "no workspaces yet").
 
 ### 3. A blank session: the local usage board
 
@@ -121,7 +119,7 @@ Requires **Node.js ≥ 24.9** and a DSH runtime between **`0.2.2-rc.3` (inclusiv
 
 ### Way one: from npm (recommended)
 
-1. DSH → **Plugins → Add plugin**, enter the package name `dsh-harness-toolbox` (pin a version with `dsh-harness-toolbox@2.7.7`);
+1. DSH → **Plugins → Add plugin**, enter the package name `dsh-harness-toolbox` (pin a version with `dsh-harness-toolbox@2.8.2`);
 2. after it installs, open a new session — a **compression tiers** panel shows up in the sidebar;
 3. the first page is the five tier buttons; pick one.
 
@@ -142,7 +140,7 @@ Installed as a local link, the host packages (`@deepseek-ai/dsh-home-paths`, `@d
 ### Upgrading and rolling back
 
 - **1.x → 2.0.0 / 2.2.0**: `settings.json` gains an `appearance` block (defaults are `host` / `full` / art on). Rules, components, the download root and session bindings are untouched.
-- **2.4.x → 2.5.0**: the pixel companions are removed for good; an old `appearance.mascots` key is ignored (not written back, not an error). The appearance page keeps palette, motion and optics. A local-model row appears but nothing is downloaded automatically.
+- **2.4.x → 2.5.0**: the pixel companions are removed for good; an old `appearance.mascots` key is ignored (not written back, not an error). A local-model row appears but nothing is downloaded automatically.
 - **2.5.x → 2.6.0**: the models and components page gains ComfyUI and ComfyUI MCP (GitHub archives, extracted only — no venv, no launch). Settings, installed components and the download root are untouched, and nothing downloads until you click.
 - **2.6.1 → 2.6.2**: the page goes from one card per component to one card holding two lists (six component rows + one model row), with two buttons at the trailing edge and the path / progress / error spanning the row. Data and behaviour are unchanged — pure layout — and the next download resumes from the existing `.part`.
 - **2.6.2 → 2.6.3**: the dock row's `order` was raised from 90 to 1000 (reversed again in 2.6.4, so 2.6.3 can be skipped). No data, settings or layout changes.
@@ -157,6 +155,7 @@ Installed as a local link, the host packages (`@deepseek-ai/dsh-home-paths`, `@d
 - **2.7.4 → 2.7.5**: the board no longer follows that block. `placeHeatLayer()` clears the shift variable before measuring, so the card is placed against the host's original seat while only the greeting and input card move down; this also fixes the "resize pops everything back" measurement-order bug. The changelog file moved from the repository root to `docs/CHANGELOG.md`.
 - **2.7.5 → 2.7.6**: the board only appears in a session the host itself flags as blank. Blankness used to be inferred from a missing reading, so switching sessions could flash the card (and push the host block down) before the new projection arrived; it now reads `session.blank`, and a session with history always draws just the row above the input.
 - **2.7.6 → 2.7.7**: docs and screenshots only. The README becomes one page with three images (conversation / panel / usage board) and gains this English edition; the plugin detail pages are rewritten as "table of contents + prose" instead of a single image; every screenshot is reshot from the 2.7.6 interface by the offline stage, so the pixel companions removed in 2.5.0 and the retired palettes and pages no longer appear. Code, routes, settings and downloaded files are all untouched.
+- **2.8.2**: the appearance page is gone. The skin now follows DSH's own dark / light switch with one pair (深空黑曜 / 白昼冷晶), and "follow the host", the motion tiers and the optics switch are removed with it; the silver rim on the composer card is removed on request too. An old `appearance` block is dropped on read and never written back — no configuration change needed.
 - **License**: since 2.0.0 the whole package is **GPL-3.0-only** (it ports upstream GPL code); `1.10.3` and older are still MIT.
 - **Uninstalling**: remove it from the plugin page. Managed component directories stay where they are; delete the directory to clean up completely.
 
@@ -166,14 +165,13 @@ A successful install is whatever the plugin page's `application` result and the 
 
 ## Usage
 
-### The five pages
+### The four pages
 
 | Page | What it does | Single source of truth |
 | :--- | :--- | :--- |
 | **Tiers** | five buttons, one click writes every mounted preset compaction engine | `COMPRESSION` in `src/levels.js` |
 | **Rules** | the global rules edited as one file; the lower card edits the selected workspace's supplement (prepended to its `AGENTS.md`) | `<DSH home>/AGENTS.md`, `<DSH home>/storages/workspace.json` + each workspace's `AGENTS.md` |
 | **Models and components** | status, download, re-check and the shared download root of six components, plus one local model | `COMPONENTS` in `src/components.js`, `MODELS` in `src/models.js` |
-| **Appearance** | palette, motion, optics | `appearance` in `settings.json` |
 | **GitHub** | account, token scopes, device-code login, network probe | `gh`'s own storage (the plugin never reads credentials) |
 
 Every action button is always rendered: when a condition is not met it is disabled with the reason in its `title` instead of disappearing. Below 720px of panel width the rail becomes a wrapping horizontal bar.
@@ -184,17 +182,16 @@ The global rules are written as one file to `<DSH home>/AGENTS.md`. Workspace ru
 
 The managed block only counts at the very top of the file: the fence must be the first non-empty line and the end marker must be a line of its own — mentioning the markers inside the prose does not count (this repository's own `AGENTS.md` mentions them twice). A half fence (start without end) is treated as an empty block and saving never creates a second start marker; a whole-line marker inside the supplement returns 400 and the file is not touched.
 
-### Appearance: palette, motion, optics
+### Palettes: 深空黑曜 in the dark, 白昼冷晶 in the light
 
-The appearance page puts three groups in one card and applies them immediately (optimistically, rolling back on failure). The palette goes through the host's official theme service (`overrideTokens`): the panel page, the dock row and the portal menus each keep their own skin, and the whole token set is layered onto the host theme so the sidebar, bubbles, input card, menus and code blocks repaint together. Both palettes ship a light and a dark set, and **DSH decides which one is used** — switch the official theme and the skin follows without coming back here.
+The appearance page was removed in 2.8.2: no palette picker, no "follow the host", no motion tier and no optics switch. There is one skin pair, and DSH's own dark / light switch decides which half is used, live:
 
-| Preset | Config value | Dark canvas | Light canvas | Notes |
+| Theme | Attribute | Canvas | Accent | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| **Follow the host** | `appearance.palette: "host"` | host tokens | host tokens | default; overrides nothing, follows the official theme |
-| **Obsidian** | `appearance.palette: "obsidian"` | `#0A0A0C` | `#E6EDF6` | indigo accent; near-black slate dark / cool grey-blue light |
-| **Crystal** | `appearance.palette: "crystal"` | `#070B12` | `#EEF6FF` | ice-cyan accent; cold blue-black dark / ice white light |
+| **深空黑曜** | `body[data-ds-dark-theme]` | `#0A0A0C` | `#6F9BFF` | used on DSH's dark theme: near-black slate with an indigo accent |
+| **白昼冷晶** | default (light) | `#F4F7FB` | `#2563EB` | used on DSH's light theme: upstream Obsidian Prism's white (`#F4F7FB` ground, `#FFF` cards, `#2563EB` accent) |
 
-The 2.0.0 warm palettes are retired: an old `warm` / `alabaster` value migrates to obsidian / crystal by temperature, so an upgrade never loses the skin and never falls back to "follow the host". The three motion tiers (full / subtle / off) only affect the vial and slider transitions. "Optics" is its own switch: turning it off removes the glow, smoked bubbles, quote bar and hairlines while the palette tokens stay applied.
+The skin goes through the host's official theme service (`overrideTokens`): the panel page, the dock row and the portal menus each keep their own token set, and the whole set is layered onto the host theme so the sidebar, bubbles, input card, menus and code blocks repaint together. An old `appearance` block (including the 2.0.0 `warm` / `alabaster` ids) is dropped on read and does not affect the upgrade.
 
 ### Theme art and the glow
 
@@ -202,7 +199,7 @@ Tokens alone leave host surfaces flat, so a layer of art is drawn with **semanti
 
 The conversation floor carries **one linear gradient**: accent 16% at the bottom edge, ice blue 9% at 26%, fully transparent at 54% — no canvas, no frames, no animation. The composer seat's own mask used to cut it off, so the seat paints the same gradient again with a `::before` (`z-index: -1`, above the seat background and below the input card), sized by `--ct-glow-height`, which is measured from the chat region and written onto the seat's inline style; its top edge is faded with `mask-image` at the mask's own slope, so there is no step. The input card and its mask still belong to the host: the card stays opaque and content is clipped above it.
 
-While the art layer is on, the host's pale stats row (`[data-composer-stat]`) and the `○ 5%` context ring in the composer dock (`aria-haspopup='dialog'`) are hidden — those numbers already live in the vial popover. Turning optics off brings the host's own back.
+The art layer is always on since 2.8.2 (there is no optics switch any more). While it is on, the host's pale stats row (`[data-composer-stat]`) and the `○ 5%` context ring in the composer dock (`aria-haspopup='dialog'`) are hidden — those numbers already live in the vial popover.
 
 ### The models and components page
 
@@ -232,14 +229,6 @@ Endpoints are tried **ModelScope first, then the `hf-mirror.com` mirror, then `h
 The slot sorts rows by `order` ascending (small on top) and the principle is **native UI that belongs next to the input card comes first, plugin surfaces after**: the agent's task list (`todo`, order 0), worktree progress (5), goal bar (10) and queue (20) all hug the input card, and this row takes `order: -1000` to sit above all of them. Top to bottom is therefore always **repository row and vial → task bar → input card**.
 
 The liquid in the vial is not an image: the ported `vial-core.js` runs a 24-node shallow-water simulation on a 96×220 canvas, so the surface sloshes when you tilt or open the popover. Menus open upward by default and only flip down when there is less than 200px above and more below; ↑ / ↓ / Home / End / Enter / Esc all work.
-
-### The optics on the composer
-
-A read-only optics layer sits on the composer card (2.8.0; upstream Obsidian Prism's language, redrawn by this plugin):
-
-- **Silver rim** — a 1px silver-white gradient (white → pale silver → deeper silver; a light host uses a darker silver so the 1px band stays visible) on the card's own border, lit only when the pointer is within 280px of the card and fading with distance; the sheen slides along the edge as the pointer moves and fades away when it leaves.
-
-Since 2.8.1 this is the only effect: the stop-button rainbow ring, the send lift-off ring and the caustic sweep were removed on request (2.8.0 had shipped all four). It is drawn in a `pointer-events: none` fixed layer portalled to `<body>`; the host card's background, border and children are never touched — the layer only reads its rect. The existing appearance switches drive it: 光学外观 is the master switch and the motion tier's off state hides it too. With the OS reduce-motion preference the fade is skipped (the rim only follows the pointer, nothing runs on its own).
 
 ### The usage board of a blank session
 
@@ -320,10 +309,10 @@ The six managed components live under one configurable root. The first four are 
 <details>
 <summary><strong>Halves, vial physics, thresholds, palette plumbing and safety boundaries</strong></summary>
 
-**Version `2.7.7`** changes neither the host's compaction algorithm nor the `compaction-basic` row on the host plane; it works only through official slots, official projections and the preset scope:
+**Version `2.8.2`** changes neither the host's compaction algorithm nor the `compaction-basic` row on the host plane; it works only through official slots, official projections and the preset scope:
 
 - **Two halves, Host and Client**: `index.js` registers the four tools, the system-prompt summary, the HTTP routes and a reconciler that syncs the tier into the compaction engine inside the preset scope; `client.js` renders the sidebar panel and the row above the input using only `ctx.slots`, `ctx.locale`, `ctx.effect` and theme tokens. The panel imports no host client package — dropdowns, menus and buttons are all self-drawn.
-- **The ported module loads as a plain `<script>`**: `vial-core.js` (about 75 KB) is the upstream 1.0.8-beta.1 script served from the same-origin route `GET /compression-tiers/vendor/<name>` (a whitelist of exactly this one file name, `text/javascript; charset=utf-8`, `cache-control: public, max-age=3600`, with `?v=2.7.7` in the URL so a stale cache cannot outlive a release). That keeps the UMD body out of `client.js` and avoids `eval`. After the 2.4.6 horizon renderer and the 2.5.0 companion rig were removed, the whitelist went from three names to one.
+- **The ported module loads as a plain `<script>`**: `vial-core.js` (about 75 KB) is the upstream 1.0.8-beta.1 script served from the same-origin route `GET /compression-tiers/vendor/<name>` (a whitelist of exactly this one file name, `text/javascript; charset=utf-8`, `cache-control: public, max-age=3600`, with `?v=2.8.2` in the URL so a stale cache cannot outlive a release). That keeps the UMD body out of `client.js` and avoids `eval`. After the 2.4.6 horizon renderer and the 2.5.0 companion rig were removed, the whitelist went from three names to one.
 - **The vial is physical**: `vial-core.js` exports `createWaterVialPhysics` and `mountPhysicalWaterVial`, running a 24-node shallow-water simulation with damping and surface tension on a 96×220 canvas; the host drives RAF and `step(dt)` and stops redrawing when `isSettled()` is true. The fill ratio and the threshold tick are computed by the panel from the official formula — the physics layer knows nothing about tokens.
 - **Numbers come from official projections**: occupancy and window from `useProjection('contextPressure')`, the three-part split from `useProjection('contextBreakdown')`. With no reading at all (before the first message of a new session) the vial is not rendered — the host does not paint its own `ContextMeter` then either, so there is no dead grey "—". The popover environment (port, theme, `reducedMotion`) is passed in by the client; the ported module reads no host globals.
 - **Repainting has two legs**: the plugin's own panel, dock and popovers use the tokens declared on `.ct-skin[data-palette='…']` (so the host UI is unaffected and the plugin still has a skin when the theme service is missing); the whole DSH interface is repainted by layering `ctx.theme.overrideTokens('compression-tiers', tokens)`, which the host writes as inline CSS variables on `<body>`. Every token must be a `{ light, dark }` pair (the service deliberately rejects bare strings) and both modes must be complete — that is exactly how the skin follows DSH's light/dark: the host picks which half to use.
@@ -336,7 +325,7 @@ The six managed components live under one configurable root. The first four are 
 - **Local usage is read-only**: `<DSH home>/storages/session_projcache/sessions/*.json` is written by the host; the plugin only reads it, never writes it, never copies it.
 - **Managed installs**: download → `.staging` → self-check → `moveIntoPlace()` atomic swap → rollback on failure. A finished archive is reused on the next attempt instead of being downloaded twice — but **only a complete download becomes an archive** (a body shorter than `content-length` is a retryable resume), and an archive that does not yield the expected binary, or whose staged build fails its self-check, is deleted first so the next attempt downloads fresh instead of unpacking the same broken file again.
 - **Publishing boundary**: a session's bound repository only changes `github_push`'s target — no clone, no branch switch, no change to the session's working directory; bindings are normalised to `owner/name`, invalid values are dropped, at most 200 are kept.
-- **Tests**: `npm test` runs 273 `node:test` cases covering the tiers and the formula, routes, engine sync, the global rules and the workspace managed block (create / replace / keep the body / read only the block / a whole-line marker returns 400), `gh` / components / the download root (short reads, the 60-second stall, the PowerShell fallback, a failed copy that leaves the second half retryable), source-tree components (`any` assets, stripping GitHub's wrapper directory, marker-file detection, no PATH entry, one row shape, dock ordering), the component and model lists (one card, two lists, two trailing buttons, no `ct-component`), the local model (pinned file list and total bytes, endpoint order and fallback, `DSH_HF_ENDPOINT`, three states, `.part` resume, 409 while downloading, 404 for an unknown id), **the local usage heatmap** (four token buckets and invalid ones, broken JSON / no usage row / missing directory, 26-week Monday alignment and future days, several sessions on one day, monotone intensity up to 5, local-day bucketing, the three windows, 182 cells for a blank session, yielding to a reading, no board without data, the 16px gap above the composer, the seat shift only while the switch is present, and **blankness read only from the host's `session.blank`**), the publishing flow, the ported UMD loading and attribution (the whitelist is `vial-core.js` alone), paired palette values / legacy migration / a single skin layer, the slider (level mapping, rail geometry, semantic anchors, directory backoff and rebuild, writes and rollback), the three motion tiers / `host` teardown and renderer fallback, the settings snapshot push, the `::before` glow and `--ct-glow-height`, hiding the host's context ring, the manifest and the locale; CI runs the same suite on Windows and Linux.
+- **Tests**: `npm test` runs 270 `node:test` cases covering the tiers and the formula, routes, engine sync, the global rules and the workspace managed block (create / replace / keep the body / read only the block / a whole-line marker returns 400), `gh` / components / the download root (short reads, the 60-second stall, the PowerShell fallback, a failed copy that leaves the second half retryable), source-tree components (`any` assets, stripping GitHub's wrapper directory, marker-file detection, no PATH entry, one row shape, dock ordering), the component and model lists (one card, two lists, two trailing buttons, no `ct-component`), the local model (pinned file list and total bytes, endpoint order and fallback, `DSH_HF_ENDPOINT`, three states, `.part` resume, 409 while downloading, 404 for an unknown id), **the local usage heatmap** (four token buckets and invalid ones, broken JSON / no usage row / missing directory, 26-week Monday alignment and future days, several sessions on one day, monotone intensity up to 5, local-day bucketing, the three windows, 182 cells for a blank session, yielding to a reading, no board without data, the 16px gap above the composer, the seat shift only while the switch is present, and **blankness read only from the host's `session.blank`**), the publishing flow, the ported UMD loading and attribution (the whitelist is `vial-core.js` alone), the single skin pair's token sets / an old `appearance` block dropped on read / one skin layer, the slider (level mapping, rail geometry, semantic anchors, directory backoff and rebuild, writes and rollback), renderer fallback, the settings snapshot push, the `::before` glow and `--ct-glow-height`, hiding the host's context ring, the manifest and the locale; CI runs the same suite on Windows and Linux.
 
 </details>
 
@@ -407,14 +396,14 @@ dsh-harness-toolbox/
 ├── THIRD_PARTY_NOTICES.md        # full notices for upstream and the MIT projects it absorbed
 ├── icon.svg                      # the panel icon
 ├── index.js                      # host half: four tools, system prompt, panel routes, reconciler, vendor route
-├── client.js                     # client half: sidebar panel (five pages), composer dock, vial, usage heatmap, self-drawn popovers
+├── client.js                     # client half: sidebar panel (four pages), composer dock, vial, usage heatmap, self-drawn popovers
 ├── vendor/obsidian-prism/        # the ported UMD module (vial-core.js)
 ├── src/
 │   ├── levels.js                 # the five tiers and the threshold formula (single source)
 │   ├── presets.js                # compaction engine sync inside the preset scope
 │   ├── context-meter.js          # live occupancy and the [context] tail line
 │   ├── manual-compact.js         # the manual compaction queue (human input first)
-│   ├── store.js                  # state reads and writes (atomic, includes appearance)
+│   ├── store.js                  # state reads and writes (atomic; no appearance since 2.8.2)
 │   ├── rules.js                  # global rules: paths, validation, atomic writes, summary
 │   ├── workspace-rules.js        # workspace rules: registry, managed block, atomic writes
 │   ├── gh.js                     # GitHub CLI: managed download, PATH, device flow, repository list

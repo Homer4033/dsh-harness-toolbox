@@ -171,10 +171,8 @@ const SETTINGS = {
   ],
   engines: 2,
   lastCompact: null,
-  appearance: { palette: 'host', motion: 'full', art: true },
   paths: { settings: 'C:\\Users\\Administrator\\.dsh\\compression-tiers\\settings.json' },
 }
-const settingsWith = (palette) => ({ ...SETTINGS, appearance: { ...SETTINGS.appearance, palette } })
 
 const RULES_TEXT = [
   '回答用中文；动手前先读完仓库的 AGENTS.md。',
@@ -400,7 +398,6 @@ const HOOK_ORDER = [
   'pathDraft', 'pathBusy',
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
-  'appearanceBusy', 'appearanceMessage',
   'section',
 ]
 
@@ -430,14 +427,12 @@ const BASE_PAGE = {
   workspaceText: WORKSPACE_TEXT,
   workspaceMessage: '',
   workspaceBusy: false,
-  appearanceBusy: false,
-  appearanceMessage: '',
   section: 'levels',
 }
 
 /** The real shell tree for one page, as HTML. */
-function renderPanel(section, palette) {
-  const merged = { ...BASE_PAGE, state: settingsWith(palette), section }
+function renderPanel(section) {
+  const merged = { ...BASE_PAGE, section }
   const { registrations } = loadScope(HOOK_ORDER.map((key) => merged[key]))
   const panel = registrations.find((item) => item.options.name === 'main')
   const element = panel.component()
@@ -489,7 +484,7 @@ const renderHeatCard = (settings) => renderDock({
   session: { id: 'stage-blank', blank: true, awaitingFirstTurn: false },
 })
 
-/* ---- host token sets (DSH neutral, what ships without a palette) -------- */
+/* ---- host token sets (DSH neutral, before our single skin layers over) --- */
 const HOST_DARK = {
   '--dsw-alias-bg-base': '#151517',
   '--dsw-alias-bg-layer-1': '#1c1c1e',
@@ -615,20 +610,19 @@ function tokenBlock(map) {
  * One page is one theme deep: the tokens land on `:root` (which is what the
  * host's `overrideTokens` layer does) and the body carries the same switches the
  * live app has — `data-ds-dark-theme` for the theme, `data-ct-*` for our art.
+ * The plugin ships exactly one palette (`auto`), so every page gets that one
+ * layer: its light half on a light page, its dark half on a dark one.
  */
 function shell(options) {
-  const { body, palette, dark, extraCss, scripts, bodyAttrs } = options
-  let tokens = dark ? HOST_DARK : HOST_LIGHT
-  if (palette && palette !== 'host') {
-    const { plugin } = loadScope([])
-    const spec = plugin.__test.skinSpec(palette)
-    const set = {}
-    for (const name of Object.keys(spec.tokens)) set[name] = dark ? spec.tokens[name].dark : spec.tokens[name].light
-    tokens = { ...tokens, ...set }
-  }
+  const { body, dark, extraCss, scripts, bodyAttrs } = options
+  const { plugin } = loadScope([])
+  const spec = plugin.__test.skinSpec('auto')
+  const skin = {}
+  for (const name of Object.keys(spec.tokens)) skin[name] = dark ? spec.tokens[name].dark : spec.tokens[name].light
+  const tokens = { ...(dark ? HOST_DARK : HOST_LIGHT), ...skin }
   const attrs = [
     dark ? 'data-ds-dark-theme' : '',
-    'data-ct-palette="' + (palette || 'host') + '"',
+    'data-ct-palette="auto"',
     "data-ct-art='on'",
     "data-ct-motion='full'",
     bodyAttrs || '',
@@ -805,10 +799,9 @@ function heatBody(card) {
 }
 
 /* ---- write the pages ---------------------------------------------------- */
-const panelPage = (section, palette, dark) => shell({
-  palette,
+const panelPage = (section, dark) => shell({
   dark,
-  body: renderPanel(section, palette),
+  body: renderPanel(section),
   extraCss: '.ct-page { height: 100%; }',
 })
 
@@ -926,40 +919,33 @@ const effortBody = `<div class="stage-menu-wrap">
 </div>`
 
 const files = {
-  'panel-levels.html': panelPage('levels', 'host', true),
-  'panel-rules.html': panelPage('rules', 'host', true),
-  'panel-components.html': panelPage('components', 'host', true),
-  'panel-appearance-host.html': panelPage('appearance', 'host', true),
-  'panel-appearance.html': panelPage('appearance', 'obsidian', true),
-  'panel-appearance-light.html': panelPage('appearance', 'crystal', false),
-  'panel-github.html': panelPage('github', 'host', true),
+  'panel-levels.html': panelPage('levels', true),
+  'panel-levels-light.html': panelPage('levels', false),
+  'panel-rules.html': panelPage('rules', true),
+  'panel-components.html': panelPage('components', true),
+  'panel-github.html': panelPage('github', true),
   'conversation.html': shell({
-    palette: 'obsidian',
     dark: true,
-    body: conversationBody(renderDockRow(settingsWith('obsidian')), { quote: true, rule: true }),
+    body: conversationBody(renderDockRow(SETTINGS), { quote: true, rule: true }),
     extraCss: CONVERSATION_CSS,
   }),
   'conversation-light.html': shell({
-    palette: 'crystal',
     dark: false,
-    body: conversationBody(renderDockRow(settingsWith('crystal')), { quote: true, rule: true }),
+    body: conversationBody(renderDockRow(SETTINGS), { quote: true, rule: true }),
     extraCss: CONVERSATION_CSS,
   }),
   'conversation-vial.html': shell({
-    palette: 'obsidian',
     dark: true,
-    body: conversationBody(renderVialOpen(settingsWith('obsidian')), { quote: true, count: 4 }),
+    body: conversationBody(renderVialOpen(SETTINGS), { quote: true, count: 4 }),
     extraCss: CONVERSATION_CSS,
     scripts: VIAL_SCRIPT,
   }),
   'heat.html': shell({
-    palette: 'obsidian',
     dark: true,
-    body: heatBody(renderHeatCard(settingsWith('obsidian'))),
+    body: heatBody(renderHeatCard(SETTINGS)),
     extraCss: CONVERSATION_CSS + HEAT_CSS,
   }),
   'effort.html': shell({
-    palette: 'host',
     dark: true,
     body: effortBody,
     extraCss: EFFORT_CSS,

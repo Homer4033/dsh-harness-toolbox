@@ -1,14 +1,14 @@
 # 压缩分档与综合工作台
 
-> DSH 插件 `dsh-harness-toolbox` · 版本 **2.7.7** · `GPL-3.0-only` · [仓库](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
+> DSH 插件 `dsh-harness-toolbox` · 版本 **2.8.2** · `GPL-3.0-only` · [仓库](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
 
-五档上下文压缩，加上一整套围着它的工作台：输入框上方的上下文试管、空白会话的本机用量看板、六套托管组件与一个本地模型、两套跟随宿主深浅的配色、全局与工作区规则，以及按会话绑定的仓库发布。
+五档上下文压缩，加上一整套围着它的工作台：输入框上方的上下文试管、空白会话的本机用量看板、六套托管组件与一个本地模型、一套跟着 DSH 深浅自动切换的配色、全局与工作区规则，以及按会话绑定的仓库发布。
 
 ## 目录
 
 - [它是什么](#它是什么)
 - [三个界面](#三个界面)
-- [五个分页](#五个分页)
+- [四个分页](#四个分页)
 - [四个工具](#四个工具)
 - [安装](#安装)
 - [边界与许可](#边界与许可)
@@ -30,7 +30,7 @@ DSH 自己已经有五档压缩与自动压力压缩，但没有一个地方把�
   <img src="screenshots/hero.png" width="100%" alt="上下文试管浮窗与输入框上方的仓库胶囊（深空黑曜配色）" />
 </p>
 
-**面板：玻璃外壳 + 五个分页**——面板挂在左侧栏的「压缩分档」上，一次只显示一页。所有动作按钮常显：条件不满足时置灰并用 `title` 写原因，不会整块消失。下图是「模型和组件」页：一张卡片里两段列表，行尾两个按钮，路径 / 进度 / 错误横跨整行。
+**面板：玻璃外壳 + 四个分页**——面板挂在左侧栏的「压缩分档」上，一次只显示一页。所有动作按钮常显：条件不满足时置灰并用 `title` 写原因，不会整块消失。下图是「模型和组件」页：一张卡片里两段列表，行尾两个按钮，路径 / 进度 / 错误横跨整行。
 
 <p align="center">
   <img src="screenshots/panel.png" width="100%" alt="「模型和组件」页：左侧分页导航，六套组件与本地模型在同一张卡片的列表里" />
@@ -42,14 +42,13 @@ DSH 自己已经有五档压缩与自动压力压缩，但没有一个地方把�
   <img src="screenshots/heat.png" width="100%" alt="空白会话里的本机用量看板" />
 </p>
 
-## 五个分页
+## 四个分页
 
 | 分页 | 做什么 |
 | :--- | :--- |
 | **档位** | 五个按钮：`gentle` / `light` / `standard` / `aggressive` / `max`，选一个即写入所有已挂载引擎 |
 | **规则** | 上半张卡编辑全局 `AGENTS.md`（整份）；下半张卡编辑所选工作区 `AGENTS.md` 开头那个受管块，块下面的正文原样保留、面板不显示 |
 | **模型和组件** | GitHub CLI / git / ffmpeg+ffprobe / Python / ComfyUI / ComfyUI MCP 六行，加一行本地模型 FLUX.2 [klein] 4B；下面一行是共用的下载根目录 |
-| **外观** | 配色（跟随宿主 / 深空黑曜 / 白昼冷晶）、动效（完整 / 克制 / 关闭）、光学外观开关，选完立刻生效 |
 | **GitHub** | 账号与 token scope、`gh` 设备码登录、网络体检；插件不读、不存凭据 |
 
 档位参数（官方阈值公式 `floor(min(W × thresholdRatio, W − O − 65,536))`，保留量 `(W − O) × retainRatio`）：
@@ -73,7 +72,7 @@ DSH 自己已经有五档压缩与自动压力压缩，但没有一个地方把�
 
 ## 安装
 
-DSH → **插件 → 添加插件**，输入 `dsh-harness-toolbox`（要锁版本写 `dsh-harness-toolbox@2.7.7`），装完打开新会话即可在左侧栏看到「压缩分档」。要求 Node.js ≥ 24.9、DSH 运行时 `0.2.2-rc.3`（含）到 `0.3.0`（不含）。完整的安装、升级、组件与模型说明见 [README](../README.md)，逐版本变更见 [CHANGELOG](CHANGELOG.md)。
+DSH → **插件 → 添加插件**，输入 `dsh-harness-toolbox`（要锁版本写 `dsh-harness-toolbox@2.8.2`），装完打开新会话即可在左侧栏看到「压缩分档」。要求 Node.js ≥ 24.9、DSH 运行时 `0.2.2-rc.3`（含）到 `0.3.0`（不含）。完整的安装、升级、组件与模型说明见 [README](../README.md)，逐版本变更见 [CHANGELOG](CHANGELOG.md)。
 
 ## 边界与许可
 

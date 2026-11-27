@@ -25,59 +25,6 @@ export function defaultGithubSettings() {
   }
 }
 
-/**
- * The host theme plus the two optical palettes. Both palettes carry a light and
- * a dark token set, so neither of them pins the colour scheme: whichever one is
- * picked, the app follows whatever light/dark the user has DSH on.
- */
-export const APPEARANCE_PALETTES = ['host', 'obsidian', 'crystal']
-
-/**
- * 2.0.0 shipped 深空黑曜 / 暖炭玄岩 / 白昼冷晶 / 暖白画册. 2.2.0 keeps the two
- * cool ones (the warm pair was dropped by request), and the retired ids map to
- * the survivor with the same character — deep to deep, bright to bright — so an
- * upgraded install keeps a skin instead of silently reverting to the host theme.
- */
-export const LEGACY_PALETTES = { warm: 'obsidian', alabaster: 'crystal' }
-
-/** Motion tiers, from the full optical choreography to reduced motion. */
-export const APPEARANCE_MOTIONS = ['full', 'subtle', 'off']
-
-export function defaultAppearance() {
-  return {
-    // `host` keeps the official theme tokens the panel always used; the other
-    // two scope a complete light/dark palette to the plugin's own surfaces
-    // (panel, dock, portalled popovers) and repaint the app through the theme
-    // service — always in the host's own light/dark mode.
-    palette: 'host',
-    motion: 'full',
-    // The theme art (background wash, user bubble, hairlines, scrollbars) that
-    // upstream paints through its stylesheet. `host` still paints it — the art
-    // layer is its own switch — and `false` strips it back to flat tokens while
-    // keeping the palette.
-    art: true,
-  }
-}
-
-/**
- * Appearance is cosmetic state, so a hand-edited unknown value falls back to
- * the default instead of failing the whole settings read. The HTTP route
- * rejects unknown values explicitly before they get here.
- */
-export function normalizeAppearance(value) {
-  const base = defaultAppearance()
-  const next = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  const legacy = LEGACY_PALETTES[next.palette]
-  const palette = APPEARANCE_PALETTES.includes(next.palette)
-    ? next.palette
-    : (legacy || base.palette)
-  return {
-    palette,
-    motion: APPEARANCE_MOTIONS.includes(next.motion) ? next.motion : base.motion,
-    art: next.art === false ? false : true,
-  }
-}
-
 export function defaultSettings() {
   return {
     level: DEFAULT_LEVEL,
@@ -87,9 +34,6 @@ export function defaultSettings() {
     // Session id → `owner/name` of the online repository that session publishes
     // to. Bound from the session header; the file is the only place it lives.
     sessionRepos: {},
-    // Palette, motion tier and the art switch. Cosmetic only: the compaction
-    // engines never read it.
-    appearance: defaultAppearance(),
     // Shared download root for the managed gh and ffmpeg installs. Empty means
     // `<DSH home>/compression-tiers`, which is where earlier versions put them.
     toolsPath: '',
@@ -136,7 +80,10 @@ export function normalizeSettings(value) {
     proxy: text(github.proxy, base.github.proxy),
   }
   next.sessionRepos = normalizeSessionRepos(next.sessionRepos)
-  next.appearance = normalizeAppearance(next.appearance)
+  // 2.8.2 removed the appearance page (and with it the palette / motion / art
+  // settings). An upgraded install may still carry the object; it is dropped on
+  // read so the next write never resurrects a control that no longer exists.
+  delete next.appearance
   // A relative or unparsable toolsPath would resolve against the process CWD;
   // drop it so the shared root falls back to the default directory.
   next.toolsPath = normalizeToolsPath(next.toolsPath)

@@ -149,7 +149,6 @@ const settingsState = {
   })),
   engines: 2,
   lastCompact: null,
-  appearance: { palette: 'host', motion: 'full', art: true },
   paths: { settings: 'C:/dsh/compression-tiers/settings.json' },
 }
 
@@ -178,7 +177,6 @@ const HOOK_ORDER = [
   'pathDraft', 'pathBusy',
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
-  'appearanceBusy', 'appearanceMessage',
   'section',
 ]
 
@@ -208,8 +206,6 @@ const BASE_PAGE = {
   workspaceText: '',
   workspaceMessage: '',
   workspaceBusy: false,
-  appearanceBusy: false,
-  appearanceMessage: '',
   section: 'levels',
 }
 
@@ -495,11 +491,7 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'downloadRunning', 'downloadDone', 'downloadUnsupported',
       'stateMissing', 'statePartial', 'stateFailed', 'stateSystem',
       'repoSelectLabel', 'repoNone', 'repoTitle',
-      'navAria', 'navLevels', 'navRules', 'navComponents', 'navAppearance', 'navGithub',
-      'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian',
-      'paletteCrystal', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff',
-      'appearanceApplied', 'appearanceFailed',
-      'artLabel', 'artOn', 'artOff',
+      'navAria', 'navLevels', 'navRules', 'navComponents', 'navGithub',
       'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
       'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
       'vialLoading', 'vialClose',
@@ -514,6 +506,11 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
     // The workspace page merged into the rules page; its own rail label must
     // not come back.
     assert.equal(keys.includes('navWorkspace'), false, `${locale} still carries navWorkspace`)
+    // The appearance page is gone (2.8.2): its palette / motion / art copy must
+    // not come back, and neither does the "follow the host" palette.
+    for (const key of ['navAppearance', 'appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian', 'paletteCrystal', 'motionLabel', 'motionFull', 'motionSubtle', 'motionOff', 'artLabel', 'artOn', 'artOff', 'appearanceApplied', 'appearanceFailed']) {
+      assert.equal(keys.includes(key), false, `${locale} still carries ${key}`)
+    }
     // The settings page carries controls, state and errors only; teaching copy
     // lives in AGENTS.md, so these keys must stay gone.
     for (const key of ['intro', 'smallWindow', 'summaryMax', 'summaryGentle', 'rulesIntro', 'ghIntro', 'toolsIntro', 'ghToolNote', 'ghLoginNote']) {
@@ -1154,8 +1151,8 @@ test('a workspace with no rules file says so, and editing enables saving', () =>
 test('the workspace block stays on the rules page and says there is no workspace yet', () => {
   const nodes = renderSection('rules', { workspaceRules: workspaceRulesPayload([]) })
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  // Five pages, always: an empty registry is a state, not a missing page.
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'appearance', 'github'])
+  // Four pages, always: an empty registry is a state, not a missing page.
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
   const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
   assert.match(deepText(content), /workspaceRulesTitle/)
   assert.match(deepText(content), /workspaceNone/)
@@ -1187,8 +1184,8 @@ test('the panel is a shell: one navigation rail and one page at a time', () => {
   assert.equal(nav.type, 'nav')
   assert.equal(nav.props['aria-label'], 'navAria')
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'appearance', 'github'])
-  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navAppearance', 'navGithub'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
+  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navGithub'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1, 'exactly one page is current')
   assert.equal(current[0].props['data-section'], 'components')
@@ -1264,7 +1261,6 @@ test('each page renders only its own cards', () => {
     ['levels', {}, ['levelsTitle']],
     ['rules', {}, ['rulesTitle', 'workspaceRulesTitle']],
     ['components', { components: componentsPayload([]) }, ['componentsTitle']],
-    ['appearance', {}, ['appearanceTitle']],
     ['github', {}, ['ghAuthTitle']],
   ]
   for (const [section, overrides, headings] of cases) {
@@ -1334,38 +1330,21 @@ test('the components page is titled 模型和组件 in both languages', () => {
   assert.match(source, /componentsTitle: 'Models & components'/)
 })
 
-test('the appearance page paints the two palettes, the motion tiers and the art switch', () => {
+test('the appearance page is gone: no rail entry and no palette controls', () => {
+  // An old bookmark to the page falls back to the first page instead of a blank.
   const nodes = renderSection('appearance')
-  const page = nodes.find((node) => hasClass(node, 'ct-page'))
-  assert.ok(page, 'the page carries the skin root')
-  assert.equal(page.props['data-palette'], 'host')
-  assert.equal(page.props['data-motion'], 'full')
-  const palettes = nodes.filter((node) => node.props.role === 'radio' && hasClass(node, 'ct-swatch'))
-  assert.deepEqual(palettes.map((node) => node.props['data-choice']), ['host', 'obsidian', 'crystal'])
-  assert.equal(palettes.filter((node) => node.props['aria-checked'] === 'true').length, 1)
-  assert.equal(palettes[0].props['aria-checked'], 'true')
-  const motions = nodes.filter((node) => node.props.role === 'radio' && hasClass(node, 'ct-segment'))
-  assert.deepEqual(motions.map((node) => node.props['data-motion-choice']), ['full', 'subtle', 'off'])
-  assert.equal(motions[0].props['aria-checked'], 'true')
-  // 2.5.0 removed the pixel companions: the page has no switch for them any more.
-  assert.equal(buttonOf(nodes, 'appearanceMascots'), null, 'the companions switch is gone')
-  // The art layer (wash, bubbles, hairlines) has its own switch.
-  const art = buttonOf(nodes, 'appearanceArt')
-  assert.ok(art, 'the art switch always renders')
-  assert.equal(art.props['aria-pressed'], 'true')
-  // The art layer is its own switch: the host palette still gets it (drawn
-  // with the host's own tokens), so the button is live instead of greyed out.
-  assert.equal(art.props.disabled, false)
-  assert.equal(art.props.title, undefined)
-  // A palette choice is a radio, not a button row that vanishes while loading.
-  assert.equal(nodes.some((node) => node.type === 'select'), false)
-  // No teaching copy on the page: only control labels and values.
-  for (const banned of ['intro', 'paletteNote', 'motionNote']) {
-    assert.equal(deepText({ props: { children: nodes } }).includes(banned), false, banned + ' must not return')
+  const items = nodes.filter((node) => hasClass(node, 'ct-nav-item'))
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
+  assert.equal(nodes.some((node) => node.props.role === 'radio' && hasClass(node, 'ct-swatch')), false)
+  assert.equal(nodes.some((node) => node.props.role === 'radio' && hasClass(node, 'ct-segment')), false)
+  assert.equal(buttonOf(nodes, 'appearanceArt'), null, 'the art switch went with the page')
+  const text = deepText({ props: { children: nodes } })
+  for (const banned of ['appearanceTitle', 'paletteLabel', 'paletteHost', 'paletteObsidian', 'paletteCrystal', 'motionLabel', 'artLabel']) {
+    assert.equal(text.includes(banned), false, banned + ' must not return')
   }
 })
 
-test('the art layer hangs off two body attributes and stays off only when switched off', () => {
+test('the body carries one auto skin and the art layer is always on', () => {
   const { module, styles, sandbox } = loadClient()
   const plugin = module.factory(() => fakeReact(null))
   plugin.apply(sectionContext([]))
@@ -1375,27 +1354,19 @@ test('the art layer hangs off two body attributes and stays off only when switch
     setAttribute(name, value) { attrs[name] = String(value) },
   }
 
-  const applied = skin.applyOptics({ palette: 'obsidian', art: true })
-  assert.equal(JSON.stringify(applied), '{"palette":"obsidian","art":true}')
-  assert.equal(attrs['data-ct-palette'], 'obsidian')
+  const applied = skin.applyOptics()
+  assert.equal(JSON.stringify(applied), '{"palette":"auto","art":true}')
+  assert.equal(attrs['data-ct-palette'], 'auto')
   assert.equal(attrs['data-ct-art'], 'on')
   assert.equal(attrs['data-ct-motion'], 'full')
 
-  // Turning the art off keeps the palette tokens: only the art layer stops.
-  skin.applyOptics({ palette: 'crystal', art: false })
-  assert.equal(attrs['data-ct-palette'], 'crystal')
-  assert.equal(attrs['data-ct-art'], 'off')
-
-  // The host palette is a colour choice, not an art switch: it keeps DSH's
-  // tokens and still paints the layer (otherwise a fresh install shows nothing).
-  skin.applyOptics({ palette: 'host', art: true })
-  assert.equal(attrs['data-ct-palette'], 'host')
-  assert.equal(attrs['data-ct-art'], 'on')
-
-  // Unknown values fall back to the defaults instead of leaking into the DOM.
-  skin.applyOptics({ palette: 'neon', art: 'yes' })
-  assert.equal(attrs['data-ct-palette'], 'host')
-  assert.equal(attrs['data-ct-art'], 'on')
+  // There is no switch any more: a second call keeps exactly those markers.
+  skin.applyOptics()
+  assert.deepEqual(attrs, {
+    'data-ct-palette': 'auto',
+    'data-ct-art': 'on',
+    'data-ct-motion': 'full',
+  })
 
   // The stylesheet only reacts to those markers, and it addresses host surfaces
   // through DSH's own semantic attributes rather than hashed class names.
@@ -1507,13 +1478,13 @@ test('the composer stats line moves into the vial', () => {
   assert.equal(JSON.stringify(usage(null, null)), JSON.stringify({ total: null, cacheHit: null, speed: null, turns: null, steps: null }))
 })
 
-test('a five-page rail keeps appearance in the navigation', () => {
-  const nodes = renderSection('appearance')
+test('a four-page rail keeps every page in the navigation', () => {
+  const nodes = renderSection('components')
   const items = nodes.filter((node) => hasClass(node, 'ct-nav-item'))
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'appearance', 'github'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1)
-  assert.equal(current[0].props['data-section'], 'appearance')
+  assert.equal(current[0].props['data-section'], 'components')
 })
 
 /** A grid shaped like the one our usage route returns, for the blank-Session card. */
@@ -1609,7 +1580,7 @@ test('the dock renders the vial and the repository pill in one right-aligned row
   const dock = dockNodes.find((node) => hasClass(node, 'ct-repo-dock'))
   assert.ok(dock, 'the dock row renders')
   assert.match(String(dock.props.className), /ct-skin/)
-  assert.equal(dock.props['data-palette'], 'host')
+  assert.equal(dock.props['data-palette'], 'auto')
   assert.equal(dock.props['data-motion'], 'full')
   // 2.5.0 removed the companions: nothing is mounted to their left any more.
   assert.equal(dockNodes.some((node) => hasClass(node, 'ct-dock-mascots')), false)
@@ -1628,8 +1599,10 @@ test('a pre-2.5 settings payload still carrying the companions flag renders the 
   const { dockNodes } = renderVial({ settings: legacy, vialStates: [false, false] })
   assert.equal(dockNodes.some((node) => hasClass(node, 'ct-dock-mascots')), false)
   const dock = dockNodes.find((node) => hasClass(node, 'ct-repo-dock'))
-  assert.equal(dock.props['data-palette'], 'crystal')
-  assert.equal(dock.props['data-motion'], 'subtle')
+  // A 2.8.1 payload may still carry the old appearance object; the dock follows
+  // the one auto skin regardless.
+  assert.equal(dock.props['data-palette'], 'auto')
+  assert.equal(dock.props['data-motion'], 'full')
   assert.ok(dockNodes.some((node) => hasClass(node, 'ct-repo-pill')))
 })
 
@@ -1865,51 +1838,34 @@ test('the settings snapshot is pushed to subscribers so the dock follows the pan
   const settings = plugin.__test.settings
   const seen = []
   const off = settings.subscribe(function (body) { seen.push(body) })
-  settings.remember({ appearance: { palette: 'crystal', motion: 'off', art: false } })
+  settings.remember({ level: 'max' })
   assert.equal(seen.length, 1)
-  assert.equal(seen[0].appearance.motion, 'off')
+  assert.equal(seen[0].level, 'max')
   off()
-  settings.remember({ appearance: { palette: 'host' } })
+  settings.remember({ level: 'gentle' })
   assert.equal(seen.length, 1, 'unsubscribing stops the pushes')
 })
 
-test('the appearance bootstrap retries a failed snapshot instead of painting defaults', async () => {
+test('the skin paints from constants at startup, without reading settings', () => {
   const attrs = {}
-  const scheduled = []
   let settingsCalls = 0
   const { module, sandbox } = loadClient({
     fetch: (url) => {
-      if (String(url) !== '/compression-tiers/api/settings') {
-        return Promise.resolve({ ok: true, json: async () => ({}) })
-      }
-      settingsCalls += 1
-      if (settingsCalls === 1) return Promise.reject(new Error('the route is not up yet'))
-      return Promise.resolve({
-        ok: true,
-        json: async () => ({ appearance: { palette: 'obsidian', motion: 'subtle', art: false } }),
-      })
+      if (String(url) === '/compression-tiers/api/settings') settingsCalls += 1
+      return Promise.resolve({ ok: true, json: async () => ({}) })
     },
-    setTimeout: (fn) => { scheduled.push(fn); return 0 },
   })
   sandbox.document.body = { setAttribute(name, value) { attrs[name] = String(value) } }
   const plugin = module.factory(() => fakeReact(null))
   plugin.apply(sectionContext([]))
-  await new Promise((resolve) => setTimeout(resolve, 20))
-  // The failed read painted nothing over the user's palette ...
-  assert.deepEqual(attrs, {})
-  // ... and the retry the comment promises really was scheduled.
-  assert.equal(scheduled.length, 1)
-  scheduled.shift()()
-  await new Promise((resolve) => setTimeout(resolve, 20))
-  assert.equal(settingsCalls, 2)
-  assert.equal(attrs['data-ct-palette'], 'obsidian')
-  assert.equal(attrs['data-ct-art'], 'off')
-  assert.equal(attrs['data-ct-motion'], 'subtle')
+  // Appearance no longer comes from the settings route: there is nothing to read.
+  assert.equal(settingsCalls, 0)
+  assert.equal(attrs['data-ct-palette'], 'auto')
+  assert.equal(attrs['data-ct-art'], 'on')
+  assert.equal(attrs['data-ct-motion'], 'full')
 })
 
-
-
-test('a palette repaints the whole app through the host theme service in both schemes', () => {
+test('the one auto skin repaints the app through the host theme service', () => {
   const { module } = loadClient()
   const applied = []
   const disposed = []
@@ -1924,11 +1880,8 @@ test('a palette repaints the whole app through the host theme service in both sc
     locale: { register: () => () => {}, bind: () => (key) => key },
     slots: { inject: (_slot, callback) => callback(), register: () => () => {} },
     inject(deps, callback) {
-      // Cross-realm array: compare contents, not the prototype.
       const names = JSON.stringify(deps)
       assert.ok(names === '["theme"]' || names === '["modelDirectories"]', 'unexpected injection: ' + names)
-      // The host here has no model directory: the effort slider must stay out
-      // of the way instead of throwing during apply.
       callback(names === '["theme"]' ? { theme } : {})
       return () => {}
     },
@@ -1938,63 +1891,35 @@ test('a palette repaints the whole app through the host theme service in both sc
 
   const skin = plugin.__test
   assert.ok(skin, 'the factory exposes the skin seams for tests')
-  // The default "host" palette installs no layer: the official theme stays.
-  assert.equal(applied.length, 0)
-
-  // A retired 2.0.0 id still resolves: 暖炭玄岩 was the deep warm palette, so it
-  // lands on the deep survivor instead of silently reverting to the host theme.
-  skin.setSkinPalette('warm')
-  assert.equal(applied.length, 1)
+  assert.equal(applied.length, 1, 'the auto skin installs exactly one layer at startup')
   assert.equal(applied[0].source, 'compression-tiers')
-  assert.equal(applied[0].tokens['--dsw-alias-bg-base'].dark, '#0a0a0c')
-
-  const names = Object.keys(applied[0].tokens)
+  const tokens = applied[0].tokens
+  const names = Object.keys(tokens)
   assert.ok(names.length > 60, 'the skin covers the app surface tokens')
   for (const name of names) {
-    // The service rejects bare strings for a reason: one value cannot serve both
-    // colour schemes. Every token must carry both modes, because the palette now
-    // follows the host's light/dark instead of pinning it.
     assert.match(name, /^--dsw-/)
-    const value = applied[0].tokens[name]
+    const value = tokens[name]
     assert.equal(typeof value.light, 'string', name + ' has a light value')
     assert.equal(typeof value.dark, 'string', name + ' has a dark value')
     assert.notEqual(value.light, '', name + ' has an empty light value')
     assert.notEqual(value.dark, '', name + ' has an empty dark value')
   }
 
-  // 白昼冷晶 is the same ramp run colder: it installs its own two modes and
-  // swaps the accent family, which is what keeps the two palettes distinct in
-  // *both* schemes.
-  skin.setSkinPalette('crystal')
-  assert.equal(applied.length, 2, 'a palette change replaces the layer')
-  assert.equal(disposed.length, 1, 'the previous layer is disposed, never stacked')
-  const crystal = applied[1].tokens
-  assert.deepEqual(Object.keys(crystal), names)
-  assert.equal(crystal['--dsw-alias-bg-base'].dark, '#070b12')
-  assert.equal(crystal['--dsw-alias-bg-base'].light, '#eef6ff')
-  assert.notEqual(crystal['--dsw-alias-link'].light, applied[0].tokens['--dsw-alias-link'].light)
-  assert.notEqual(crystal['--dsw-alias-link'].dark, applied[0].tokens['--dsw-alias-link'].dark)
+  // 白昼冷晶 is upstream Obsidian Prism's own light theme; 深空黑曜 its dark half,
+  // so the host's 深色 / 亮色 switch is the only control.
+  assert.equal(tokens['--dsw-alias-bg-base'].light, '#f4f7fb')
+  assert.equal(tokens['--dsw-alias-bg-layer-3'].light, '#ffffff')
+  assert.equal(tokens['--dsw-alias-state-business-primary'].light, '#2563eb')
+  assert.equal(tokens['--dsw-alias-bg-base'].dark, '#0a0a0c')
 
-  // A tint that names a token the ramp does not carry would be dropped without
-  // a word, so every tint key has to exist in the installed set.
-  for (const [palette, tint] of Object.entries(skin.skinTints)) {
-    const known = Object.keys(skin.skinSpec(palette).tokens)
-    for (const mode of ['light', 'dark']) {
-      for (const name of Object.keys(tint[mode])) {
-        assert.ok(known.includes(name), palette + '/' + mode + ' tints an unknown token: ' + name)
-      }
-    }
-  }
-
-  // Back to the host theme: the layer goes away instead of a third one landing.
-  skin.setSkinPalette('host')
-  assert.equal(applied.length, 2)
-  assert.equal(skin.skinRuntime.applied, null)
-  assert.equal(disposed.length, 2)
-  // Neither palette carries a scheme to pin: following DSH is the whole point.
-  assert.equal('mode' in skin.skinSpec('obsidian'), false)
-  assert.equal('mode' in skin.skinSpec('crystal'), false)
+  // Only one palette exists now, and it carries no scheme to pin.
+  assert.equal(skin.skinSpec('crystal'), null, 'the old palette ids are gone')
   assert.equal(skin.skinSpec('host'), null)
+  assert.equal('mode' in skin.skinSpec('auto'), false)
+  // The single layer is never stacked: painting again is a no-op.
+  skin.setSkinPalette()
+  assert.equal(applied.length, 1)
+  assert.equal(disposed.length, 0)
 })
 
 /* ---- Reasoning effort slider -------------------------------------------- */
@@ -2492,245 +2417,9 @@ test('the bridge waits out a directory the host refuses to hand out yet', async 
 })
 
 test('the dock mounts the effort bridge but renders nothing itself', () => {
-  const nodes = renderDock([{ level: 'standard', appearance: { palette: 'host', motion: 'full', art: true } }], { t: (key) => key, sessionId: 'session-1' })
+  const nodes = renderDock([{ level: 'standard' }], { t: (key) => key, sessionId: 'session-1' })
   const bridge = nodes.find((node) => typeof node.type === 'function' && node.props && node.props.sessionId === 'session-1')
   assert.ok(bridge, 'the bridge is mounted on the dock row')
   assert.equal(bridge.props.motion, 'full')
   assert.equal(bridge.type(bridge.props), null, 'the bridge renders no markup of its own')
-})
-
-/** Render the dock with a known settings snapshot (the 7th useState slot). */
-function renderDockWith(settings, props) {
-  return renderDock([[], '', '', false, false, 0, settings], props)
-}
-
-/**
- * The dock only *mounts* the optics component; its portalled layer is what the
- * browser would paint. Run the component the way React would so the layer and
- * its rim can be inspected.
- */
-function opticsNodes(dockNodes) {
-  const element = dockNodes.find((node) => typeof node.type === 'function'
-    && node.type.name === 'ComposerOptics')
-  assert.ok(element, 'the dock mounts the composer optics')
-  return collect(element.type(element.props))
-}
-
-test('the optics switchboard follows the art switch and the motion tier', () => {
-  const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const on = (appearance) => {
-    const plan = optics.plan(appearance)
-    return Object.keys(plan).filter((key) => plan[key])
-  }
-  assert.deepEqual(Object.keys(optics.plan({})), ['rim'], '2.8.1 draws the rim and nothing else')
-  assert.deepEqual(on({ palette: 'host', motion: 'full', art: true }), ['rim'])
-  assert.deepEqual(on({ palette: 'host', motion: 'subtle', art: true }), ['rim'],
-    'the calm tier keeps the rim')
-  assert.deepEqual(on({ palette: 'host', motion: 'off', art: true }), [], 'motion off has no optics')
-  assert.deepEqual(on({ palette: 'host', motion: 'full', art: false }), [], 'the art switch is the master')
-  assert.deepEqual(on(null), ['rim'], 'the default appearance lights the rim')
-  assert.deepEqual(on({ palette: 'nope', motion: 'nope', art: true }), ['rim'], 'unknown values fall back to full')
-})
-
-test('the silver rim lights only near the card and slides with the pointer', () => {
-  const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const rect = { left: 100, top: 500, width: 400, height: 120 }
-  const near = optics.rimPoint(rect, { x: 300, y: 470 }, 280)
-  assert.equal(near.on, true)
-  assert.equal(Math.round(near.x), 200)
-  assert.equal(Math.round(near.y), -30)
-  assert.ok(near.strength > 0.8 && near.strength <= 1)
-  const inside = optics.rimPoint(rect, { x: 300, y: 560 }, 280)
-  assert.equal(inside.on, true)
-  assert.equal(inside.strength, 1, 'the pointer inside the card lights it fully')
-  const far = optics.rimPoint(rect, { x: 300, y: 100 }, 280)
-  assert.equal(far.on, false)
-  assert.equal(far.strength, 0)
-  assert.equal(optics.rimPoint(null, { x: 1, y: 2 }), null)
-  assert.equal(optics.rimPoint(rect, { x: Number.NaN, y: 1 }), null)
-  assert.equal(optics.reach, 280)
-})
-
-test('the optics find the composer card of their own session', () => {
-  const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const cardA = { id: 'a' }
-  const cardB = { id: 'b' }
-  const rootA = { getAttribute: () => 's1', querySelector: () => cardA }
-  const rootB = { getAttribute: () => 's2', querySelector: () => cardB }
-  const doc = {
-    querySelectorAll: (sel) => (sel === '[data-conversation-session]' ? [rootA, rootB] : []),
-    querySelector: (sel) => (sel === '[data-composer-card]' ? cardB : null),
-  }
-  assert.equal(optics.findCard(doc, 's1'), cardA)
-  assert.equal(optics.findCard(doc, 's2'), cardB)
-  assert.equal(optics.findCard(doc, 'unknown'), cardB, 'a session without a root falls back to the page card')
-  assert.equal(optics.findCard(null, 's1'), null)
-})
-
-test('the optics mount traces the card edge', () => {
-  const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const rim = {
-    className: 'ct-optics-rim',
-    style: {
-      setProperty(name, value) { this[name] = value },
-    },
-    attrs: {},
-    setAttribute(name, value) { this.attrs[name] = value },
-    removeAttribute(name) { delete this.attrs[name] },
-  }
-  const layer = { querySelector: (sel) => (sel === '.ct-optics-rim' ? rim : null) }
-  const card = {
-    getBoundingClientRect: () => ({ left: 100, top: 500, width: 400, height: 120 }),
-  }
-  const win = {
-    addEventListener() {},
-    removeEventListener() {},
-    getComputedStyle: () => ({ borderTopLeftRadius: '14px' }),
-  }
-  const doc = {
-    defaultView: win,
-    documentElement: { addEventListener() {}, removeEventListener() {} },
-    querySelectorAll: () => [],
-    querySelector: (sel) => (sel === '[data-composer-card]' ? card : null),
-  }
-  optics.setDocument(doc)
-  const dispose = optics.mount({ layer, sessionId: 's1' })
-  assert.equal(rim.style.left, '100px')
-  assert.equal(rim.style.top, '500px')
-  assert.equal(rim.style.width, '400px')
-  assert.equal(rim.style.height, '120px')
-  assert.equal(rim.style.borderRadius, '14px')
-  dispose()
-  assert.equal(rim.attrs['data-on'], undefined, 'the rim is dark again on unmount')
-  optics.setDocument(null)
-})
-
-test('full motion mounts the silver rim on one inert layer', () => {
-  const nodes = opticsNodes(renderDockWith({ appearance: { palette: 'obsidian', motion: 'full', art: true } }, {
-    t: (key) => key,
-    sessionId: 'session-optics',
-    session: { sessionId: 'session-optics', blank: false, running: true },
-  }))
-  const layer = nodes.find((node) => hasClass(node, 'ct-optics-layer'))
-  assert.ok(layer, 'the optics layer is mounted')
-  assert.equal(layer.props['data-palette'], 'obsidian')
-  assert.equal(layer.props['data-motion'], 'full')
-  assert.equal(layer.props['aria-hidden'], 'true')
-  assert.ok(nodes.find((node) => String(node.props.className) === 'ct-optics-rim'), 'the rim is the whole layer')
-  for (const gone of ['ct-optics-stop', 'ct-optics-stop-spin', 'ct-optics-liftoff', 'ct-optics-sweep', 'ct-optics-sweep-line', 'ct-optics-sweep-tint']) {
-    assert.equal(nodes.some((node) => String(node.props.className) === gone), false, `${gone} was removed in 2.8.1`)
-  }
-})
-
-test('the calm tiers keep the rim; off and the art switch mount nothing', () => {
-  const props = {
-    t: (key) => key,
-    sessionId: 's',
-    session: { sessionId: 's', blank: false, running: false },
-  }
-  const subtle = opticsNodes(renderDockWith({ appearance: { palette: 'host', motion: 'subtle', art: true } }, props))
-  assert.ok(subtle.find((node) => hasClass(node, 'ct-optics-layer')))
-  assert.ok(subtle.find((node) => String(node.props.className) === 'ct-optics-rim'))
-
-  const off = renderDockWith({ appearance: { palette: 'host', motion: 'off', art: true } }, props)
-  assert.equal(off.some((node) => hasClass(node, 'ct-optics-layer')), false, 'motion off mounts nothing')
-
-  const bare = renderDockWith({ appearance: { palette: 'host', motion: 'full', art: false } }, props)
-  assert.equal(bare.some((node) => hasClass(node, 'ct-optics-layer')), false, 'the art switch is the master')
-})
-
-test('a blank session mounts the optics layer over its hero composer too', () => {
-  const nodes = opticsNodes(renderDock([[], '', '', false, false, 0,
-    { appearance: { palette: 'crystal', motion: 'full', art: true } },
-    { columns: [] }], {
-    t: (key) => key,
-    sessionId: 'blank-1',
-    session: { sessionId: 'blank-1', blank: true, awaitingFirstTurn: false, running: false },
-  }))
-  const layer = nodes.find((node) => hasClass(node, 'ct-optics-layer'))
-  assert.ok(layer, 'the blank-session board keeps the same optics')
-  assert.equal(layer.props['data-palette'], 'crystal')
-})
-
-test('the composer optics stylesheet is art-scoped, silver and never repaints the card', () => {
-  const { module, styles } = loadClient()
-  const ctx = {
-    effect(fn) {
-      const dispose = fn()
-      return () => {
-        if (typeof dispose === 'function') dispose()
-      }
-    },
-    locale: {
-      register() { return () => {} },
-      bind() { return (key) => key },
-    },
-    slots: {
-      inject(_slot, callback) { return callback() },
-      register() { return () => {} },
-    },
-  }
-  module.factory(() => fakeReact(null)).apply(ctx)
-  assert.equal(styles.length, 1)
-  const css = String(styles[0].textContent)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-optics-layer \{/)
-  assert.match(css, /body\[data-ct-art='on'\]\[data-ds-dark-theme\] \.ct-optics-layer \{/)
-  assert.match(css, /body\[data-ct-art='on'\] \.ct-optics-rim \{/)
-  assert.match(css, /background: radial-gradient\(240px circle at var\(--ct-rim-x/)
-  assert.match(css, /mask: linear-gradient\(#000 0 0\) content-box exclude/)
-  assert.match(css, /\.ct-optics-layer \{[^}]*position: fixed;[^}]*pointer-events: none;/s)
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/)
-  // Silver-white: a white hotspot, a pale mid stop and a darker silver so the
-  // 1px band still reads on a light card; the dark host uses the same trio.
-  assert.match(css, /--ct-rim-hi: #ffffff;\n  --ct-rim-mid: #dfe4ea;\n  --ct-rim-lo: #8f98a5;/)
-  assert.match(css, /--ct-rim-hi: #ffffff;\n  --ct-rim-mid: #e6eaef;\n  --ct-rim-lo: #b3bcc7;/)
-  // 2.8.1 removed the other three effects: no orbit, no launch ring, no sweep
-  // and no prism spectrum is left in the stylesheet.
-  assert.doesNotMatch(css, /ct-optics-stop|ct-optics-liftoff|ct-optics-sweep|ct-prism/)
-  assert.doesNotMatch(css, /@keyframes ct-prism/)
-  // The host card is read, never repainted: no background/border override and
-  // no host hash class may appear in the optics section.
-  assert.doesNotMatch(css, /\.ct-optics[^}]*background-color/)
-  assert.doesNotMatch(css, /\.ct-optics[^}]*_[A-Za-z0-9]{5,}/)
-  assert.doesNotMatch(css, /\.ct-optics[^}]*\[data-composer-card\]/)
-})
-
-test('the optics follow a composer card the host replaced', async () => {
-  const optics = loadClient().module.factory(() => fakeReact(null)).__test.optics
-  const node = () => ({ style: { setProperty() {}, removeProperty() {} }, setAttribute() {}, removeAttribute() {}, hidden: false })
-  const rim = node()
-  const layer = { querySelector: (sel) => (sel === '.ct-optics-rim' ? rim : null) }
-  const listeners = {}
-  const win = {
-    addEventListener(type, fn) { listeners[type] = fn },
-    removeEventListener() {},
-    getComputedStyle: () => ({ borderTopLeftRadius: '12px' }),
-  }
-  let card = {
-    isConnected: true,
-    getBoundingClientRect: () => ({ left: 100, top: 500, width: 400, height: 120 }),
-  }
-  const next = {
-    isConnected: true,
-    getBoundingClientRect: () => ({ left: 120, top: 520, width: 400, height: 120 }),
-  }
-  const doc = {
-    defaultView: win,
-    documentElement: { addEventListener() {}, removeEventListener() {} },
-    querySelectorAll: () => [],
-    querySelector: (sel) => (sel === '[data-composer-card]' ? card : null),
-  }
-  optics.setDocument(doc)
-  const dispose = optics.mount({ layer, sessionId: 's1' })
-  assert.equal(rim.style.left, '100px')
-  // React swaps the card node; the next measure re-resolves and re-observes.
-  card.isConnected = false
-  card = next
-  listeners.resize()
-  for (let i = 0; i < 25 && rim.style.left !== '120px'; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
-  assert.equal(rim.style.left, '120px')
-  dispose()
-  optics.setDocument(null)
 })

@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.8.1'
+    const PLUGIN_VERSION = '2.8.2'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -34,22 +34,10 @@ window.__ModuleLoader__.load({
     // Up-to-bottom with a task bar: 仓库栏和试管 → 任务栏 → 输入卡; without a
     // task bar the row sits directly above the input card.
     const DOCK_ORDER_FIRST = -1000
-    const PALETTES = [
-      { id: 'host', labelKey: 'paletteHost' },
-      { id: 'obsidian', labelKey: 'paletteObsidian' },
-      { id: 'crystal', labelKey: 'paletteCrystal' },
-    ]
-    const MOTIONS = [
-      { id: 'full', labelKey: 'motionFull' },
-      { id: 'subtle', labelKey: 'motionSubtle' },
-      { id: 'off', labelKey: 'motionOff' },
-    ]
-    const DEFAULT_APPEARANCE = { palette: 'host', motion: 'full', art: true }
-    // ---- Composer optics (2.8.0) -------------------------------------------
-    // One pointer-driven effect drawn over the host composer card, ported from
-    // upstream Obsidian Prism's optical layer: the silver-white rim. Every number
-    // is a CSS pixel in the viewport, the way the card's own rect reports it.
-    const RIM_REACH = 280 // how close the pointer has to get before the rim lights
+    // 2.8.2 has no appearance page. The plugin follows the host scheme with one
+    // pair of skins — 深空黑曜 on DSH's dark theme, 白昼冷晶 (upstream Obsidian
+    // Prism's white) on its light one — and the art layer stays on.
+    const APPEARANCE = { palette: 'auto', motion: 'full', art: true }
 
     /**
      * Whole-app skins, as opposed to this plugin's own `.ct-skin` surfaces.
@@ -148,202 +136,105 @@ window.__ModuleLoader__.load({
           '--dsw-elevation-stroke': '1px solid rgba(255, 255, 255, 0.14)',
         },
         light: {
-          '--dsw-alias-bg-base': '#e6edf6',
-          '--dsw-alias-bg-layer-1': '#eef4fb',
-          '--dsw-alias-bg-layer-2': '#f7fafd',
+          '--dsw-alias-bg-base': '#f4f7fb',
+          '--dsw-alias-bg-layer-1': '#e9eff8',
+          '--dsw-alias-bg-layer-2': '#eef3fa',
           '--dsw-alias-bg-layer-3': '#ffffff',
-          '--dsw-alias-bg-module-platform': '#e1eaf6',
-          '--dsw-alias-bg-overlay': 'rgba(244, 247, 252, 0.82)',
-          '--dsw-alias-bg-mask-1': 'rgba(23, 40, 64, 0.12)',
-          '--dsw-alias-bg-mask-2': 'rgba(23, 40, 64, 0.2)',
-          '--dsw-alias-bg-mask-3': 'rgba(23, 40, 64, 0.32)',
-          '--dsw-alias-bg-skeleton': '#dfe7f2',
-          '--dsw-alias-border-l1': 'rgba(23, 40, 64, 0.08)',
-          '--dsw-alias-border-l2': 'rgba(23, 40, 64, 0.14)',
-          '--dsw-alias-border-l3': 'rgba(23, 40, 64, 0.24)',
-          '--dsw-alias-border-l4': 'rgba(23, 40, 64, 0.32)',
-          '--dsw-alias-border-selected': '#2f6fed',
-          '--dsw-alias-label-primary': '#142033',
-          '--dsw-alias-label-secondary': '#40516a',
-          '--dsw-alias-label-tertiary': '#697a93',
-          '--dsw-alias-label-caption': '#77879d',
-          '--dsw-alias-label-dimmed': '#8a99ad',
+          '--dsw-alias-bg-module-platform': '#e8eef6',
+          '--dsw-alias-bg-overlay': 'rgba(244, 247, 251, 0.82)',
+          '--dsw-alias-bg-mask-1': 'rgba(15, 23, 42, 0.12)',
+          '--dsw-alias-bg-mask-2': 'rgba(15, 23, 42, 0.2)',
+          '--dsw-alias-bg-mask-3': 'rgba(15, 23, 42, 0.32)',
+          '--dsw-alias-bg-skeleton': '#e6edf7',
+          '--dsw-alias-border-l1': 'rgba(15, 23, 42, 0.055)',
+          '--dsw-alias-border-l2': 'rgba(15, 23, 42, 0.11)',
+          '--dsw-alias-border-l3': 'rgba(15, 23, 42, 0.15)',
+          '--dsw-alias-border-l4': 'rgba(15, 23, 42, 0.22)',
+          '--dsw-alias-border-selected': '#2563eb',
+          '--dsw-alias-label-primary': '#0f172a',
+          '--dsw-alias-label-secondary': '#334155',
+          '--dsw-alias-label-tertiary': '#4b5b73',
+          '--dsw-alias-label-caption': '#556682',
+          '--dsw-alias-label-dimmed': '#596880',
           '--dsw-alias-label-on-color': '#ffffff',
-          '--dsw-alias-link': '#2563eb',
-          '--dsw-alias-interactive-bg-hover': 'rgba(23, 40, 64, 0.07)',
-          '--dsw-alias-interactive-bg-active': 'rgba(23, 40, 64, 0.11)',
-          '--dsw-alias-interactive-bg-hover-solid': '#e4ebf5',
-          '--dsw-alias-button-primary-fill': '#2f6fed',
-          '--dsw-alias-button-primary-hover': '#4a84f2',
-          '--dsw-alias-button-contrast-fill': '#142033',
+          '--dsw-alias-link': '#1d4ed8',
+          '--dsw-alias-interactive-bg-hover': 'rgba(15, 23, 42, 0.06)',
+          '--dsw-alias-interactive-bg-active': 'rgba(15, 23, 42, 0.1)',
+          '--dsw-alias-interactive-bg-hover-solid': '#e9eff8',
+          '--dsw-alias-button-primary-fill': '#2563eb',
+          '--dsw-alias-button-primary-hover': '#3b82f6',
+          '--dsw-alias-button-contrast-fill': '#0f172a',
           '--dsw-alias-button-elevated-fill': '#ffffff',
-          '--dsw-alias-button-tool-bar-fill': 'rgba(23, 40, 64, 0.05)',
-          '--dsw-alias-button-tool-bar-hover': 'rgba(23, 40, 64, 0.1)',
-          '--dsw-alias-card-fill': 'rgba(255, 255, 255, 0.72)',
+          '--dsw-alias-button-tool-bar-fill': 'rgba(15, 23, 42, 0.05)',
+          '--dsw-alias-button-tool-bar-hover': 'rgba(15, 23, 42, 0.1)',
+          '--dsw-alias-card-fill': 'rgba(255, 255, 255, 0.975)',
           '--dsw-alias-card-fill-hover': '#ffffff',
-          '--dsw-alias-settings-card-fill': 'rgba(255, 255, 255, 0.8)',
-          '--dsw-alias-settings-card-stroke': 'rgba(23, 40, 64, 0.16)',
-          '--dsw-alias-menu-group-header-fill': 'rgba(23, 40, 64, 0.04)',
-          '--dsw-alias-state-business-primary': '#2f6fed',
-          '--dsw-alias-state-success-primary': '#0f9d8a',
-          '--dsw-alias-state-success-secondary': 'rgba(15, 157, 138, 0.14)',
-          '--dsw-alias-state-warn-primary': '#b45309',
-          '--dsw-alias-state-warn-secondary': 'rgba(180, 83, 9, 0.14)',
-          '--dsw-alias-state-error-primary': '#c02626',
-          '--dsw-alias-state-error-secondary': 'rgba(192, 38, 38, 0.14)',
-          '--dsw-alias-state-done-primary': '#2f6fed',
-          '--dsw-alias-state-idle-primary': '#697a93',
-          '--dsw-alias-chart-system': '#2f6fed',
-          '--dsw-alias-chart-tools': '#7c5cff',
-          '--dsw-alias-chart-messages': '#0f9d8a',
-          '--dsw-alias-markdown-code-block': '#f1f5fb',
-          '--dsw-alias-markdown-code-block-banner': '#e7eef8',
-          '--dsw-alias-markdown-inline-code': 'rgba(23, 40, 64, 0.06)',
-          '--dsw-alias-markdown-citation': 'rgba(47, 111, 237, 0.12)',
-          '--dsw-alias-markdown-tag': 'rgba(23, 40, 64, 0.06)',
-          '--dsw-specific-sidebar-fill': '#eaf0f8',
-          '--dsw-specific-sidebar-glass-fill': 'rgba(255, 255, 255, 0.62)',
-          '--dsw-specific-sidebar-glass-hover': 'rgba(255, 255, 255, 0.82)',
-          '--dsw-specific-sidebar-nav-item-active': 'rgba(47, 111, 237, 0.12)',
-          '--dsw-specific-sidebar-nav-item-active-accent': '#2f6fed',
-          '--dsw-specific-sidebar-tint': 'rgba(47, 111, 237, 0.06)',
-          '--dsw-specific-bubble': 'rgba(255, 255, 255, 0.94)',
-          '--dsw-specific-bubble-highlight': 'rgba(23, 40, 64, 0.05)',
+          '--dsw-alias-settings-card-fill': 'rgba(255, 255, 255, 0.96)',
+          '--dsw-alias-settings-card-stroke': 'rgba(15, 23, 42, 0.15)',
+          '--dsw-alias-menu-group-header-fill': 'rgba(15, 23, 42, 0.04)',
+          '--dsw-alias-state-business-primary': '#2563eb',
+          '--dsw-alias-state-success-primary': '#059669',
+          '--dsw-alias-state-success-secondary': 'rgba(5, 150, 105, 0.14)',
+          '--dsw-alias-state-warn-primary': '#d97706',
+          '--dsw-alias-state-warn-secondary': 'rgba(217, 119, 6, 0.14)',
+          '--dsw-alias-state-error-primary': '#dc2626',
+          '--dsw-alias-state-error-secondary': 'rgba(220, 38, 38, 0.14)',
+          '--dsw-alias-state-done-primary': '#2563eb',
+          '--dsw-alias-state-idle-primary': '#4b5b73',
+          '--dsw-alias-chart-system': '#2563eb',
+          '--dsw-alias-chart-tools': '#7c3aed',
+          '--dsw-alias-chart-messages': '#059669',
+          '--dsw-alias-markdown-code-block': '#f8fafc',
+          '--dsw-alias-markdown-code-block-banner': '#eef3fa',
+          '--dsw-alias-markdown-inline-code': 'rgba(15, 23, 42, 0.06)',
+          '--dsw-alias-markdown-citation': 'rgba(37, 99, 235, 0.12)',
+          '--dsw-alias-markdown-tag': 'rgba(15, 23, 42, 0.06)',
+          '--dsw-specific-sidebar-fill': '#e8eef6',
+          '--dsw-specific-sidebar-glass-fill': 'rgba(255, 255, 255, 0.72)',
+          '--dsw-specific-sidebar-glass-hover': 'rgba(255, 255, 255, 0.88)',
+          '--dsw-specific-sidebar-nav-item-active': 'rgba(37, 99, 235, 0.12)',
+          '--dsw-specific-sidebar-nav-item-active-accent': '#2563eb',
+          '--dsw-specific-sidebar-tint': 'rgba(37, 99, 235, 0.06)',
+          '--dsw-specific-bubble': 'rgba(255, 255, 255, 0.97)',
+          '--dsw-specific-bubble-highlight': 'rgba(15, 23, 42, 0.05)',
           '--dsw-specific-menu': '#ffffff',
-          '--dsw-specific-input-major': '#f7fafd',
-          '--dsw-specific-selector': '#ffffff',
-          '--dsw-specific-tip': 'rgba(23, 40, 64, 0.05)',
-          '--dsw-alias-tooltip-bg': '#142033',
-          '--dsw-alias-tooltip-label': '#f7fafd',
-          '--dsw-alias-tooltip-key-bg': 'rgba(255, 255, 255, 0.14)',
-          '--dsw-alias-toast-bg': '#142033',
-          '--dsw-alias-toast-label': '#f7fafd',
-          '--dsw-alias-toast-action': '#8fb4ff',
-          '--dsw-alias-scrollbar-bg-l1': 'rgba(23, 40, 64, 0.16)',
-          '--dsw-alias-scrollbar-hover-l1': 'rgba(23, 40, 64, 0.3)',
-          '--dsw-focus-ring-color': '#2f6fed',
-          '--dsw-elevation-panel': '0 26px 56px rgba(31, 54, 93, 0.16)',
-          '--dsw-elevation-prominent': '0 20px 44px rgba(31, 54, 93, 0.14)',
-          '--dsw-elevation-soft': '0 8px 22px rgba(31, 54, 93, 0.1)',
-          '--dsw-elevation-stroke': '1px solid rgba(23, 40, 64, 0.18)',
+          '--dsw-specific-input-major': '#f8fafc',
+          '--dsw-specific-selector': '#eef3fa',
+          '--dsw-specific-tip': 'rgba(15, 23, 42, 0.05)',
+          '--dsw-alias-tooltip-bg': '#0f172a',
+          '--dsw-alias-tooltip-label': '#f8fafc',
+          '--dsw-alias-tooltip-key-bg': 'rgba(255, 255, 255, 0.16)',
+          '--dsw-alias-toast-bg': '#0f172a',
+          '--dsw-alias-toast-label': '#f8fafc',
+          '--dsw-alias-toast-action': '#93c5fd',
+          '--dsw-alias-scrollbar-bg-l1': 'rgba(15, 23, 42, 0.16)',
+          '--dsw-alias-scrollbar-hover-l1': 'rgba(15, 23, 42, 0.3)',
+          '--dsw-focus-ring-color': '#2563eb',
+          '--dsw-elevation-panel': '0 10px 28px -6px rgba(30, 58, 138, 0.1), 0 1px 3px rgba(15, 23, 42, 0.06)',
+          '--dsw-elevation-prominent': '0 12px 32px -10px rgba(15, 23, 42, 0.14), 0 2px 6px -2px rgba(15, 23, 42, 0.06)',
+          '--dsw-elevation-soft': '0 4px 12px -4px rgba(15, 23, 42, 0.15), 0 1px 2px rgba(15, 23, 42, 0.06)',
+          '--dsw-elevation-stroke': '1px solid rgba(15, 23, 42, 0.12)',
         },
       },
     }
     /**
-     * 深空黑曜 and 白昼冷晶 share the structural ramp above — near-black slate
-     * when the host is dark, cool paper when it is light — and differ by tint:
-     * obsidian is the ramp as authored (indigo accent), crystal runs the same
-     * ramp colder (ice-cyan accent, blue-cast surfaces). Neither palette pins a
-     * scheme, which is the 2.2.0 change: both install a light and a dark set and
-     * the host picks, so a palette survives the user flipping DSH's theme.
+     * One skin pair. The ramp's light half is 白昼冷晶, rebuilt from upstream
+     * Obsidian Prism's light theme (#F4F7FB ground, #FFF cards, #2563EB accent);
+     * the dark half is 深空黑曜. The host theme service picks by the active
+     * scheme, so DSH's own 深色 / 亮色 switch is the only control.
      */
-    const SKIN_TINTS = {
-      obsidian: { dark: {}, light: {} },
-      crystal: {
-        dark: {
-          '--dsw-alias-bg-base': '#070b12',
-          '--dsw-alias-bg-layer-1': '#0b1119',
-          '--dsw-alias-bg-layer-2': '#111925',
-          '--dsw-alias-bg-layer-3': '#182333',
-          '--dsw-alias-bg-module-platform': '#1f2a38',
-          '--dsw-alias-bg-skeleton': '#141d29',
-          '--dsw-alias-border-l3': 'rgba(196, 228, 255, 0.2)',
-          '--dsw-alias-border-l4': 'rgba(196, 228, 255, 0.28)',
-          '--dsw-alias-border-selected': '#7ad6ff',
-          '--dsw-alias-label-primary': '#eef7ff',
-          '--dsw-alias-label-secondary': '#b8ccdd',
-          '--dsw-alias-label-tertiary': '#8299ac',
-          '--dsw-alias-label-on-color': '#070b12',
-          '--dsw-alias-link': '#8ad9ff',
-          '--dsw-alias-interactive-bg-hover-solid': '#1d2839',
-          '--dsw-alias-button-primary-fill': '#3fb4ec',
-          '--dsw-alias-button-primary-hover': '#5ec8ff',
-          '--dsw-alias-button-elevated-fill': '#1c2736',
-          '--dsw-alias-state-business-primary': '#48c6f5',
-          '--dsw-alias-state-done-primary': '#48c6f5',
-          '--dsw-alias-state-success-primary': '#4fd6c0',
-          '--dsw-alias-state-success-secondary': 'rgba(79, 214, 192, 0.16)',
-          '--dsw-alias-chart-system': '#48c6f5',
-          '--dsw-alias-chart-tools': '#9db8ff',
-          '--dsw-alias-chart-messages': '#5fe3d0',
-          '--dsw-alias-markdown-code-block': '#0b1119',
-          '--dsw-alias-markdown-code-block-banner': '#131d2a',
-          '--dsw-alias-markdown-citation': 'rgba(72, 198, 245, 0.16)',
-          '--dsw-specific-sidebar-fill': '#0b1119',
-          '--dsw-specific-sidebar-glass-fill': 'rgba(17, 25, 37, 0.7)',
-          '--dsw-specific-sidebar-glass-hover': 'rgba(24, 35, 51, 0.82)',
-          '--dsw-specific-sidebar-nav-item-active': 'rgba(72, 198, 245, 0.16)',
-          '--dsw-specific-sidebar-nav-item-active-accent': '#48c6f5',
-          '--dsw-specific-sidebar-tint': 'rgba(72, 198, 245, 0.06)',
-          '--dsw-specific-bubble': 'rgba(24, 35, 51, 0.92)',
-          '--dsw-specific-menu': '#182333',
-          '--dsw-specific-input-major': '#111925',
-          '--dsw-specific-selector': '#182333',
-          '--dsw-alias-tooltip-bg': '#1f2a38',
-          '--dsw-alias-toast-bg': '#1f2a38',
-          '--dsw-alias-toast-action': '#8ad9ff',
-          '--dsw-focus-ring-color': '#7ad6ff',
-          '--dsw-elevation-stroke': '1px solid rgba(196, 228, 255, 0.16)',
-        },
-        light: {
-          '--dsw-alias-bg-base': '#eef6ff',
-          '--dsw-alias-bg-layer-1': '#f5faff',
-          '--dsw-alias-bg-layer-2': '#fbfdff',
-          '--dsw-alias-bg-layer-3': '#ffffff',
-          '--dsw-alias-bg-module-platform': '#e4effc',
-          '--dsw-alias-bg-skeleton': '#e7f1fc',
-          '--dsw-alias-border-selected': '#0f96c8',
-          '--dsw-alias-link': '#0a76a8',
-          '--dsw-alias-interactive-bg-hover-solid': '#e2f0fb',
-          '--dsw-alias-button-primary-fill': '#0f96c8',
-          '--dsw-alias-button-primary-hover': '#28b0e0',
-          '--dsw-alias-state-business-primary': '#0f96c8',
-          '--dsw-alias-state-done-primary': '#0f96c8',
-          '--dsw-alias-state-success-primary': '#0d9a86',
-          '--dsw-alias-state-success-secondary': 'rgba(13, 154, 134, 0.14)',
-          '--dsw-alias-chart-system': '#0f96c8',
-          '--dsw-alias-chart-tools': '#6f7cff',
-          '--dsw-alias-chart-messages': '#0e9f8f',
-          '--dsw-alias-markdown-code-block': '#f2f9ff',
-          '--dsw-alias-markdown-code-block-banner': '#e8f3fd',
-          '--dsw-alias-markdown-citation': 'rgba(15, 150, 200, 0.12)',
-          '--dsw-specific-sidebar-fill': '#f0f7ff',
-          '--dsw-specific-sidebar-glass-fill': 'rgba(255, 255, 255, 0.62)',
-          '--dsw-specific-sidebar-glass-hover': 'rgba(255, 255, 255, 0.82)',
-          '--dsw-specific-sidebar-nav-item-active': 'rgba(15, 150, 200, 0.13)',
-          '--dsw-specific-sidebar-nav-item-active-accent': '#0f96c8',
-          '--dsw-specific-sidebar-tint': 'rgba(15, 150, 200, 0.06)',
-          '--dsw-specific-bubble': 'rgba(255, 255, 255, 0.94)',
-          '--dsw-specific-menu': '#fbfdff',
-          '--dsw-specific-input-major': '#f5faff',
-          '--dsw-specific-selector': '#fbfdff',
-          '--dsw-alias-tooltip-bg': '#0b2b3f',
-          '--dsw-alias-toast-bg': '#0b2b3f',
-          '--dsw-alias-toast-action': '#7fd0ff',
-          '--dsw-focus-ring-color': '#0f96c8',
-          '--dsw-elevation-stroke': '1px solid rgba(12, 60, 90, 0.18)',
-        },
-      },
-    }
-    const SKIN_PALETTES = {
-      obsidian: { family: 'cool', tint: 'obsidian' },
-      crystal: { family: 'cool', tint: 'crystal' },
-    }
+    const SKIN_PALETTES = { auto: { family: 'cool' } }
 
-    /** One palette as the { light, dark } pairs the theme service requires. */
+    /** The one skin as the { light, dark } pairs the theme service requires. */
     function skinSpec(palette) {
-      const meta = SKIN_PALETTES[palette]
+      const meta = SKIN_PALETTES[palette || 'auto']
       if (!meta) return null
       const family = SKIN_FAMILIES[meta.family]
-      const tint = SKIN_TINTS[meta.tint] || { dark: {}, light: {} }
       const tokens = {}
       for (const name of Object.keys(family.dark)) {
-        tokens[name] = {
-          light: tint.light[name] || family.light[name],
-          dark: tint.dark[name] || family.dark[name],
-        }
+        tokens[name] = { light: family.light[name], dark: family.dark[name] }
       }
-      return { id: palette, tokens }
+      return { id: 'auto', tokens }
     }
 
     /**
@@ -352,7 +243,7 @@ window.__ModuleLoader__.load({
      * imperative and returns its own disposer, so the runtime keeps one layer at
      * a time and swaps it when the palette changes.
      */
-    const skinRuntime = { theme: null, palette: DEFAULT_APPEARANCE.palette, applied: null, dispose: null }
+    const skinRuntime = { theme: null, palette: 'auto', applied: null, dispose: null }
 
     function dropSkin() {
       const dispose = skinRuntime.dispose
@@ -380,11 +271,9 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** Repaint the whole app for a palette; `host` drops our layer. */
-    function setSkinPalette(palette) {
-      const next = normalizeAppearance({ palette }).palette
-      if (next === skinRuntime.palette) return
-      skinRuntime.palette = next
+    /** Repaint the whole app with the auto skin (the host scheme picks a half). */
+    function setSkinPalette() {
+      skinRuntime.palette = 'auto'
       paintSkin()
     }
 
@@ -392,22 +281,17 @@ window.__ModuleLoader__.load({
      * The theme art (background wash, bubbles, hairlines, slim scrollbars) is
      * painted by our own stylesheet, so it needs a hook on <body>: which palette
      * is on, and whether the art layer is allowed. Both live under `data-ct-*`
-     * so they cannot collide with a host attribute, and both are inert for the
-     * `host` palette — the official look is never repainted from underneath.
+     * so they cannot collide with a host attribute; 2.8.2 writes them once and
+     * never flips them back to `off`.
      */
-    function applyOptics(appearance) {
+    function applyOptics() {
       if (typeof document === 'undefined' || !document.body
         || typeof document.body.setAttribute !== 'function') return null
-      const spec = normalizeAppearance(appearance)
-      // The art layer is its own switch: the palette only decides which tokens the
-      // art is drawn with, so host keeps DSH's colours and still gets the
-      // wash/bubbles/glow. Only the explicit art-off switch turns it off.
-      const art = spec.art !== false
-      document.body.setAttribute('data-ct-palette', spec.palette)
-      document.body.setAttribute('data-ct-art', art ? 'on' : 'off')
-      document.body.setAttribute('data-ct-motion', spec.motion)
-      if (art) watchGlow()
-      return { palette: spec.palette, art: art }
+      document.body.setAttribute('data-ct-palette', APPEARANCE.palette)
+      document.body.setAttribute('data-ct-art', 'on')
+      document.body.setAttribute('data-ct-motion', APPEARANCE.motion)
+      watchGlow()
+      return { palette: APPEARANCE.palette, art: true }
     }
 
     /**
@@ -502,7 +386,6 @@ window.__ModuleLoader__.load({
       { id: 'levels', navLabel: 'navLevels', icon: 'M3 4.5h10M3 8h7M3 11.5h4' },
       { id: 'rules', navLabel: 'navRules', icon: 'M4 2.5h5.5L12.5 5.5v8H4zM9.5 2.5v3h3M6 8h4M6 10.5h3' },
       { id: 'components', navLabel: 'navComponents', icon: 'M6 2.5h4v3H6zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z' },
-      { id: 'appearance', navLabel: 'navAppearance', icon: 'M8 2.5a5.5 5.5 0 1 0 5.5 5.5c0-1.2-.4-2.3-1-3.2-.5.9-1.4 1.5-2.4 1.5-1.5 0-2.7-1.2-2.7-2.7 0-.4.1-.8.2-1.1zM8 13.5a4 4 0 0 1 0-8' },
       { id: 'github', navLabel: 'navGithub', icon: 'M8 2.5a5.5 5.5 0 0 0-1.7 10.7c.3.1.4-.1.4-.3v-1c-1.5.3-1.9-.7-1.9-.7-.2-.6-.6-.8-.6-.8-.5-.3 0-.3 0-.3.5 0 .8.5.8.5.5.9 1.3.6 1.6.5 0-.4.2-.6.3-.7-1.2-.1-2.5-.6-2.5-2.7 0-.6.2-1.1.5-1.5-.1-.1-.2-.7 0-1.4 0 0 .5-.2 1.5.5a5 5 0 0 1 2.8 0c1-.7 1.5-.5 1.5-.5.3.7.1 1.3.1 1.4.3.4.5.9.5 1.5 0 2.1-1.3 2.6-2.5 2.7.2.2.4.5.4 1v1.5c0 .2.1.4.4.3A5.5 5.5 0 0 0 8 2.5z' },
     ]
 
@@ -515,23 +398,7 @@ window.__ModuleLoader__.load({
         navLevels: '档位',
         navRules: '规则',
         navComponents: '模型和组件',
-        navAppearance: '外观',
         navGithub: 'GitHub',
-        appearanceTitle: '外观',
-        paletteLabel: '配色',
-        paletteHost: '跟随宿主',
-        paletteObsidian: '深空黑曜',
-        paletteCrystal: '白昼冷晶',
-        motionLabel: '动效',
-        motionFull: '完整',
-        motionSubtle: '克制',
-        motionOff: '关闭',
-        artLabel: '光学外观',
-        artOn: '已开启',
-        artOff: '已关闭',
-        artHost: '选一套配色后生效',
-        appearanceApplied: '已应用。',
-        appearanceFailed: '保存失败：',
         vialTitle: '上下文试管',
         vialAria: '上下文占用',
         vialUsed: '已用',
@@ -691,23 +558,7 @@ window.__ModuleLoader__.load({
         navLevels: 'Tiers',
         navRules: 'Rules',
         navComponents: 'Models & components',
-        navAppearance: 'Appearance',
         navGithub: 'GitHub',
-        appearanceTitle: 'Appearance',
-        paletteLabel: 'Palette',
-        paletteHost: 'Host theme',
-        paletteObsidian: 'Deep obsidian',
-        paletteCrystal: 'Daylight crystal',
-        motionLabel: 'Motion',
-        motionFull: 'Full',
-        motionSubtle: 'Subtle',
-        motionOff: 'Off',
-        artLabel: 'Optical surfaces',
-        artOn: 'on',
-        artOff: 'off',
-        artHost: 'Pick a palette first',
-        appearanceApplied: 'Applied.',
-        appearanceFailed: 'Could not save: ',
         vialTitle: 'Context vial',
         vialAria: 'Context used',
         vialUsed: 'Used',
@@ -2073,70 +1924,40 @@ body[data-ct-blank='on'] [data-conversation-region='composer'] {
   font-size: 12px;
   line-height: 18px;
 }
-/* ---- Optical skins -------------------------------------------------------
-   Each palette defines a token set on the plugin's own roots (panel page,
-   composer dock, portalled menus). The host UI never sees these values: the
-   attributes only exist on our elements. "host" is the empty case and keeps the
-   official theme untouched.
-
-   Both palettes follow the host scheme. The first block of each pair is the
-   light-host reading, and body[data-ds-dark-theme] — the attribute the official
-   theme presenter sets — swaps in the dark one. color-scheme is deliberately
-   absent: html already carries the host's, and a local value here would fight
-   it. */
-.ct-skin[data-palette='obsidian'] {
-  --dsw-alias-bg-base: #e6edf6;
-  --dsw-alias-bg-layer-1: #eef4fb;
-  --dsw-alias-bg-layer-2: #f7fafd;
+/* ---- Skin palettes ------------------------------------------------------
+   One pair, picked by the host scheme. 白昼冷晶 (upstream Obsidian Prism's light
+   theme: #F4F7FB ground, #FFF cards, #2563EB accent) is the light half;
+   深空黑曜 is the dark half. body[data-ds-dark-theme] — the attribute the host
+   theme presenter sets — swaps in the dark one, so DSH's own 深色 / 亮色 switch
+   is the only control. color-scheme is deliberately absent: html already
+   carries the host's, and a local value here would fight it. */
+.ct-skin[data-palette='auto'] {
+  --dsw-alias-bg-base: #f4f7fb;
+  --dsw-alias-bg-layer-1: #e9eff8;
+  --dsw-alias-bg-layer-2: #eef3fa;
   --dsw-alias-bg-layer-3: #ffffff;
-  --dsw-alias-bg-module-platform: #e1eaf6;
-  --dsw-alias-border-l2: rgba(23, 40, 64, 0.14);
-  --dsw-alias-border-l3: rgba(23, 40, 64, 0.24);
-  --dsw-alias-border-selected: #2f6fed;
-  --dsw-alias-label-primary: #142033;
-  --dsw-alias-label-secondary: #40516a;
-  --dsw-alias-label-tertiary: #697a93;
-  --dsw-alias-interactive-bg-hover: rgba(23, 40, 64, 0.07);
-  --dsw-alias-state-business-primary: #2f6fed;
-  --dsw-alias-link: #2563eb;
-  --dsw-alias-chart-system: #2f6fed;
-  --dsw-alias-chart-tools: #7c5cff;
-  --dsw-alias-chart-messages: #0f9d8a;
-  --dsw-alias-state-warn-primary: #b45309;
-  --dsw-alias-state-error-primary: #c02626;
-  --ct-glass-fill: rgba(255, 255, 255, 0.66);
-  --ct-glass-rail: rgba(255, 255, 255, 0.54);
-  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.14) 40%, transparent 66%);
-  --ct-glass-shadow: 0 26px 56px rgba(31, 54, 93, 0.16), 0 2px 8px rgba(31, 54, 93, 0.1);
-  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(31, 54, 93, 0.06);
+  --dsw-alias-bg-module-platform: #e8eef6;
+  --dsw-alias-border-l2: rgba(15, 23, 42, 0.11);
+  --dsw-alias-border-l3: rgba(15, 23, 42, 0.15);
+  --dsw-alias-border-selected: #2563eb;
+  --dsw-alias-label-primary: #0f172a;
+  --dsw-alias-label-secondary: #334155;
+  --dsw-alias-label-tertiary: #4b5b73;
+  --dsw-alias-interactive-bg-hover: rgba(15, 23, 42, 0.06);
+  --dsw-alias-state-business-primary: #2563eb;
+  --dsw-alias-link: #1d4ed8;
+  --dsw-alias-chart-system: #2563eb;
+  --dsw-alias-chart-tools: #7c3aed;
+  --dsw-alias-chart-messages: #059669;
+  --dsw-alias-state-warn-primary: #d97706;
+  --dsw-alias-state-error-primary: #dc2626;
+  --ct-glass-fill: rgba(255, 255, 255, 0.86);
+  --ct-glass-rail: rgba(255, 255, 255, 0.72);
+  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.18) 40%, transparent 66%);
+  --ct-glass-shadow: 0 10px 28px -6px rgba(30, 58, 138, 0.1), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.96), inset 0 -1px 0 rgba(15, 23, 42, 0.05);
 }
-.ct-skin[data-palette='crystal'] {
-  --dsw-alias-bg-base: #eef6ff;
-  --dsw-alias-bg-layer-1: #f5faff;
-  --dsw-alias-bg-layer-2: #fbfdff;
-  --dsw-alias-bg-layer-3: #ffffff;
-  --dsw-alias-bg-module-platform: #e4effc;
-  --dsw-alias-border-l2: rgba(12, 60, 90, 0.14);
-  --dsw-alias-border-l3: rgba(12, 60, 90, 0.24);
-  --dsw-alias-border-selected: #0f96c8;
-  --dsw-alias-label-primary: #0a2233;
-  --dsw-alias-label-secondary: #35566c;
-  --dsw-alias-label-tertiary: #5f7f96;
-  --dsw-alias-interactive-bg-hover: rgba(12, 60, 90, 0.07);
-  --dsw-alias-state-business-primary: #0f96c8;
-  --dsw-alias-link: #0a76a8;
-  --dsw-alias-chart-system: #0f96c8;
-  --dsw-alias-chart-tools: #6f7cff;
-  --dsw-alias-chart-messages: #0e9f8f;
-  --dsw-alias-state-warn-primary: #a35a08;
-  --dsw-alias-state-error-primary: #b8272a;
-  --ct-glass-fill: rgba(255, 255, 255, 0.7);
-  --ct-glass-rail: rgba(255, 255, 255, 0.58);
-  --ct-glass-sheen: linear-gradient(158deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.16) 40%, transparent 66%);
-  --ct-glass-shadow: 0 26px 56px rgba(12, 60, 90, 0.14), 0 2px 8px rgba(12, 60, 90, 0.08);
-  --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.94), inset 0 -1px 0 rgba(12, 60, 90, 0.06);
-}
-body[data-ds-dark-theme] .ct-skin[data-palette='obsidian'] {
+body[data-ds-dark-theme] .ct-skin[data-palette='auto'] {
   --dsw-alias-bg-base: #0a0a0c;
   --dsw-alias-bg-layer-1: #101013;
   --dsw-alias-bg-layer-2: #17171b;
@@ -2162,40 +1983,14 @@ body[data-ds-dark-theme] .ct-skin[data-palette='obsidian'] {
   --ct-glass-shadow: 0 28px 64px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
   --ct-glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
-body[data-ds-dark-theme] .ct-skin[data-palette='crystal'] {
-  --dsw-alias-bg-base: #070b12;
-  --dsw-alias-bg-layer-1: #0b1119;
-  --dsw-alias-bg-layer-2: #111925;
-  --dsw-alias-bg-layer-3: #182333;
-  --dsw-alias-bg-module-platform: #1f2a38;
-  --dsw-alias-border-l2: rgba(196, 228, 255, 0.12);
-  --dsw-alias-border-l3: rgba(196, 228, 255, 0.2);
-  --dsw-alias-border-selected: #7ad6ff;
-  --dsw-alias-label-primary: #eef7ff;
-  --dsw-alias-label-secondary: #b8ccdd;
-  --dsw-alias-label-tertiary: #8299ac;
-  --dsw-alias-interactive-bg-hover: rgba(196, 228, 255, 0.08);
-  --dsw-alias-state-business-primary: #48c6f5;
-  --dsw-alias-link: #8ad9ff;
-  --dsw-alias-chart-system: #48c6f5;
-  --dsw-alias-chart-tools: #9db8ff;
-  --dsw-alias-chart-messages: #5fe3d0;
-  --dsw-alias-state-warn-primary: #f0b45c;
-  --dsw-alias-state-error-primary: #ff8a7a;
-  --ct-glass-fill: rgba(24, 35, 51, 0.6);
-  --ct-glass-rail: rgba(17, 25, 37, 0.72);
-  --ct-glass-sheen: linear-gradient(158deg, rgba(200, 235, 255, 0.14), rgba(200, 235, 255, 0.03) 38%, transparent 64%);
-  --ct-glass-shadow: 0 28px 64px rgba(0, 4, 10, 0.56), 0 2px 10px rgba(0, 4, 10, 0.34);
-  --ct-glass-inner: inset 0 1px 0 rgba(200, 235, 255, 0.09), inset 0 -1px 0 rgba(0, 0, 0, 0.34);
-}
 /* ---- Prism art layer (host surfaces) -------------------------------------
    The palette only repaints tokens, which leaves every host surface flat. The
    art upstream draws in its stylesheet — the smoked user bubble, hairline
    rules, slim scrollbars, the composer sheen — is addressed here through DSH's
    own semantic attributes; the backdrop itself is the one static gradient
-   further down. applyOptics() is the only switch: it writes data-ct-palette /
-   data-ct-art on <body>, and both are inert for the host palette and when the
-   art switch is off. */
+   further down. applyOptics() is the only switch: it writes data-ct-palette and
+   data-ct-art on <body> — always 'auto' and 'on' since 2.8.2, which dropped the
+   art switch — and every rule below stays gated on data-ct-art='on'. */
 body[data-ct-art='on'] [data-conversation-region='chat'] [data-message-bubble] {
   border-radius: 16px;
   padding: 10px 15px;
@@ -2318,182 +2113,7 @@ body[data-ct-art='on'] [data-composer-dock] button[aria-haspopup='dialog'] {
 body[data-ct-art='on'] [data-composer-stat] {
   display: none !important;
 }
-/* ---- Composer optics (2.8.0) ---------------------------------------------
-   One effect on the host composer card, in the optical language ported from
-   Obsidian Prism: a 1px silver-white rim that lights the card's own border and
-   follows the pointer along it — the sheen slides with the pointer instead of
-   running on its own. 2.8.1 dropped upstream's other three flourishes (the
-   stop-button orbit, the send ring, the caustic sweep), so this layer paints
-   exactly one band.
 
-   The rim is drawn on a fixed layer portalled to <body>. It only reads the
-   card's geometry and takes no clicks: the host card keeps its background,
-   border and seat mask, because 2.4.2–2.4.8 proved that repainting the card
-   lets the transcript show through it. Every rule below is scoped to the art
-   switch; the layer's nodes are not even mounted while 光学外观 is off or the
-   motion tier is 'off'.
-
-   The silver stops are constants of this layer rather than of a skin: the sheen
-   IS the effect, so switching between host / obsidian / crystal never recolours
-   it. A light host needs a darker stop so the 1px line stays legible on white. */
-body[data-ct-art='on'] .ct-optics-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  pointer-events: none;
-  --ct-rim-hi: #ffffff;
-  --ct-rim-mid: #dfe4ea;
-  --ct-rim-lo: #8f98a5;
-}
-body[data-ct-art='on'][data-ds-dark-theme] .ct-optics-layer {
-  --ct-rim-hi: #ffffff;
-  --ct-rim-mid: #e6eaef;
-  --ct-rim-lo: #b3bcc7;
-}
-/* The rim is a 1px ring carved out of a solid fill: the fill is the silver
-   radial sheen centred on the pointer, and the two-layer mask keeps only the
-   1px padding band (content-box excluded). Moving the pointer slides the
-   gradient along the border — the "流光" is that shift, not a self-running
-   loop. */
-body[data-ct-art='on'] .ct-optics-rim {
-  position: fixed;
-  left: -9999px;
-  top: -9999px;
-  padding: 1px;
-  pointer-events: none;
-  background: radial-gradient(240px circle at var(--ct-rim-x, -9999px) var(--ct-rim-y, -9999px),
-    var(--ct-rim-hi) 0%,
-    var(--ct-rim-mid) 46%,
-    var(--ct-rim-lo) 78%,
-    transparent 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  opacity: 0;
-  transition: opacity 220ms ease;
-}
-body[data-ct-art='on'] .ct-optics-rim[data-on='true'] {
-  opacity: var(--ct-rim-strength, 1);
-}
-/* A reduced-motion request keeps the rim — it only follows the pointer, nothing
-   moves on its own — and drops the fade. */
-@media (prefers-reduced-motion: reduce) {
-  body[data-ct-art='on'] .ct-optics-rim {
-    transition: none;
-  }
-}
-/* ---- Appearance page ---------------------------------------------------- */
-.ct-swatches {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-@container (max-width: 640px) {
-  .ct-swatches {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.ct-swatch {
-  display: grid;
-  gap: 7px;
-  box-sizing: border-box;
-  min-width: 0;
-  margin: 0;
-  padding: 8px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--dsw-alias-bg-layer-3) 30%, transparent);
-  color: var(--dsw-alias-label-secondary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
-}
-@media (hover: hover) {
-  .ct-swatch:hover:not(:disabled) {
-    background: var(--dsw-alias-interactive-bg-hover);
-  }
-}
-.ct-swatch[aria-checked='true'] {
-  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 55%, transparent);
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, transparent);
-  color: var(--dsw-alias-label-primary);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 20px color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);
-}
-.ct-swatch:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-.ct-swatch:focus-visible,
-.ct-segment:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
-}
-.ct-swatch-band {
-  display: block;
-  height: 22px;
-  border: 1px solid rgba(0, 0, 0, 0.16);
-  border-radius: 7px;
-  background: linear-gradient(135deg, var(--sw-bg) 0 38%, var(--sw-mid) 38% 68%, var(--sw-accent) 68% 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
-}
-.ct-swatch-band[data-choice='host'] {
-  --sw-bg: var(--dsw-alias-bg-base);
-  --sw-mid: var(--dsw-alias-bg-layer-2);
-  --sw-accent: var(--dsw-alias-state-business-primary);
-}
-/* A palette follows the host scheme, so its band shows both ends: the dark
-   surface on the left, the light one in the middle, the accent on the right. */
-.ct-swatch-band[data-choice='obsidian'] {
-  --sw-bg: #0a0a0c;
-  --sw-mid: #e6edf6;
-  --sw-accent: #6f9bff;
-}
-.ct-swatch-band[data-choice='crystal'] {
-  --sw-bg: #070b12;
-  --sw-mid: #eef6ff;
-  --sw-accent: #2fb8e8;
-}
-.ct-swatch-name {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  line-height: 16px;
-}
-.ct-segments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.ct-segment {
-  box-sizing: border-box;
-  height: 34px;
-  margin: 0;
-  padding: 0 14px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  font: inherit;
-  font-size: 13px;
-  line-height: 20px;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
-}
-@media (hover: hover) {
-  .ct-segment:hover:not(:disabled) {
-    background: var(--dsw-alias-interactive-bg-hover);
-  }
-}
-.ct-segment[aria-checked='true'] {
-  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 50%, transparent);
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent);
-  color: var(--dsw-alias-label-primary);
-}
-.ct-segment:disabled {
-  color: var(--dsw-alias-label-tertiary);
-  cursor: default;
-}
 /* ---- Reasoning effort slider (inside the official model menu) -------------
    Injected as a sibling of the official 推理等级 row, so it inherits the menu
    surface and its tokens. Geometry follows the reference slider
@@ -3111,247 +2731,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       return t('repoFailed')
     }
 
-    /**
-     * The client half of `normalizeAppearance` in `src/store.js`, including the
-     * 2.0.0 palette migration: the server rewrites the stored value on read, so
-     * this only matters for a payload that predates that rewrite.
-     */
-    const LEGACY_PALETTES = { warm: 'obsidian', alabaster: 'crystal' }
-    function normalizeAppearance(value) {
-      const next = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-      const legacy = LEGACY_PALETTES[next.palette]
-      const palette = PALETTES.some(function (item) { return item.id === next.palette })
-        ? next.palette
-        : (legacy || DEFAULT_APPEARANCE.palette)
-      return {
-        palette: palette,
-        motion: MOTIONS.some(function (item) { return item.id === next.motion }) ? next.motion : DEFAULT_APPEARANCE.motion,
-        art: next.art === false ? false : DEFAULT_APPEARANCE.art,
-      }
-    }
-
-    /**
-     * The composer optics switchboard. One appearance snapshot decides whether
-     * the rim exists at all: the art switch is the master (光学外观) and the
-     * motion tier's `off` hides it too. 2.8.1 removed the three other effects,
-     * so there is no per-effect switch left to keep — the panel's two existing
-     * controls are the whole surface.
-     */
-    function opticsPlan(appearance) {
-      const spec = normalizeAppearance(appearance)
-      return { rim: spec.art !== false && spec.motion !== 'off' }
-    }
-
-    /**
-     * Where the pointer sits relative to the card, and how lit the rim is.
-     * `on` is the 280px proximity gate; `strength` ramps down as the pointer
-     * leaves the card, so the rim fades instead of popping. `x`/`y` are local
-     * to the card because the CSS gradient is centred on them.
-     */
-    function rimPoint(rect, point, reach) {
-      const limit = Number.isFinite(reach) && reach > 0 ? reach : RIM_REACH
-      if (!rect || !point || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)
-        || !(rect.width > 0) || !(rect.height > 0)
-        || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null
-      const insideX = Math.min(Math.max(point.x, rect.left), rect.left + rect.width)
-      const insideY = Math.min(Math.max(point.y, rect.top), rect.top + rect.height)
-      const outside = Math.hypot(point.x - insideX, point.y - insideY)
-      const on = outside <= limit
-      return {
-        on: on,
-        strength: on ? Math.max(0, 1 - outside / limit) : 0,
-        x: point.x - rect.left,
-        y: point.y - rect.top,
-      }
-    }
-
-    // The optics layer resolves the document lazily: the same seam the effort
-    // bridge uses, so tests can point it at a fake document.
-    const opticsRuntime = { doc: null }
-    function opticsDocument() {
-      if (opticsRuntime.doc) return opticsRuntime.doc
-      return typeof document === 'undefined' ? null : document
-    }
-    function setOpticsDocument(doc) {
-      opticsRuntime.doc = doc || null
-    }
-    function opticsFrame(fn) {
-      if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(fn)
-      if (typeof setTimeout === 'function') return setTimeout(fn, 16)
-      return 0
-    }
-    function opticsCancel(id) {
-      if (!id) return
-      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id)
-      if (typeof clearTimeout === 'function') clearTimeout(id)
-    }
-
-    /**
-     * The composer card of *this* session: the conversation root carries
-     * `data-conversation-session`, so a split view never paints its neighbour's
-     * card. A host without that attribute falls back to the first card, which is
-     * what the host itself queries for its own dialogs.
-     */
-    function findComposerCard(doc, sessionId) {
-      if (!doc) return null
-      if (sessionId && typeof doc.querySelectorAll === 'function') {
-        const roots = doc.querySelectorAll('[data-conversation-session]')
-        for (let i = 0; i < roots.length; i += 1) {
-          const root = roots[i]
-          if (!root || typeof root.getAttribute !== 'function') continue
-          if (root.getAttribute('data-conversation-session') !== sessionId) continue
-          const card = typeof root.querySelector === 'function' ? root.querySelector('[data-composer-card]') : null
-          if (card) return card
-        }
-      }
-      return typeof doc.querySelector === 'function' ? doc.querySelector('[data-composer-card]') : null
-    }
-
-    /** The card's own border radius, so the rim traces its real outline. */
-    function composerRadius(doc, card, rect) {
-      const win = doc && doc.defaultView ? doc.defaultView : (typeof window !== 'undefined' ? window : null)
-      let raw = ''
-      try {
-        const style = win && typeof win.getComputedStyle === 'function' ? win.getComputedStyle(card) : null
-        raw = style ? String(style.borderTopLeftRadius || style.borderRadius || '') : ''
-      } catch {
-        raw = ''
-      }
-      const value = Number.parseFloat(raw)
-      if (!Number.isFinite(value) || value < 0) return 12
-      if (raw.indexOf('%') >= 0) return Math.min(rect.width, rect.height) * Math.min(50, value) / 100
-      return Math.min(value, Math.min(rect.width, rect.height) / 2)
-    }
-
-    /**
-     * Mounts the rim against one composer card. The layer is inert
-     * (pointer-events: none) and only *reads* the card: no host node is touched,
-     * no background is repainted. Everything is event-driven; there is no
-     * standing frame loop — pointer moves are coalesced into one rAF, geometry
-     * is re-read on resize/scroll/DOM swaps.
-     */
-    function mountComposerOptics(options) {
-      const doc = opticsDocument()
-      const layer = options && options.layer
-      const noop = function () {}
-      if (!doc || !layer || typeof layer.querySelector !== 'function') return noop
-      const card = findComposerCard(doc, options.sessionId)
-      if (!card || typeof card.getBoundingClientRect !== 'function') return noop
-      const win = doc.defaultView || (typeof window !== 'undefined' ? window : null)
-      const rim = layer.querySelector('.ct-optics-rim')
-      // The host may replace the card node while the conversation view stays
-      // mounted (hero → composer, a re-render that swaps the card subtree), so
-      // the mount keeps a re-resolvable target instead of pinning the first hit.
-      let target = card
-      let observer = null
-      let rect = null
-      let frame = 0
-      let pointFrame = 0
-      let lastPoint = null
-      let disposed = false
-
-      const paintRim = function () {
-        if (!rim || disposed || !lastPoint) return
-        const hit = rimPoint(rect, lastPoint, RIM_REACH)
-        if (!hit) return
-        rim.style.setProperty('--ct-rim-x', hit.x.toFixed(1) + 'px')
-        rim.style.setProperty('--ct-rim-y', hit.y.toFixed(1) + 'px')
-        rim.style.setProperty('--ct-rim-strength', hit.strength.toFixed(3))
-        if (hit.on) rim.setAttribute('data-on', 'true')
-        else rim.removeAttribute('data-on')
-      }
-
-      const measure = function () {
-        frame = 0
-        if (disposed) return
-        if (target.isConnected === false) {
-          const nextCard = findComposerCard(doc, options.sessionId)
-          if (!nextCard || nextCard === target || typeof nextCard.getBoundingClientRect !== 'function') return
-          rebind(nextCard)
-          return
-        }
-        const next = target.getBoundingClientRect()
-        if (!next || !(next.width > 0) || !(next.height > 0)) return
-        rect = { left: next.left, top: next.top, width: next.width, height: next.height }
-        if (!rim) return
-        rim.style.left = rect.left + 'px'
-        rim.style.top = rect.top + 'px'
-        rim.style.width = rect.width + 'px'
-        rim.style.height = rect.height + 'px'
-        rim.style.borderRadius = composerRadius(doc, target, rect) + 'px'
-        if (lastPoint) paintRim()
-      }
-
-      const schedule = function () {
-        if (frame || disposed) return
-        frame = opticsFrame(measure)
-      }
-
-      const onPointerMove = function (event) {
-        lastPoint = { x: Number(event.clientX), y: Number(event.clientY) }
-        if (pointFrame || disposed) return
-        pointFrame = opticsFrame(function () {
-          pointFrame = 0
-          paintRim()
-        })
-      }
-      const onPointerLeave = function () {
-        lastPoint = null
-        if (rim) rim.removeAttribute('data-on')
-      }
-
-      const observeCard = function () {
-        if (typeof ResizeObserver !== 'function') return
-        observer = new ResizeObserver(schedule)
-        try {
-          observer.observe(target)
-        } catch {
-          observer = null
-        }
-      }
-      const unobserveCard = function () {
-        if (!observer) return
-        try { observer.disconnect() } catch { /* already gone */ }
-        observer = null
-      }
-      const rebind = function (nextCard) {
-        unobserveCard()
-        target = nextCard
-        observeCard()
-        schedule()
-      }
-
-      if (win && typeof win.addEventListener === 'function') {
-        win.addEventListener('resize', schedule)
-        // Capture: the transcript scrolls in an inner element.
-        win.addEventListener('scroll', schedule, true)
-        win.addEventListener('pointermove', onPointerMove, { passive: true })
-        if (doc.documentElement && typeof doc.documentElement.addEventListener === 'function') {
-          doc.documentElement.addEventListener('pointerleave', onPointerLeave)
-        }
-      }
-      observeCard()
-      measure()
-
-      return function () {
-        disposed = true
-        opticsCancel(frame)
-        opticsCancel(pointFrame)
-        frame = 0
-        pointFrame = 0
-        unobserveCard()
-        if (win && typeof win.removeEventListener === 'function') {
-          win.removeEventListener('resize', schedule)
-          win.removeEventListener('scroll', schedule, true)
-          win.removeEventListener('pointermove', onPointerMove)
-          if (doc.documentElement && typeof doc.documentElement.removeEventListener === 'function') {
-            doc.documentElement.removeEventListener('pointerleave', onPointerLeave)
-          }
-        }
-        if (rim) rim.removeAttribute('data-on')
-      }
-    }
-
     /** The tier spec the vial draws its threshold from. */
     function levelSpecOf(settings) {
       const level = settings && settings.level ? settings.level : 'standard'
@@ -3556,8 +2935,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         })
         .catch(function (error) {
           // A stale snapshot still beats nothing, but a first load failure has to
-          // stay visible: the appearance bootstrap retries on rejection instead
-          // of applying defaults over the user's palette.
+          // stay visible: the caller shows it instead of pretending the defaults
+          // on screen are what the file says.
           if (settingsCache.body) return settingsCache.body
           throw error
         })
@@ -3710,7 +3089,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const meter = props.meter || null
       const breakdown = props.breakdown || null
       const usage = props.usage || { total: null, cacheHit: null, speed: null, turns: null, steps: null }
-      const appearance = props.appearance || DEFAULT_APPEARANCE
+      const appearance = APPEARANCE
       const [open, setOpen] = React.useState(false)
       const [failed, setFailed] = React.useState(false)
       const triggerRef = React.useRef(null)
@@ -4685,40 +4064,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
     }
 
     /**
-     * The composer optics layer. It portals one inert fixed layer to <body> and
-     * never renders inside the composer region: the host's own stack is a
-     * containing block for fixed descendants there, and a layer inside it would
-     * move with the card instead of sitting over it.
-     *
-     * The rim node is announced by React (its class name is the contract the
-     * mount function queries); geometry is written imperatively because it
-     * follows the pointer and the host's own layout.
-     */
-    function ComposerOptics(props) {
-      const appearance = normalizeAppearance(props.appearance)
-      const session = props.session && typeof props.session === 'object' ? props.session : null
-      const sessionId = props.sessionId || (session && session.sessionId) || ''
-      const plan = opticsPlan(appearance)
-      const layerRef = React.useRef(null)
-      React.useEffect(function () {
-        return mountComposerOptics({ layer: layerRef.current, sessionId: sessionId })
-      }, [sessionId, plan.rim])
-      if (!plan.rim) return null
-      if (typeof document === 'undefined' || !ReactDOM || typeof ReactDOM.createPortal !== 'function') return null
-      return ReactDOM.createPortal(h('div', {
-        ref: layerRef,
-        className: 'ct-optics-layer ct-skin',
-        'data-palette': appearance.palette,
-        'data-motion': appearance.motion,
-        // Pure decoration: no reading, no interaction, nothing for a screen
-        // reader to announce.
-        'aria-hidden': 'true',
-      },
-      h('div', { key: 'rim', className: 'ct-optics-rim' }),
-      ), document.body)
-    }
-
-    /**
      * The "active trail" card Obsidian Prism paints on its home board, folded
      * into the composer row for a blank Session: head row with the 7天 / 30天 /
      * 全部 tabs, 26 weeks (columns) by weekday (rows), five intensity steps, then
@@ -5029,7 +4374,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const useProjection = props && typeof props.useProjection === 'function' ? props.useProjection : null
       const pressure = useProjection ? useProjection('contextPressure') : undefined
       const breakdown = useProjection ? useProjection('contextBreakdown') : undefined
-      const appearance = normalizeAppearance(settings && settings.appearance)
+      const appearance = APPEARANCE
       const spec = levelSpecOf(settings)
       const level = settings && settings.level ? settings.level : 'standard'
       const tokenUsage = useProjection ? useProjection('tokenUsage') : undefined
@@ -5062,7 +4407,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       React.useEffect(function () {
         mounted.current = true
         // The chat region appears with the session, which can be long after the
-        // appearance layer was applied: re-resolve the glow measurement here.
+        // art layer was applied: re-resolve the glow measurement here.
         watchGlow()
         const unsubscribe = subscribeSettings(function (body) {
           if (mounted.current) setSettings(body)
@@ -5260,12 +4605,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         repoGroup)
       if (blankSession && heat) {
         return h(HeatOverlay, { key: 'heat', t: t, appearance: appearance },
-          h(ComposerOptics, {
-            key: 'optics',
-            session: session,
-            sessionId: sessionId,
-            appearance: appearance,
-          }),
           h(EffortBridge, {
             key: 'effort',
             sessionId: sessionId,
@@ -5300,12 +4639,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         }),
         note ? h('span', { className: 'ct-repo-note', role: 'status', title: note }, note) : null,
         repoGroup),
-      h(ComposerOptics, {
-        key: 'optics',
-        session: session,
-        sessionId: sessionId,
-        appearance: appearance,
-      }))
+      )
     }
 
     /**
@@ -5393,7 +4727,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         ? ReactDOM.createPortal(h('div', {
           ref: menuRef,
           className: 'ct-menu ct-skin',
-          'data-palette': props.palette || 'host',
+          'data-palette': props.palette || 'auto',
           role: 'listbox',
           tabIndex: -1,
           'data-side': at.up ? 'up' : 'down',
@@ -5464,10 +4798,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [workspaceText, setWorkspaceText] = React.useState('')
       const [workspaceMessage, setWorkspaceMessage] = React.useState('')
       const [workspaceBusy, setWorkspaceBusy] = React.useState(false)
-      // Appearance is applied optimistically; a failed write rolls the panel
-      // back to the last saved snapshot and says why.
-      const [appearanceBusy, setAppearanceBusy] = React.useState(false)
-      const [appearanceMessage, setAppearanceMessage] = React.useState('')
       // Which page of the shell is open. Declared last so the hook order above
       // stays stable for the test harness.
       const [section, setSection] = React.useState('levels')
@@ -5873,50 +5203,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           })
           .then(function () {
             if (mounted.current) setBusy(false)
-          })
-      }
-
-      /**
-       * Appearance writes go through the same settings route. The change is
-       * painted immediately (the palette is local state), then the saved
-       * payload replaces it; a failed save restores the previous value.
-       */
-      function applyAppearance(patch) {
-        if (appearanceBusy || !state) return
-        const previous = state.appearance || DEFAULT_APPEARANCE
-        const optimistic = normalizeAppearance({ ...previous, ...patch })
-        setState({ ...state, appearance: optimistic })
-        setSkinPalette(optimistic.palette)
-        applyOptics(optimistic)
-        setAppearanceBusy(true)
-        setAppearanceMessage('')
-        fetch(API, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ appearance: patch }),
-        })
-          .then(readJson)
-          .then(function (body) {
-            if (!mounted.current) return
-            rememberSettings(body)
-            setState(body)
-            const saved = normalizeAppearance(body.appearance)
-            setSkinPalette(saved.palette)
-            applyOptics(saved)
-            setAppearanceMessage(t('appearanceApplied'))
-          })
-          .catch(function (error) {
-            if (!mounted.current) return
-            setState(function (current) {
-              return current ? { ...current, appearance: previous } : current
-            })
-            setSkinPalette(previous.palette)
-            applyOptics(previous)
-            setAppearanceMessage(t('appearanceFailed') + messageOf(error))
-          })
-          .then(function () {
-            if (mounted.current) setAppearanceBusy(false)
           })
       }
 
@@ -6356,7 +5642,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
               h('span', null, t('workspaceSelectLabel')),
               h(Select, {
                 t: t,
-                palette: normalizeAppearance(state && state.appearance).palette,
+                palette: APPEARANCE.palette,
                 items: workspaceList.map(function (item) {
                   return { value: item.id, label: item.title }
                 }),
@@ -6389,61 +5675,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           }),
         ]),
         h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, workspaceMessage))
-
-      // Appearance: four scoped optical palettes plus the host theme, a motion
-      // tier and the pixel companions. Values apply immediately; the page has no
-      // save button because there is nothing to type.
-      const appearance = normalizeAppearance(state && state.appearance)
-      const appearanceDisabled = appearanceBusy || !state
-      const appearancePanel = h('section', { className: 'ct-panel', key: 'appearance' },
-        h('div', { className: 'ct-rules-head' },
-          h('h3', null, t('appearanceTitle'))),
-        h('div', { className: 'ct-field' },
-          h('span', null, t('paletteLabel')),
-          h('div', { className: 'ct-swatches', role: 'radiogroup', 'aria-label': t('paletteLabel') },
-            PALETTES.map(function (choice) {
-              return h('button', {
-                key: choice.id,
-                type: 'button',
-                role: 'radio',
-                'aria-checked': appearance.palette === choice.id ? 'true' : 'false',
-                className: 'ct-swatch',
-                'data-choice': choice.id,
-                disabled: appearanceDisabled,
-                onClick: function () { applyAppearance({ palette: choice.id }) },
-              },
-              h('span', { className: 'ct-swatch-band', 'data-choice': choice.id }),
-              h('span', { className: 'ct-swatch-name' }, t(choice.labelKey)))
-            }))),
-        h('div', { className: 'ct-field' },
-          h('span', null, t('motionLabel')),
-          h('div', { className: 'ct-segments', role: 'radiogroup', 'aria-label': t('motionLabel') },
-            MOTIONS.map(function (choice) {
-              return h('button', {
-                key: choice.id,
-                type: 'button',
-                role: 'radio',
-                'aria-checked': appearance.motion === choice.id ? 'true' : 'false',
-                className: 'ct-segment',
-                'data-motion-choice': choice.id,
-                disabled: appearanceDisabled,
-                onClick: function () { applyAppearance({ motion: choice.id }) },
-              }, t(choice.labelKey))
-            }))),
-        h('div', { className: 'ct-field' },
-          h('span', null, t('artLabel')),
-          actionRow([
-            h('button', {
-              key: 'art',
-              type: 'button',
-              className: 'ct-btn' + (appearance.art ? ' ct-btn--primary' : ''),
-              'data-action': 'appearanceArt',
-              'aria-pressed': appearance.art ? 'true' : 'false',
-              disabled: appearanceDisabled,
-              onClick: function () { applyAppearance({ art: !appearance.art }) },
-            }, appearance.art ? t('artOn') : t('artOff')),
-          ])),
-        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, appearanceMessage))
 
       // Navigation rail: every page is always listed, so a page never disappears
       // just because its data is empty.
@@ -6498,14 +5729,13 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         levels: [panel, meta],
         rules: [rulesPanel, workspacePanel],
         components: [componentsPanel],
-        appearance: [appearancePanel],
         github: [ghAuthPanel],
       }
 
       return h('section', {
         className: 'ct-page ct-skin',
-        'data-palette': appearance.palette,
-        'data-motion': appearance.motion,
+        'data-palette': APPEARANCE.palette,
+        'data-motion': APPEARANCE.motion,
       },
         h('div', { className: 'ct-shell' },
           nav,
@@ -6556,10 +5786,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       // reasoning bridge are the things a fake renderer cannot reach.
       __test: {
         skinSpec: skinSpec,
-        skinTints: SKIN_TINTS,
         setSkinPalette: setSkinPalette,
         skinRuntime: skinRuntime,
-        normalizeAppearance: normalizeAppearance,
         applyOptics: applyOptics,
         // The seat copy of the glow is measured in JS; the seam itself is CSS.
         glow: {
@@ -6581,17 +5809,6 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           remember: rememberSettings,
           load: loadSettingsSnapshot,
         },
-        // The composer optics: the switchboard and geometry are pure, the mount
-        // takes a fake document the same way the effort bridge does.
-        optics: {
-          plan: opticsPlan,
-          rimPoint: rimPoint,
-          findCard: findComposerCard,
-          mount: mountComposerOptics,
-          setDocument: setOpticsDocument,
-          reach: RIM_REACH,
-        },
-
         setSkinTheme: function (theme) {
           skinRuntime.theme = theme
           paintSkin()
@@ -6650,30 +5867,10 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
             }
           })
         }
-        if (typeof fetch === 'function') {
-          // The palette lives in our own settings, so the skin is back before the
-          // user opens anything — not only after the appearance page loads. The
-          // retry matters: a host that answers before the plugin half is ready
-          // would otherwise leave the whole art layer off for the session.
-          let appearanceTry = 0
-          const loadAppearance = function () {
-            appearanceTry += 1
-            let request
-            try {
-              request = loadSettingsSnapshot()
-            } catch {
-              return
-            }
-            request.then(function (body) {
-              const appearance = normalizeAppearance(body && body.appearance)
-              setSkinPalette(appearance.palette)
-              applyOptics(appearance)
-            }).catch(function () {
-              if (appearanceTry < 5 && typeof setTimeout === 'function') setTimeout(loadAppearance, 1500 * appearanceTry)
-            })
-          }
-          loadAppearance()
-        }
+        // One skin pair and no setting to read: flip the body switches now and
+        // let the theme service (injected above) add its token layer.
+        setSkinPalette()
+        applyOptics()
         ctx.effect(function () {
           return ctx.locale.register(NS, DICTIONARIES)
         }, 'compression-tiers: locale')

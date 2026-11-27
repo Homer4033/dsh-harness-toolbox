@@ -4,7 +4,7 @@ import { COMPRESSION_LEVELS, compressionSpec, levelForPolicy, parseLevel } from 
 import { presetCompactionEntries, presetEnginePolicies, syncPresetCompaction } from './src/presets.js'
 import { attachContextMeter, compactionWindowNote, contextReportText, readContextWindow, readMeter } from './src/context-meter.js'
 import { attachCompactQueue, COMPACT_TOOL_NAME, resolveCompaction } from './src/manual-compact.js'
-import { readSettings, writeSettings, normalizeRepoName, APPEARANCE_MOTIONS, APPEARANCE_PALETTES, normalizeAppearance } from './src/store.js'
+import { readSettings, writeSettings, normalizeRepoName } from './src/store.js'
 import { MAX_RULES_CHARS, readRules, rulesPromptBlock, saveRules } from './src/rules.js'
 import { saveWorkspaceRules, workspacesPayload } from './src/workspace-rules.js'
 import { beginGithubLogin, cancelGithubLogin, ghAuthStatus, ghDownloadRunning, ghStatus, githubLoginStatus, listRepos, prependGhPath, resolveGh, startGhDownload } from './src/gh.js'
@@ -263,7 +263,6 @@ function statePayload(ctx) {
     modelRoutes: state.settings.modelRoutes,
     routeLines: formatRouteLines(state.settings.modelRoutes),
     lastCompact: state.settings.lastCompact,
-    appearance: state.settings.appearance,
     paths: { settings: state.paths.settings, tools: resolveToolsPath(homeDir(), state.settings) },
     github: state.settings.github,
     ...engineSummary(ctx),
@@ -524,9 +523,8 @@ export function apply(ctx) {
             const body = await readBody(req)
             const levelGiven = body.level !== undefined && body.level !== null && String(body.level).trim() !== ''
             const routesGiven = typeof body.routeLines === 'string'
-            const appearanceGiven = body.appearance !== undefined && body.appearance !== null
-            if (!levelGiven && !routesGiven && !appearanceGiven) {
-              sendJson(res, 400, { error: 'nothing to update: pass level, routeLines and/or appearance' })
+            if (!levelGiven && !routesGiven) {
+              sendJson(res, 400, { error: 'nothing to update: pass level and/or routeLines' })
               return
             }
             let level
@@ -536,37 +534,10 @@ export function apply(ctx) {
               sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) })
               return
             }
-            // Appearance is cosmetic but still validated before it is written:
-            // an unknown palette must be a 400, not a silent reset to `host`.
-            if (appearanceGiven) {
-              const patch = body.appearance
-              if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-                sendJson(res, 400, { error: 'appearance must be an object' })
-                return
-              }
-              if (patch.palette !== undefined && !APPEARANCE_PALETTES.includes(patch.palette)) {
-                sendJson(res, 400, { error: `unknown palette: ${String(patch.palette)}; pass one of ${APPEARANCE_PALETTES.join(', ')}` })
-                return
-              }
-              if (patch.motion !== undefined && !APPEARANCE_MOTIONS.includes(patch.motion)) {
-                sendJson(res, 400, { error: `unknown motion tier: ${String(patch.motion)}; pass one of ${APPEARANCE_MOTIONS.join(', ')}` })
-                return
-              }
-              if (patch.art !== undefined && typeof patch.art !== 'boolean') {
-                sendJson(res, 400, { error: 'art must be a boolean' })
-                return
-              }
-            }
             const routes = routesGiven
               ? parseRouteLines(body.routeLines)
               : readSettings(homeDir()).settings.modelRoutes
             const applied = levelGiven || routesGiven ? await applyLevel(ctx, level, routes) : null
-            if (appearanceGiven) {
-              const current = readSettings(homeDir()).settings
-              writeSettings(homeDir(), {
-                settings: { appearance: normalizeAppearance({ ...current.appearance, ...body.appearance }) },
-              })
-            }
             sendJson(res, 200, {
               ...statePayload(ctx),
               updatedEngines: applied ? applied.result.updated : 0,

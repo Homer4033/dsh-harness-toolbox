@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { APPEARANCE_MOTIONS, APPEARANCE_PALETTES, LEGACY_PALETTES, defaultAppearance, normalizeAppearance, normalizeRepoName, normalizeSessionRepos, readSettings, settingsPaths, writeJson, writeSettings, writeText } from '../src/store.js'
+import { normalizeRepoName, normalizeSessionRepos, readSettings, settingsPaths, writeJson, writeSettings, writeText } from '../src/store.js'
 
 function tempHome() {
   return mkdtempSync(join(tmpdir(), 'compression-tiers-'))
@@ -178,62 +178,25 @@ test('session repository bindings keep the last 200 entries', () => {
   assert.deepEqual(normalizeSessionRepos(['owner/repo']), {})
 })
 
-test('appearance defaults to the host theme, full motion and the art layer on', () => {
-  assert.deepEqual(defaultAppearance(), { palette: 'host', motion: 'full', art: true })
-  assert.deepEqual(normalizeAppearance(undefined), defaultAppearance())
-  assert.deepEqual(normalizeAppearance(null), defaultAppearance())
-  assert.deepEqual(normalizeAppearance('warm'), defaultAppearance())
-  assert.deepEqual(APPEARANCE_PALETTES, ['host', 'obsidian', 'crystal'])
-  assert.deepEqual(APPEARANCE_MOTIONS, ['full', 'subtle', 'off'])
-})
-
-test('the retired warm palettes migrate instead of vanishing on upgrade', () => {
-  // 2.0.0 also shipped 暖炭玄岩 (warm) and 暖白画册 (alabaster). Both are gone;
-  // an install that had one keeps a skin with the same character rather than
-  // snapping back to the host theme.
-  assert.deepEqual(LEGACY_PALETTES, { warm: 'obsidian', alabaster: 'crystal' })
-  assert.equal(normalizeAppearance({ palette: 'warm' }).palette, 'obsidian')
-  assert.equal(normalizeAppearance({ palette: 'alabaster' }).palette, 'crystal')
-  // The migration keeps the rest of the appearance untouched.
-  assert.deepEqual(normalizeAppearance({ palette: 'warm', motion: 'off' }), {
-    palette: 'obsidian',
-    motion: 'off',
-    art: true,
-  })
-  // A value nobody shipped still falls back to the default.
-  assert.equal(normalizeAppearance({ palette: 'neon' }).palette, 'host')
-})
-
-test('appearance drops unknown palettes and keeps explicit booleans', () => {
-  assert.deepEqual(normalizeAppearance({ palette: 'obsidian', motion: 'subtle', art: false }), {
-    palette: 'obsidian',
-    motion: 'subtle',
-    art: false,
-  })
-  assert.deepEqual(normalizeAppearance({ palette: 'neon', motion: 'warp' }), defaultAppearance())
-  assert.equal(normalizeAppearance({ art: 0 }).art, true, 'only false disables the art layer')
-  // 2.5.0 removed the pixel companions: a 2.0–2.4 file still carrying the flag
-  // is read without it instead of failing or resurrecting the field.
-  const old = normalizeAppearance({ palette: 'crystal', mascots: false })
-  assert.equal('mascots' in old, false, 'the companions flag is dropped')
-  assert.equal(old.palette, 'crystal')
-})
-
-test('appearance is persisted, merged and tolerated when an old file lacks it', () => {
+test('appearance is gone from the schema and dropped on read', () => {
   const home = tempHome()
   try {
     const paths = settingsPaths(home)
-    writeJson(paths.settings, { level: 'max', modelRoutes: [] })
-    assert.deepEqual(readSettings(home).settings.appearance, defaultAppearance())
-    const saved = writeSettings(home, {
-      settings: { appearance: { palette: 'crystal', motion: 'off' } },
+    // A 2.8.1 install may still carry the old palette / motion / art object. It
+    // must not fail the read, and the next write must drop it instead of
+    // resurrecting a control that no longer exists.
+    writeJson(paths.settings, {
+      level: 'max',
+      modelRoutes: [],
+      appearance: { palette: 'crystal', motion: 'off', art: false },
     })
-    assert.deepEqual(saved.settings.appearance, { palette: 'crystal', motion: 'off', art: true })
-    assert.equal(saved.settings.level, 'max')
-    // A later partial write keeps the other appearance fields.
-    const merged = writeSettings(home, { settings: { appearance: { ...saved.settings.appearance, motion: 'full' } } })
-    assert.deepEqual(merged.settings.appearance, { palette: 'crystal', motion: 'full', art: true })
-    assert.equal(readSettings(home).settings.appearance.palette, 'crystal')
+    const state = readSettings(home)
+    assert.equal('appearance' in state.settings, false)
+    assert.equal(state.settings.level, 'max')
+    const saved = writeSettings(home, { settings: { level: 'aggressive' } })
+    assert.equal('appearance' in saved.settings, false)
+    assert.equal(saved.settings.level, 'aggressive')
+    assert.equal(readFileSync(paths.settings, 'utf8').includes('appearance'), false)
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
