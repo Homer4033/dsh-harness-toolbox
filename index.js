@@ -6,7 +6,7 @@ import { attachContextMeter, compactionWindowNote, contextReportText, readContex
 import { attachCompactQueue, COMPACT_TOOL_NAME, resolveCompaction } from './src/manual-compact.js'
 import { readSettings, writeSettings, normalizeRepoName } from './src/store.js'
 import { MAX_RULES_CHARS, readRules, rulesPromptBlock, saveRules } from './src/rules.js'
-import { saveWorkspaceRules, workspacesPayload } from './src/workspace-rules.js'
+import { saveWorkspaceRules, workspacesPayload, listWorkspaces } from './src/workspace-rules.js'
 import { beginGithubLogin, cancelGithubLogin, ghAuthStatus, ghDownloadRunning, ghStatus, githubLoginStatus, listRepos, prependGhPath, resolveGh, startGhDownload } from './src/gh.js'
 import { networkReport, detectProxy } from './src/publish.js'
 import { ffmpegDownloadRunning, ffmpegStatus, prependFfmpegPath, startFfmpegDownload } from './src/ffmpeg.js'
@@ -14,6 +14,7 @@ import { COMPONENT_IDS, componentBinDirs, componentDownloadRunning, componentSta
 import { COMPONENT_ORDER, componentRows } from './src/component-rows.js'
 import { MODEL_IDS, modelDownloadRunning, modelsStatus, startModelDownload } from './src/models.js'
 import { usageHeatmap } from './src/usage-heatmap.js'
+import { dream, memoryStatus, rebuildIndex, reconcile, searchMemory, searchText, writeMemory } from './src/memory.js'
 import { migrateTools, parseToolsPath, resolveToolsPath, toolsStatus } from './src/tools-path.js'
 import { pushFlow, pushReportText, resolvePushCwd, sessionTarget } from './src/push-flow.js'
 import { dirname, join } from 'node:path'
@@ -508,6 +509,130 @@ export function apply(ctx) {
     },
   })), 'compression-tiers: github push tool')
 
+  // Memory for one project directory: append-only JSONL records below
+  // `<cwd>/memory`, an injected index the plugin regenerates, and the gates
+  // from the contract (dedupe, supersede, external quarantine). The store is
+  // plain text on purpose: it is versioned with the project and reviewable.
+  const memoryProject = (exec) => sessionDirectory(ctx, exec)
+
+  ctx.effect(() => ctx.tools.register(defineTool({
+    name: 'memory_write',
+    description: 'Store one durable memory in this project\'s memory store (<cwd>/memory). Write only what a later session would otherwise have to rediscover: a decision and its reason, a rejected option, a verified rule, a failure root cause, a promise, or an open question. Never store state that is readable from the repository (progress, current numbers, file lists). Exact duplicates are returned instead of written; a near-duplicate or a contradicting rule needs `supersedes` (or `force` for near-duplicates); `source: "external"` content is quarantined and can never be a rule.',
+    parameters: {
+      kind: { type: 'string', description: 'One of rule, decision, fact, question, promise, episode, skill.' },
+      claim: { type: 'string', description: 'One sentence a later session can act on (max 400 characters).' },
+      why: { type: 'string', description: 'Why it is true, or what it cost to learn (max 800 characters). Optional but strongly preferred.' },
+      evidence: { type: 'array', items: { type: 'string' }, description: 'Up to 8 pointers: repo paths, commit:<sha>, session:<id>.' },
+      scope: { type: 'string', description: 'project (default), session, or role:<name> such as role:art.' },
+      source: { type: 'string', description: 'self (default), human, or external. External content is quarantined.' },
+      confidence: { type: 'string', description: 'low, medium (default) or high.' },
+      deadline: { type: 'string', description: 'Promise only: YYYY-MM-DD. Overdue promises surface in memory_reconcile.' },
+      expiresAt: { type: 'string', description: 'Optional YYYY-MM-DD after which dreaming retires the entry.' },
+      status: { type: 'string', description: 'Promise only: open (default), done or dropped.' },
+      supersedes: { type: 'array', items: { type: 'string' }, description: 'Entry ids this one replaces; the old entries are tombstoned.' },
+      force: { type: 'boolean', description: 'Keep a near-duplicate as a second entry instead of superseding it.' },
+    },
+    output: toolOutput(),
+    async execute(args, exec) {
+      const root = memoryProject(exec)
+      if (!root) return { ok: false, text: 'memory_write needs a session working directory; the memory store lives in the project.' }
+      try {
+        const result = writeMemory(root, args, { sessionId: sessionIdOf(exec) })
+        return {
+          ok: result.status === 'created' || result.status === 'quarantined' || result.status === 'duplicate',
+          status: result.status,
+          id: result.entry ? result.entry.id : '',
+          ...(result.score === undefined ? {} : { score: result.score }),
+          ...(result.index === undefined ? {} : { index: { lines: result.index.lines, bytes: result.index.bytes, over: result.index.over } }),
+          text: result.text,
+        }
+      } catch (error) {
+        return { ok: false, text: `memory_write rejected: ${error instanceof Error ? error.message : String(error)}` }
+      }
+    },
+  })), 'compression-tiers: memory write tool')
+
+  ctx.effect(() => ctx.tools.register(defineTool({
+    name: 'memory_search',
+    description: 'Search this project\'s memory store by meaning-adjacent term overlap (CJK bigrams and ASCII words), ranked by phrase hit, overlap, recency and confidence. Use it before re-deriving a decision or re-researching a rejected option; quarantined external content is excluded unless untrusted is true.',
+    parameters: {
+      query: { type: 'string', description: 'What you are trying to remember, in the project\'s own words.' },
+      kind: { type: 'string', description: 'Optional filter: rule, decision, fact, question, promise, episode, skill.' },
+      scope: { type: 'string', description: 'Optional filter: project, session or role:<name>.' },
+      limit: { type: 'number', description: 'Maximum hits, 1-50 (default 8).' },
+      untrusted: { type: 'boolean', description: 'Include the quarantine of external content in the results.' },
+    },
+    output: toolOutput(),
+    async execute(args, exec) {
+      const root = memoryProject(exec)
+      if (!root) return { ok: false, text: 'memory_search needs a session working directory.' }
+      try {
+        const rows = searchMemory(root, args.query, { kind: args.kind, scope: args.scope, limit: args.limit, untrusted: args.untrusted === true })
+        return {
+          ok: true,
+          hits: rows.length,
+          entries: rows.map((row) => ({ id: row.entry.id, kind: row.entry.kind, scope: row.entry.scope, score: row.score, claim: row.entry.claim })),
+          text: searchText(rows, args.query),
+        }
+      } catch (error) {
+        return { ok: false, text: `memory_search failed: ${error instanceof Error ? error.message : String(error)}` }
+      }
+    },
+  })), 'compression-tiers: memory search tool')
+
+  ctx.effect(() => ctx.tools.register(defineTool({
+    name: 'memory_reconcile',
+    description: 'Read-only health check of this project\'s memory: open and overdue promises, index line/byte budget, evidence paths that no longer exist, expired entries, duplicate clusters, contradicting rules, quarantine size and corrupt lines. Run it before finishing a long task; it writes nothing.',
+    parameters: {},
+    output: toolOutput(),
+    async execute(_args, exec) {
+      const root = memoryProject(exec)
+      if (!root) return { ok: false, text: 'memory_reconcile needs a session working directory.' }
+      try {
+        const report = reconcile(root)
+        return {
+          ok: true,
+          entries: report.entries,
+          promises: { open: report.promises.open.length, overdue: report.promises.overdue.length, done: report.promises.done, dropped: report.promises.dropped },
+          index: { lines: report.index.lines, bytes: report.index.bytes, over: report.index.over },
+          drift: report.drift.missingEvidence.length,
+          duplicates: report.duplicates.length,
+          conflicts: report.conflicts.length,
+          text: reconcileText(report),
+        }
+      } catch (error) {
+        return { ok: false, text: `memory_reconcile failed: ${error instanceof Error ? error.message : String(error)}` }
+      }
+    },
+  })), 'compression-tiers: memory reconcile tool')
+
+  ctx.effect(() => ctx.tools.register(defineTool({
+    name: 'memory_dream',
+    description: 'Consolidate this project\'s memory offline, the way sleep consolidates: merge near-duplicate entries (newest/highest-confidence kept), retire entries past expiresAt, report contradicting rules for a human to settle, and rebuild the injected index. Without apply it only previews. It never invents text and never resolves a contradiction on its own.',
+    parameters: {
+      apply: { type: 'boolean', description: 'Write the merge, the tombstones and the rebuilt index. Omit for a dry run.' },
+    },
+    output: toolOutput(),
+    async execute(args, exec) {
+      const root = memoryProject(exec)
+      if (!root) return { ok: false, text: 'memory_dream needs a session working directory.' }
+      try {
+        const result = dream(root, { apply: args.apply === true })
+        return {
+          ok: true,
+          applied: result.applied,
+          merged: result.merged,
+          expired: result.expired,
+          conflicts: result.conflicts,
+          index: { lines: result.index.lines, bytes: result.index.bytes, over: result.index.over },
+          text: result.text,
+        }
+      } catch (error) {
+        return { ok: false, text: `memory_dream failed: ${error instanceof Error ? error.message : String(error)}` }
+      }
+    },
+  })), 'compression-tiers: memory dream tool')
+
   ctx.inject(['webServer', 'connection'], (child) => {
     child.effect(() => child.webServer.register({
       kind: 'exact',
@@ -653,6 +778,59 @@ export function apply(ctx) {
         }
       },
     }))
+  })
+
+  // Memory: the panel never edits a memory file by hand. It reads the store
+  // health of one registered workspace and triggers the maintenance actions
+  // (index rebuild, consolidation, reconcile) that the tools expose as well.
+  ctx.inject(['webServer', 'connection'], (child) => {
+    child.effect(() => child.webServer.register({
+      kind: 'exact',
+      path: '/compression-tiers/api/memory',
+      handler: async (req, res) => {
+        if (guard(child, req, res)) return
+        try {
+          const workspaces = listWorkspaces(homeDir())
+          if (req.method === 'GET') {
+            const wanted = queryParam(req, 'workspace') || (workspaces[0] ? workspaces[0].id : '')
+            const workspace = workspaces.find((item) => item.id === wanted)
+            let memory = null
+            let memoryError = ''
+            if (workspace) {
+              try {
+                memory = memoryStatus(workspace.path)
+              } catch (error) {
+                memoryError = error instanceof Error ? error.message : String(error)
+              }
+            }
+            sendJson(res, 200, {
+              ok: true,
+              workspaces,
+              workspace: workspace ? workspace.id : '',
+              memory,
+              error: memoryError || undefined,
+            })
+            return
+          }
+          if (req.method === 'POST') {
+            const body = await readBody(req)
+            const id = typeof body.workspaceId === 'string' ? body.workspaceId.trim() : ''
+            const workspace = workspaces.find((item) => item.id === id)
+            if (!workspace) throw httpError(404, 'unknown workspace: it is not in the workspace registry')
+            const action = typeof body.action === 'string' ? body.action : ''
+            if (action === 'index') rebuildIndex(workspace.path)
+            else if (action === 'dream') dream(workspace.path, { apply: true })
+            else if (action === 'reconcile') reconcile(workspace.path)
+            else throw httpError(400, 'unknown action: index, dream or reconcile')
+            sendJson(res, 200, { ok: true, action, workspace: workspace.id, memory: memoryStatus(workspace.path) })
+            return
+          }
+          sendJson(res, 405, { error: 'GET or POST' })
+        } catch (error) {
+          sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
+        }
+      },
+    }), 'compression-tiers: memory route')
   })
 
   // GitHub CLI: managed download, PATH detection and the gh device-code login.

@@ -12,10 +12,10 @@ Five tiers · a moving context vial · a local usage board for blank sessions ·
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.8.2-0f172a?style=flat-square" alt="Version 2.8.2" />
+  <img src="https://img.shields.io/badge/Version-2.9.0-0f172a?style=flat-square" alt="Version 2.9.0" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-270%20passing-16a34a?style=flat-square" alt="270 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-287%20passing-16a34a?style=flat-square" alt="287 tests passing" />
   <a href="../LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="../NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -38,21 +38,22 @@ Five tiers · a moving context vial · a local usage board for blank sessions ·
 - [Highlights](#highlights)
 - [Screens](#screens)
   - [1. The conversation: vial and the row above the input](#1-the-conversation-vial-and-the-row-above-the-input)
-  - [2. The panel: glass shell, four pages](#2-the-panel-glass-shell-four-pages)
+  - [2. The panel: glass shell, five pages](#2-the-panel-glass-shell-five-pages)
   - [3. A blank session: the local usage board](#3-a-blank-session-the-local-usage-board)
 - [Install](#install)
   - [Way one: from npm](#way-one-from-npm-recommended)
   - [Way two: from a local checkout](#way-two-from-a-local-checkout-developers)
   - [Upgrading and rolling back](#upgrading-and-rolling-back)
 - [Usage](#usage)
-  - [The four pages](#the-four-pages)
+  - [The five pages](#the-five-pages)
+  - [Memory](#memory)
   - [Rules: global and per workspace](#rules-global-and-per-workspace)
   - [Theme art and the glow](#theme-art-and-the-glow)
   - [The models and components page](#the-models-and-components-page)
   - [The row above the input](#the-row-above-the-input)
   - [The usage board of a blank session](#the-usage-board-of-a-blank-session)
   - [The reasoning slider inside the official model menu](#the-reasoning-slider-inside-the-official-model-menu)
-  - [The four agent tools](#the-four-agent-tools)
+  - [The eight agent tools](#the-eight-agent-tools)
 - [The five tiers](#the-five-tiers)
 - [Managed components](#managed-components)
 - [Internals](#internals)
@@ -95,7 +96,7 @@ The row right above the input card holds only a right-aligned tool cluster: the 
 
 That row also decides where `github_push` publishes: the repository selected in the pill is the target of this session.
 
-### 2. The panel: glass shell, four pages
+### 2. The panel: glass shell, five pages
 
 <p align="center">
   <img src="screenshots/panel.png" width="100%" alt="The models and components page: the page rail on the left, six components and the local model in the same card list" />
@@ -119,7 +120,7 @@ Requires **Node.js ≥ 24.9** and a DSH runtime between **`0.2.2-rc.3` (inclusiv
 
 ### Way one: from npm (recommended)
 
-1. DSH → **Plugins → Add plugin**, enter the package name `dsh-harness-toolbox` (pin a version with `dsh-harness-toolbox@2.8.2`);
+1. DSH → **Plugins → Add plugin**, enter the package name `dsh-harness-toolbox` (pin a version with `dsh-harness-toolbox@2.9.0`);
 2. after it installs, open a new session — a **compression tiers** panel shows up in the sidebar;
 3. the first page is the five tier buttons; pick one.
 
@@ -165,11 +166,12 @@ A successful install is whatever the plugin page's `application` result and the 
 
 ## Usage
 
-### The four pages
+### The five pages
 
 | Page | What it does | Single source of truth |
 | :--- | :--- | :--- |
 | **Tiers** | five buttons, one click writes every mounted preset compaction engine | `COMPRESSION` in `src/levels.js` |
+| **Memory** | store health of the selected workspace, injected-index budget, promises and drift, plus three maintenance actions | that workspace's `<project>/memory/` (`entries.jsonl` + the generated `MEMORY.md`) |
 | **Rules** | the global rules edited as one file; the lower card edits the selected workspace's supplement (prepended to its `AGENTS.md`) | `<DSH home>/AGENTS.md`, `<DSH home>/storages/workspace.json` + each workspace's `AGENTS.md` |
 | **Models and components** | status, download, re-check and the shared download root of six components, plus one local model | `COMPONENTS` in `src/components.js`, `MODELS` in `src/models.js` |
 | **GitHub** | account, token scopes, device-code login, network probe | `gh`'s own storage (the plugin never reads credentials) |
@@ -181,6 +183,14 @@ Every action button is always rendered: when a condition is not met it is disabl
 The global rules are written as one file to `<DSH home>/AGENTS.md`. Workspace rules only own a **managed block** which is prepended to the workspace's `AGENTS.md` (created when missing); everything below the block is preserved verbatim and is never shown in the panel. Both writes are atomic, strip a BOM, normalise CRLF to LF and keep a single trailing newline; the limit is 100,000 characters per write and exceeding it returns 413 instead of truncating. The system prompt only carries a 2,000-character summary of the newest rules.
 
 The managed block only counts at the very top of the file: the fence must be the first non-empty line and the end marker must be a line of its own — mentioning the markers inside the prose does not count (this repository's own `AGENTS.md` mentions them twice). A half fence (start without end) is treated as an empty block and saving never creates a second start marker; a whole-line marker inside the supplement returns 400 and the file is not touched.
+
+### Memory
+
+The Memory page keeps **conclusions across sessions**, which is not the same job as compaction (rewriting this session's history). The store lives in the project, not inside the plugin directory: the selected workspace gets `<project>/memory/` with two append-only JSONL files (`entries.jsonl`, `quarantine.jsonl`) and a **plugin-generated** `MEMORY.md` index. That index is what a session injects at start, and it has a hard budget of **200 lines / 25 KB** — going over it is reported as over budget instead of being truncated silently. A `MEMORY.md` without the plugin marker is moved aside once and reported, never silently overwritten.
+
+Four tools read and write it, and `memory_write` only stores what a later session would otherwise re-derive: decisions and their reasons, rejected options, verified rules, failure root causes, promises, open questions. Every write passes three gates — an exact duplicate returns the existing entry instead of storing a second copy; a near-duplicate (token / CJK-bigram overlap ≥ 0.8) needs `supersedes` or an explicit `force`; a claim that contradicts an existing rule must supersede it. `source: "external"` (web pages, asset stores, third-party PRs) only ever goes to quarantine: it can never become a rule or a decision and never enters the index. `memory_search` ranks by term and CJK-bigram overlap, `memory_reconcile` reports overdue promises, missing evidence paths, expired entries, near-duplicates, conflicts and the quarantine, and `memory_dream` merges near-duplicates offline, retires entries past `expiresAt` and rebuilds the index (preview unless `apply: true`).
+
+The panel only does three things: pick a workspace, show the health (entries, promises, index lines/bytes, drift, quarantine) and trigger "Re-check / Rebuild index / Consolidate". Entries themselves are written only by the tools; the panel never invents one. The route is `GET/POST /compression-tiers/api/memory`.
 
 ### Palettes: 深空黑曜 in the dark, 白昼冷晶 in the light
 
@@ -255,7 +265,7 @@ The model button in the composer opens the official model menu: two rows at the 
 
 Mounting is fail-open: no `modelDirectories` service, a model without `reasoning.efforts`, a single level, a closed menu or a rejected write all leave the official menu exactly as it was. The anchors are semantic only (`aria-haspopup="menu"` + `aria-controls` to find the menu, a `role="menuitem"` row whose leading label reads "reasoning effort", `[data-composer-card]` to decide ownership) — never a hashed class name.
 
-### The four agent tools
+### The eight agent tools
 
 | Tool | What it does |
 | :--- | :--- |
@@ -263,6 +273,10 @@ Mounting is fail-open: no `modelDirectories` service, a model without `reasoning
 | `compression_context` | reads the live occupancy, this tier's threshold and the remaining room; the `[context]` line at the end of a conversation carries the same numbers |
 | `compression_compact` | queues one manual compaction that runs after this turn and resumes automatically; a message you send meanwhile cancels the queue or blocks the resume |
 | `github_push` | publishes the current workspace: probe → secret scan → 60-second push → failure classification; a secret hit blocks the push unless a human confirms with `force: true` |
+| `memory_write` | stores one project memory behind three gates: exact dedupe, near-duplicate supersede, contradicting-rule replacement; external sources go to quarantine |
+| `memory_search` | deterministic term / CJK-bigram search over the store, filterable by kind and scope, quarantine excluded by default |
+| `memory_reconcile` | read-only health check: overdue promises, index budget, evidence drift, expired entries, duplicates, conflicts, quarantine |
+| `memory_dream` | merges near-duplicates offline, retires expired entries and rebuilds the index; preview unless `apply` is true |
 
 Manual compaction always yields to a human: speaking cancels the queue, and a compaction that is already running is not interrupted — it just does not inject a resume message afterwards. Multiple repositories are handled by the agent calling `github_push` in each session; the plugin has no repository list and no push button.
 
@@ -309,10 +323,10 @@ The six managed components live under one configurable root. The first four are 
 <details>
 <summary><strong>Halves, vial physics, thresholds, palette plumbing and safety boundaries</strong></summary>
 
-**Version `2.8.2`** changes neither the host's compaction algorithm nor the `compaction-basic` row on the host plane; it works only through official slots, official projections and the preset scope:
+**Version `2.9.0`** changes neither the host's compaction algorithm nor the `compaction-basic` row on the host plane; it works only through official slots, official projections and the preset scope:
 
-- **Two halves, Host and Client**: `index.js` registers the four tools, the system-prompt summary, the HTTP routes and a reconciler that syncs the tier into the compaction engine inside the preset scope; `client.js` renders the sidebar panel and the row above the input using only `ctx.slots`, `ctx.locale`, `ctx.effect` and theme tokens. The panel imports no host client package — dropdowns, menus and buttons are all self-drawn.
-- **The ported module loads as a plain `<script>`**: `vial-core.js` (about 75 KB) is the upstream 1.0.8-beta.1 script served from the same-origin route `GET /compression-tiers/vendor/<name>` (a whitelist of exactly this one file name, `text/javascript; charset=utf-8`, `cache-control: public, max-age=3600`, with `?v=2.8.2` in the URL so a stale cache cannot outlive a release). That keeps the UMD body out of `client.js` and avoids `eval`. After the 2.4.6 horizon renderer and the 2.5.0 companion rig were removed, the whitelist went from three names to one.
+- **Two halves, Host and Client**: `index.js` registers the eight tools, the system-prompt summary, the HTTP routes and a reconciler that syncs the tier into the compaction engine inside the preset scope; `client.js` renders the sidebar panel and the row above the input using only `ctx.slots`, `ctx.locale`, `ctx.effect` and theme tokens. The panel imports no host client package — dropdowns, menus and buttons are all self-drawn.
+- **The ported module loads as a plain `<script>`**: `vial-core.js` (about 75 KB) is the upstream 1.0.8-beta.1 script served from the same-origin route `GET /compression-tiers/vendor/<name>` (a whitelist of exactly this one file name, `text/javascript; charset=utf-8`, `cache-control: public, max-age=3600`, with `?v=2.9.0` in the URL so a stale cache cannot outlive a release). That keeps the UMD body out of `client.js` and avoids `eval`. After the 2.4.6 horizon renderer and the 2.5.0 companion rig were removed, the whitelist went from three names to one.
 - **The vial is physical**: `vial-core.js` exports `createWaterVialPhysics` and `mountPhysicalWaterVial`, running a 24-node shallow-water simulation with damping and surface tension on a 96×220 canvas; the host drives RAF and `step(dt)` and stops redrawing when `isSettled()` is true. The fill ratio and the threshold tick are computed by the panel from the official formula — the physics layer knows nothing about tokens.
 - **Numbers come from official projections**: occupancy and window from `useProjection('contextPressure')`, the three-part split from `useProjection('contextBreakdown')`. With no reading at all (before the first message of a new session) the vial is not rendered — the host does not paint its own `ContextMeter` then either, so there is no dead grey "—". The popover environment (port, theme, `reducedMotion`) is passed in by the client; the ported module reads no host globals.
 - **Repainting has two legs**: the plugin's own panel, dock and popovers use the tokens declared on `.ct-skin[data-palette='…']` (so the host UI is unaffected and the plugin still has a skin when the theme service is missing); the whole DSH interface is repainted by layering `ctx.theme.overrideTokens('compression-tiers', tokens)`, which the host writes as inline CSS variables on `<body>`. Every token must be a `{ light, dark }` pair (the service deliberately rejects bare strings) and both modes must be complete — that is exactly how the skin follows DSH's light/dark: the host picks which half to use.
@@ -395,8 +409,8 @@ dsh-harness-toolbox/
 ├── LICENSE / NOTICE              # the full GPL-3.0 text + derivative attribution and changes
 ├── THIRD_PARTY_NOTICES.md        # full notices for upstream and the MIT projects it absorbed
 ├── icon.svg                      # the panel icon
-├── index.js                      # host half: four tools, system prompt, panel routes, reconciler, vendor route
-├── client.js                     # client half: sidebar panel (four pages), composer dock, vial, usage heatmap, self-drawn popovers
+├── index.js                      # host half: eight tools, system prompt, panel routes, reconciler, vendor route
+├── client.js                     # client half: sidebar panel (five pages), composer dock, vial, usage heatmap, self-drawn popovers
 ├── vendor/obsidian-prism/        # the ported UMD module (vial-core.js)
 ├── src/
 │   ├── levels.js                 # the five tiers and the threshold formula (single source)

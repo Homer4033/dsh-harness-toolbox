@@ -6,16 +6,16 @@
 
 **为 DeepSeek Harness 打造的五档上下文压缩与综合工作台**
 
-五档压缩 · 会流动的上下文试管 · 空会话的本机用量热力图 · 本地模型与六套托管组件 · 深色深空黑曜 / 浅色白昼冷晶（跟随 DSH 深浅） · 全局与工作区规则 · 会话仓库发布
+五档压缩 · 会流动的上下文试管 · 空会话的本机用量热力图 · 本地模型与六套托管组件 · 深色深空黑曜 / 浅色白昼冷晶（跟随 DSH 深浅） · 全局与工作区规则 · 会话仓库发布 · 项目记忆（四个记忆工具 + 索引预算 + 做梦整理）
 
 [**简体中文**](README.md) | [**English**](docs/README.en.md) · [**更新日志 (CHANGELOG)**](./docs/CHANGELOG.md) · [**问题反馈 (Issues)**](https://github.com/Homer4033/dsh-harness-toolbox/issues) · [**npm 包**](https://www.npmjs.com/package/dsh-harness-toolbox) · [**插件详情**](./docs/DETAIL.zh.md)
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.8.2-0f172a?style=flat-square" alt="Version 2.8.2" />
+  <img src="https://img.shields.io/badge/Version-2.9.0-0f172a?style=flat-square" alt="Version 2.9.0" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <img src="https://img.shields.io/badge/Tests-270%20passing-16a34a?style=flat-square" alt="270 tests passing" />
+  <img src="https://img.shields.io/badge/Tests-287%20passing-16a34a?style=flat-square" alt="287 tests passing" />
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-2563eb?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="./NOTICE"><img src="https://img.shields.io/badge/Attribution-Required%20(NOTICE)-8b5cf6?style=flat-square" alt="Attribution Required" /></a>
 </p>
@@ -38,21 +38,22 @@
 - [亮点](#亮点)
 - [界面预览](#界面预览)
   - [1. 对话：上下文试管与输入框上方那一行](#1-对话上下文试管与输入框上方那一行)
-  - [2. 面板：玻璃外壳 + 四个分页](#2-面板玻璃外壳-四个分页)
+  - [2. 面板：玻璃外壳 + 五个分页](#2-面板玻璃外壳-五个分页)
   - [3. 空白会话：本机用量看板](#3-空白会话本机用量看板)
 - [快速安装指南](#快速安装指南)
   - [方式一：从 npm 安装](#方式一从-npm-安装推荐)
   - [方式二：从本地目录安装](#方式二从本地目录安装推荐开发者)
   - [升级与回退](#升级与回退)
 - [使用](#使用)
-  - [面板的四个分页](#面板的四个分页)
+  - [面板的五个分页](#面板的五个分页)
   - [规则：全局与工作区](#规则全局与工作区)
+  - [记忆](#记忆)
   - [主题美术与底光](#主题美术与底光)
   - [模型和组件页](#模型和组件页)
   - [输入框上方那一行](#输入框上方那一行)
   - [空白会话的用量看板](#空白会话的用量看板)
   - [官方模型菜单里的推理滑块](#官方模型菜单里的推理滑块)
-  - [四个智能体工具](#四个智能体工具)
+  - [八个智能体工具](#八个智能体工具)
 - [五档参数](#五档参数)
 - [组件管理](#组件管理)
 - [技术细节](#技术细节)
@@ -95,7 +96,7 @@
 
 这一行还决定 `github_push` 推到哪里：胶囊里选中的仓库就是这个会话的发布目标。
 
-### 2. 面板：玻璃外壳 + 四个分页
+### 2. 面板：玻璃外壳 + 五个分页
 
 <p align="center">
   <img src="docs/screenshots/panel.png" width="100%" alt="压缩分档面板的「模型和组件」页：左侧分页导航，六套组件与本地模型在同一张卡片的列表里" />
@@ -119,7 +120,7 @@
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.8.2`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.9.0`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -155,6 +156,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **2.7.4 → 2.7.5**：看板不再跟着宿主那一块下移——`placeHeatLayer()` 测量前先把位移变量清零，卡片按宿主原始座位算位置，于是只有「欢迎语 + 输入卡」往下走、热力图留在原地。顺带修掉「窗口一 resize 整块弹回原位」的测量顺序 bug；变更记录文件从根目录移到 `docs/CHANGELOG.md`。
 - **2.7.5 → 2.7.6**：看板只在宿主标成空白的会话里出现——以前用「没有上下文读数」推断空白，切换会话时新读数还没到，卡片会闪一下、还连带把宿主那一段推下去；现在读宿主自己的 `session.blank`，有消息的会话永远只画输入框上方那一行。
 - **2.7.6 → 2.7.7**：只有文档与截图。README 改成一页三图（对话 / 面板 / 用量看板），并新增英文版 [docs/README.en.md](docs/README.en.md)；详情页从「一张图」改写成「目录 + 正文」；截图全部由离线渲染舞台按 2.7.6 的界面重拍，2.5.0 已删除的像素伙伴、已下线的旧配色与旧分页都不再出现在图里。代码、接口、设置与已下好的文件全都不动。
+- **2.9.0**：新增「记忆」分页与四个记忆工具（`memory_write` / `memory_search` / `memory_reconcile` / `memory_dream`）。记忆存在所选工作区的 `<项目>/memory/`（append-only JSONL + 插件生成的 `MEMORY.md` 索引，硬上限 200 行 / 25KB），面板可重建索引与做梦整理；外部来源只进隔离区，永远不能写成规则。不迁移任何旧数据，不装即无影响。
 - **2.8.2**：外观页取消，配色跟着 DSH 的深色 / 浅色自动切换（深空黑曜 / 白昼冷晶），「跟随宿主」与动效档位、光学外观开关一并删除；输入卡上的银白流光边按用户要求取消。旧 `settings.json` 里的 `appearance` 块读取时直接丢弃，下次写入不再保留；不需要改任何配置。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
 - **卸载**：插件页移除即可，托管组件目录留在原处，删掉目录即彻底清理。
@@ -165,11 +167,12 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 ## 使用
 
-### 面板的四个分页
+### 面板的五个分页
 
 | 分页 | 做什么 | 唯一事实来源 |
 | :--- | :--- | :--- |
 | **档位** | 五个按钮，点一下写入所有已挂载的预设压缩引擎 | `src/levels.js` 的 `COMPRESSION` |
+| **记忆** | 所选工作区记忆库的状态、索引预算、承诺与漂移，以及三个维护动作 | 该工作区的 `<项目>/memory/`（`entries.jsonl` + 生成的 `MEMORY.md`） |
 | **规则** | 全局规则整份编辑；下半张卡编辑所选工作区的补充规则（插到它 `AGENTS.md` 开头） | `<DSH home>/AGENTS.md`、`<DSH home>/storages/workspace.json` + 各工作区 `AGENTS.md` |
 | **模型和组件** | 六套组件的状态、下载、重新检测与下载根目录，以及一行本地模型 | `src/components.js` 的 `COMPONENTS`、`src/models.js` 的 `MODELS` |
 | **GitHub** | 账号、token scope、设备码登录、网络体检 | `gh` 自己的存储（插件不读凭据） |
@@ -181,6 +184,14 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 全局规则整份写入 `<DSH home>/AGENTS.md`；工作区规则只写插件自己的**受管块**，保存时插到该工作区 `AGENTS.md` 的**开头**（没有文件就创建），块下面原有的正文原样保留，面板也不显示这份文件的内容。两处写入都原子、去 BOM、CRLF→LF、保留单个结尾换行，单次上限 100,000 字符，超出直接 413 而不是截断；系统提示只带最新 2,000 字符摘要。
 
 受管块只认文件开头：围栏必须是首个非空行加上后面一整行的结束标记，正文里顺口提到这两个标记不算（本仓库自己的 `AGENTS.md` 就提到过两次）；半个围栏（只有开头没有结尾）按空块处理，保存后不会出现第二个开头；补充规则里出现整行围栏标记时直接 400、文件不动。
+
+### 记忆
+
+「记忆」页管的是**跨会话保留结论**，和压缩（改写本次会话历史）是两件事。记忆放在项目里，而不是藏进插件目录：所选工作区的 `<项目>/memory/` 下是两份只会追加的 JSONL（`entries.jsonl`、`quarantine.jsonl`）和一份**由插件生成**的 `MEMORY.md` 索引。索引就是会话开头注入的那一份，硬上限 **200 行 / 25KB**，超了页面直接写「超限」而不是静默截断；没有插件标记的 `MEMORY.md` 会被当成手写文件移开一次并在页面报告，绝不静默覆盖。
+
+四个工具读写这份记忆，`memory_write` 只存「以后会重新推导一遍」的东西：决策与理由、被否方案、验证过的规则、失败根因、承诺、待决问题。写之前过三道闸——完全重复直接返回原条目（不写第二份）；近似重复（词/字符二元组重叠 ≥ 0.8）要么 `supersedes` 旧条目、要么显式 `force`；与既有规则矛盾的必须取代旧条目，否则拒绝。`source: "external"`（网页、素材站、第三方 PR）只能进隔离区，**永远不能成为 rule / decision**，也不进索引。`memory_search` 按词与字符二元组重叠打分，`memory_reconcile` 报逾期承诺、证据路径消失、过期条目、近重复、矛盾与隔离区，`memory_dream` 离线归并近重复、按 `expiresAt` 退役、重建索引——默认只预览，`apply: true` 才写。
+
+面板只做三件事：切工作区、看状态（条目数、承诺、索引行数/字节、漂移、隔离区）、触发「重新检测 / 重建索引 / 做梦整理」。条目本身只由工具写，面板不会替人编一条记忆。接口是 `GET/POST /compression-tiers/api/memory`。
 
 ### 配色：深色深空黑曜，浅色白昼冷晶
 
@@ -255,7 +266,7 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 
 挂载是 fail-open 的：宿主没有 `modelDirectories` 服务、当前模型没有 `reasoning.efforts`、只有一档、菜单没开、或者写入被拒，都退回「什么都不加」。锚点只用语义属性（`aria-haspopup="menu"` + `aria-controls` 找菜单、`role="menuitem"` 的行配上行首标签文字认出「推理等级」、`[data-composer-card]` 判归属），不认 DSH 的哈希类名。
 
-### 四个智能体工具
+### 八个智能体工具
 
 | 工具 | 作用 |
 | :--- | :--- |
@@ -263,8 +274,12 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 | `compression_context` | 读实时占用、本档阈值与剩余空间；对话尾部的 `[context]` 行给的是同样的数字 |
 | `compression_compact` | 排队一次主动压缩，本轮结束后执行并自动续跑；期间你发的消息会取消排队任务或阻止续跑 |
 | `github_push` | 发布当前工作区：体检 → 密钥扫描 → 60 秒超时推送 → 失败分类；密钥命中会阻止推送，人工确认后 `force: true` 放行 |
+| `memory_write` | 写一条项目记忆：去重、近似重复、规则矛盾三道闸；外部来源进隔离区 |
+| `memory_search` | 按词与字符二元组检索记忆，可按 kind / scope 过滤，默认排除隔离区 |
+| `memory_reconcile` | 只读体检：逾期承诺、索引超限、证据漂移、过期、近重复、矛盾、隔离区 |
+| `memory_dream` | 离线归并近重复、退役过期条目、重建索引；默认只预览 |
 
-主动压缩永远让位于真人输入：你开口，排队就作废；正在跑的压缩不中断，但结束后不再注入续跑消息。多仓库场景由智能体在各自会话里调用 `github_push`——插件没有仓库列表，也没有推送按钮。
+主动压缩永远让位于真人输入：你开口，排队就作废；正在跑的压缩不中断，但结束后不再注入续跑消息。多仓库场景由智能体在各自会话里调用 `github_push`——插件没有仓库列表，也没有推送按钮。记忆工具只写当前会话工作目录下 `<cwd>/memory/`，没有工作目录时直接拒绝。
 
 ---
 
@@ -309,10 +324,10 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.8.2`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.9.0`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
-- **Host / Client 两个半区**：`index.js` 注册四个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.8.2` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个。
+- **Host / Client 两个半区**：`index.js` 注册八个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.9.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`。没有任何读数时（新会话的第一条消息之前）整支试管不渲染——宿主自己那时也不画 `ContextMeter`，所以不摆一个点不动的灰「—」；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。
@@ -395,8 +410,8 @@ dsh-harness-toolbox/
 ├── LICENSE / NOTICE              # GPL-3.0 全文 + 衍生作品署名与修改说明
 ├── THIRD_PARTY_NOTICES.md        # 上游及其吸收的 MIT 项目的完整声明
 ├── icon.svg                      # 面板图标
-├── index.js                      # Host 入口：四个工具、系统提示、面板路由、reconciler、vendor 路由
-├── client.js                     # 客户端：侧栏面板（四个分页）、输入框 dock、试管、用量热力图、自绘弹层
+├── index.js                      # Host 入口：八个工具、系统提示、面板路由、reconciler、vendor 路由
+├── client.js                     # 客户端：侧栏面板（五个分页）、输入框 dock、试管、用量热力图、自绘弹层
 ├── vendor/obsidian-prism/        # 移植的 UMD 模块（vial-core.js）
 ├── src/
 │   ├── levels.js                 # 五档参数与阈值公式（唯一来源）
@@ -406,6 +421,7 @@ dsh-harness-toolbox/
 │   ├── store.js                  # 状态读写（原子；2.8.2 起不再有 appearance）
 │   ├── rules.js                  # 全局规则：路径、校验、原子写入、摘要
 │   ├── workspace-rules.js        # 工作区规则：注册表读取、受管块注入、原子写入
+│   ├── memory.js                  # 项目记忆：append-only 存储、写入闸门、检索、对账、做梦、索引重建
 │   ├── gh.js                     # GitHub CLI：托管下载、PATH、设备码登录、仓库列表
 │   ├── ffmpeg.js                 # ffmpeg / ffprobe 托管下载与 PATH
 │   ├── components.js             # 托管组件：git / Python 可执行文件 + ComfyUI / MCP 源码树

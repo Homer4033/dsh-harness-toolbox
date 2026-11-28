@@ -23,8 +23,9 @@ window.__ModuleLoader__.load({
     const MODELS_API = '/compression-tiers/api/models'
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
+const MEMORY_API = '/compression-tiers/api/memory'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.8.2'
+    const PLUGIN_VERSION = '2.9.0'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -384,6 +385,7 @@ window.__ModuleLoader__.load({
      */
     const SECTIONS = [
       { id: 'levels', navLabel: 'navLevels', icon: 'M3 4.5h10M3 8h7M3 11.5h4' },
+      { id: 'memory', navLabel: 'navMemory', icon: 'M2.5 3.5h5.5v9H2.5zM8 3.5h5.5v9H8zM4 6h2.5M4 8h2.5M9.5 6H12M9.5 8H12' },
       { id: 'rules', navLabel: 'navRules', icon: 'M4 2.5h5.5L12.5 5.5v8H4zM9.5 2.5v3h3M6 8h4M6 10.5h3' },
       { id: 'components', navLabel: 'navComponents', icon: 'M6 2.5h4v3H6zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z' },
       { id: 'github', navLabel: 'navGithub', icon: 'M8 2.5a5.5 5.5 0 0 0-1.7 10.7c.3.1.4-.1.4-.3v-1c-1.5.3-1.9-.7-1.9-.7-.2-.6-.6-.8-.6-.8-.5-.3 0-.3 0-.3.5 0 .8.5.8.5.5.9 1.3.6 1.6.5 0-.4.2-.6.3-.7-1.2-.1-2.5-.6-2.5-2.7 0-.6.2-1.1.5-1.5-.1-.1-.2-.7 0-1.4 0 0 .5-.2 1.5.5a5 5 0 0 1 2.8 0c1-.7 1.5-.5 1.5-.5.3.7.1 1.3.1 1.4.3.4.5.9.5 1.5 0 2.1-1.3 2.6-2.5 2.7.2.2.4.5.4 1v1.5c0 .2.1.4.4.3A5.5 5.5 0 0 0 8 2.5z' },
@@ -396,6 +398,7 @@ window.__ModuleLoader__.load({
         levelsAria: '压缩档位',
         navAria: '面板分页',
         navLevels: '档位',
+        navMemory: '记忆',
         navRules: '规则',
         navComponents: '模型和组件',
         navGithub: 'GitHub',
@@ -472,6 +475,34 @@ window.__ModuleLoader__.load({
         workspaceRulesTitle: '工作区规则',
         workspaceNone: '目前无工作区',
         workspaceSelectLabel: '工作区',
+        memoryTitle: '记忆',
+        memoryWorkspaceLabel: '记忆工作区',
+        memoryNone: '目前无工作区',
+        memoryDir: '记忆目录',
+        memoryEntries: '条目',
+        memoryIndex: '索引',
+        memoryPromises: '承诺',
+        memoryPromiseOpen: '未决',
+        memoryPromiseOverdue: '逾期',
+        memoryPromiseDone: '完成',
+        memoryPromiseDropped: '放弃',
+        memoryDrift: '漂移',
+        memoryEvidenceMissing: '证据缺失',
+        memoryExpired: '过期',
+        memoryDuplicates: '近重复',
+        memoryConflicts: '矛盾',
+        memoryQuarantine: '隔离区',
+        memoryRecent: '最近记忆',
+        memoryNoEntries: '还没有记忆条目',
+        memoryOver: '超限',
+        memoryForeign: '外部写入',
+        memoryReload: '重新检测',
+        memoryRebuild: '重建索引',
+        memoryDream: '做梦整理',
+        memoryBusy: '处理中…',
+        memoryDone: '已更新',
+        memoryFailed: '操作失败：',
+        memoryLoadFailed: '读取记忆失败：',
         workspaceRulesLabel: '补充规则（置于 AGENTS.md 开头）',
         workspaceRulesPlaceholder: '例如：本工作区只改 src/；提交前跑测试。',
         workspaceRulesMissing: '不存在，保存后创建。',
@@ -556,6 +587,7 @@ window.__ModuleLoader__.load({
         levelsAria: 'Compression tier',
         navAria: 'Panel sections',
         navLevels: 'Tiers',
+        navMemory: 'Memory',
         navRules: 'Rules',
         navComponents: 'Models & components',
         navGithub: 'GitHub',
@@ -632,6 +664,34 @@ window.__ModuleLoader__.load({
         workspaceRulesTitle: 'Workspace rules',
         workspaceNone: 'No workspace registered yet',
         workspaceSelectLabel: 'Workspace',
+        memoryTitle: 'Memory',
+        memoryWorkspaceLabel: 'Memory workspace',
+        memoryNone: 'No workspace registered yet',
+        memoryDir: 'Memory directory',
+        memoryEntries: 'entries',
+        memoryIndex: 'Index',
+        memoryPromises: 'Promises',
+        memoryPromiseOpen: 'open',
+        memoryPromiseOverdue: 'overdue',
+        memoryPromiseDone: 'done',
+        memoryPromiseDropped: 'dropped',
+        memoryDrift: 'Drift',
+        memoryEvidenceMissing: 'missing evidence',
+        memoryExpired: 'expired',
+        memoryDuplicates: 'near-duplicates',
+        memoryConflicts: 'conflicts',
+        memoryQuarantine: 'Quarantine',
+        memoryRecent: 'Recent memories',
+        memoryNoEntries: 'No memory entries yet',
+        memoryOver: 'over budget',
+        memoryForeign: 'foreign content',
+        memoryReload: 'Re-check',
+        memoryRebuild: 'Rebuild index',
+        memoryDream: 'Consolidate',
+        memoryBusy: 'Working…',
+        memoryDone: 'Updated',
+        memoryFailed: 'Action failed: ',
+        memoryLoadFailed: 'Could not read memory: ',
         workspaceRulesLabel: 'Supplemental rules (placed at the top of AGENTS.md)',
         workspaceRulesPlaceholder: 'For example: this workspace only touches src/; run the tests before committing.',
         workspaceRulesMissing: 'missing; saving creates it.',
@@ -4798,6 +4858,12 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [workspaceText, setWorkspaceText] = React.useState('')
       const [workspaceMessage, setWorkspaceMessage] = React.useState('')
       const [workspaceBusy, setWorkspaceBusy] = React.useState(false)
+      // Memory: the store below one registered workspace (`<workspace>/memory`).
+      // The page reads its health and triggers index / consolidation / reconcile.
+      const [memory, setMemory] = React.useState(null)
+      const [memoryWorkspace, setMemoryWorkspace] = React.useState('')
+      const [memoryMessage, setMemoryMessage] = React.useState('')
+      const [memoryBusy, setMemoryBusy] = React.useState(false)
       // Which page of the shell is open. Declared last so the hook order above
       // stays stable for the test harness.
       const [section, setSection] = React.useState('levels')
@@ -4814,6 +4880,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         loadAuth()
         loadNetwork()
         loadWorkspaceRules()
+        loadMemory()
         return function () {
           mounted.current = false
         }
@@ -4893,6 +4960,67 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         const current = list.find(function (item) { return item.id === workspaceId }) || list[0]
         setWorkspaceId(current.id)
         setWorkspaceText(typeof current.text === 'string' ? current.text : '')
+      }
+
+      /**
+       * Memory health for one registered workspace. The payload already carries
+       * the whole store summary, so switching the selector is one read and the
+       * three buttons just re-read the same route.
+       */
+      function applyMemory(body) {
+        setMemory(body || null)
+        if (body && typeof body.workspace === 'string' && body.workspace) setMemoryWorkspace(body.workspace)
+      }
+
+      function loadMemory(id, options) {
+        const quiet = options && options.quiet === true
+        const workspace = typeof id === 'string' && id ? id : memoryWorkspace
+        if (!quiet) setMemoryBusy(true)
+        fetch(MEMORY_API + (workspace ? '?workspace=' + encodeURIComponent(workspace) : ''), { credentials: 'same-origin' })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            applyMemory(body)
+            setMemoryMessage(body && body.error ? t('memoryFailed') + body.error : '')
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setMemoryMessage(t('memoryLoadFailed') + messageOf(error))
+          })
+          .then(function () {
+            if (mounted.current && !quiet) setMemoryBusy(false)
+          })
+      }
+
+      function pickMemoryWorkspace(id) {
+        setMemoryWorkspace(id)
+        setMemoryMessage('')
+        loadMemory(id)
+      }
+
+      function memoryAction(action) {
+        if (!memoryWorkspace) return
+        setMemoryBusy(true)
+        setMemoryMessage(t('memoryBusy'))
+        fetch(MEMORY_API, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ workspaceId: memoryWorkspace, action: action }),
+        })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            applyMemory(body)
+            setMemoryMessage(t('memoryDone'))
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setMemoryMessage(t('memoryFailed') + messageOf(error))
+          })
+          .then(function () {
+            if (mounted.current) setMemoryBusy(false)
+          })
       }
 
       function loadWorkspaceRules() {
@@ -5676,6 +5804,99 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         ]),
         h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, workspaceMessage))
 
+      // Memory: one registered workspace at a time. The card reports the store
+      // health (entries, injected index budget, promises, drift, quarantine) and
+      // owns the three maintenance actions; entries themselves are written by
+      // the memory_write / memory_dream tools, never from the panel.
+      const memoryLoaded = memory !== null
+      const memoryList = memory && Array.isArray(memory.workspaces) ? memory.workspaces : []
+      const memoryEmpty = memoryLoaded && memoryList.length === 0
+      const memoryReady = Boolean(memory && memory.memory)
+      const memoryStore = memoryReady ? memory.memory : null
+      const memoryNote = !memoryLoaded
+        ? t('loading')
+        : memoryEmpty ? t('memoryNone') : ''
+      const memoryText = memoryStore
+        ? t('memoryDir') + t('sep') + memoryStore.dir
+        : ''
+      const memoryCounts = memoryStore
+        ? t('memoryEntries') + t('sep') + memoryStore.entries
+          + ' · ' + t('memoryPromises') + ' ' + t('memoryPromiseOpen') + ' ' + memoryStore.promises.open.length
+          + ' / ' + t('memoryPromiseOverdue') + ' ' + memoryStore.promises.overdue.length
+          + ' / ' + t('memoryPromiseDone') + ' ' + memoryStore.promises.done
+          + ' / ' + t('memoryPromiseDropped') + ' ' + memoryStore.promises.dropped
+        : ''
+      const memoryIndexText = memoryStore
+        ? t('memoryIndex') + t('sep')
+          + (memoryStore.index.exists
+            ? memoryStore.index.lines + ' / ' + memoryStore.index.maxLines + ' · ' + memoryStore.index.bytes + ' / ' + memoryStore.index.maxBytes
+            : '—')
+          + (memoryStore.index.over ? ' · ' + t('memoryOver') : '')
+          + (memoryStore.index.foreign ? ' · ' + t('memoryForeign') : '')
+        : ''
+      const memoryDriftText = memoryStore
+        ? t('memoryDrift') + t('sep')
+          + t('memoryEvidenceMissing') + ' ' + memoryStore.drift.missingEvidence.length
+          + ' · ' + t('memoryExpired') + ' ' + memoryStore.drift.expired.length
+          + ' · ' + t('memoryDuplicates') + ' ' + memoryStore.duplicates.length
+          + ' · ' + t('memoryConflicts') + ' ' + memoryStore.conflicts.length
+          + ' · ' + t('memoryQuarantine') + ' ' + memoryStore.quarantine
+        : ''
+      const memoryRows = memoryStore && Array.isArray(memoryStore.recent) ? memoryStore.recent : []
+      const memoryRowNodes = memoryRows.length
+        ? memoryRows.map(function (row) {
+          return h('div', { className: 'ct-item', key: row.id },
+            h('div', { className: 'ct-item-main' },
+              h('strong', { className: 'ct-item-name' }, row.claim),
+              h('span', { className: 'ct-item-pin' }, row.kind),
+              h('span', { className: 'ct-item-state' }, row.id)),
+            h('div', { className: 'ct-item-path' }, row.at ? timeLabel(row.at) : ''))
+        })
+        : [h('p', { className: 'ct-note', key: 'memory-empty' }, memoryStore ? t('memoryNoEntries') : '')]
+      const memoryPanel = h('section', { className: 'ct-panel', key: 'memory' },
+        h('div', { className: 'ct-rules-head' },
+          h('h3', null, t('memoryTitle')),
+          memoryNote ? h('p', { className: 'ct-note', role: 'status' }, memoryNote) : null),
+        memoryList.length === 0
+          ? null
+          : h('div', { className: 'ct-field' },
+            h('span', null, t('memoryWorkspaceLabel')),
+            h(Select, {
+              t: t,
+              palette: APPEARANCE.palette,
+              items: memoryList.map(function (item) {
+                return { value: item.id, label: item.title }
+              }),
+              value: memoryWorkspace,
+              disabled: memoryBusy,
+              onChange: pickMemoryWorkspace,
+            })),
+        memoryText ? h('p', { className: 'ct-note' }, memoryText) : null,
+        memoryCounts ? h('p', { className: 'ct-note' }, memoryCounts) : null,
+        memoryIndexText ? h('p', { className: 'ct-note' }, memoryIndexText) : null,
+        memoryDriftText ? h('p', { className: 'ct-note' }, memoryDriftText) : null,
+        h('h4', { className: 'ct-list-head' }, t('memoryRecent')),
+        h('div', { className: 'ct-list', 'data-memory': true, key: 'memory-list' }, memoryRowNodes),
+        actionRow([
+          actionButton('memoryReload', t('memoryReload'), {
+            disabled: memoryBusy || memoryEmpty,
+            title: memoryEmpty ? t('memoryNone') : '',
+            onClick: function () { loadMemory(memoryWorkspace) },
+          }),
+          actionButton('memoryIndex', t('memoryRebuild'), {
+            disabled: memoryBusy || !memoryWorkspace,
+            title: memoryWorkspace ? '' : t('memoryNone'),
+            onClick: function () { memoryAction('index') },
+          }),
+          actionButton('memoryDream', t('memoryDream'), {
+            disabled: memoryBusy || !memoryWorkspace,
+            title: memoryWorkspace ? '' : t('memoryNone'),
+            onClick: function () { memoryAction('dream') },
+            primary: true,
+          }),
+        ]),
+        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, memoryMessage))
+
       // Navigation rail: every page is always listed, so a page never disappears
       // just because its data is empty.
       const sections = SECTIONS
@@ -5727,6 +5948,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       // each registered workspace gets at the top of its own AGENTS.md.
       const pages = {
         levels: [panel, meta],
+        memory: [memoryPanel],
         rules: [rulesPanel, workspacePanel],
         components: [componentsPanel],
         github: [ghAuthPanel],

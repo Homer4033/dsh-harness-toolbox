@@ -2,6 +2,11 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.9.0 — 2026-11-28
+
+- **新增「记忆」分页与四个记忆工具**（用户：「产出一版 v1.1，做成加入插件『记忆』功能」）：按 v1.1 的 7 处修正落地——索引硬上限、三道写入闸、外部来源隔离、单写者/tombstone、承诺台账、面板只读状态、确定性检索。`src/memory.js`：`entries.jsonl` / `quarantine.jsonl` 只追加，`tombstone` 记录取代 / 过期 / 完成；`rebuildIndex()` 生成带 `INDEX_MARKER` 的 `MEMORY.md`（`MAX_INDEX_LINES` 200 / `MAX_INDEX_BYTES` 25,000，超限报 `over`，手写文件先改名 `.foreign-<ts>` 保留）；`writeMemory()` 闸门为完全重复、Jaccard ≥ `NEAR_DUPLICATE` 0.8 的近似重复、`rule`/`decision` 否定矛盾，`source: 'external'` 只进隔离区；`settlePromise()` 只能结算一次；`atomicWrite()` 对 Windows `EPERM` 重试退避后回退原地写。工具四个：`memory_write` / `memory_search` / `memory_reconcile` / `memory_dream`；路由 `GET/POST /compression-tiers/api/memory`；面板第 2 个分页「记忆」（工作区选择器 + 条目/承诺/索引预算/漂移/隔离区状态行 + 最近记忆列表 + 常显「重新检测 / 重建索引 / 做梦整理」）。`SECTIONS` 回到 5 项，字典 +26 键，`__test` 无新增。
+- 测试 **270 → 287**：新增 `test/memory.test.js` 14 条（空库、写入 + 索引、完全重复、近似重复与 `force`/`supersedes`、矛盾与取代链、外部隔离、输入校验、CJK 检索、承诺逾期与 settle、证据漂移与过期、做梦 dry/apply、手写索引改名、索引超限、面板 payload）与 `test/client.test.js` 3 条（记忆页三按钮、空工作区、超限与外部写入），改写 5 处分页断言与 `HOOK_ORDER`。
+- 文档同步：AGENTS.md 第 22 / 24 条、事实来源、验证要求、文档索引；README / README.en 新增「记忆」节并改分页与工具计数；[docs/UI.md](UI.md) 分页表与检查清单；`docs/DETAIL.md` / `DETAIL.zh.md`；locale 中英描述；`package.json` 2.9.0（新增 `agent-memory` / `memory` 关键词）。**渲染未在装好 2.9.0 的窗口里复验；工具与路由只有单测，未在真实会话里调用过**。
 ## 2.8.2 — 2026-11-27
 
 - **输入卡光学层整体取消**（用户：「棱镜流光取消掉吧」）：2.8.0 的四种光效与 2.8.1 剩下的银白流光边一起删掉——`client.js` 删除 `ComposerOptics` / `mountComposerOptics` / `opticsPlan()` / `rimPoint()` / `findComposerCard()` / `composerRadius()` / `RIM_REACH`、`RepoBinding` 里的两处挂载、`__test.optics` 导出与全部 `.ct-optics-*` 样式。宿主输入卡回到完全原样（这条边界本来就在：`composerStack` 是 fixed 的包含块，光效只能是只读叠层，现在叠层也没有了）。`test/client.test.js` 的九条光效用例与 `opticsNodes` 一类 helper 一并删除。

@@ -177,6 +177,7 @@ const HOOK_ORDER = [
   'pathDraft', 'pathBusy',
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
+  'memory', 'memoryWorkspace', 'memoryMessage', 'memoryBusy',
   'section',
 ]
 
@@ -206,6 +207,10 @@ const BASE_PAGE = {
   workspaceText: '',
   workspaceMessage: '',
   workspaceBusy: false,
+  memory: null,
+  memoryWorkspace: '',
+  memoryMessage: '',
+  memoryBusy: false,
   section: 'levels',
 }
 
@@ -491,7 +496,11 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'downloadRunning', 'downloadDone', 'downloadUnsupported',
       'stateMissing', 'statePartial', 'stateFailed', 'stateSystem',
       'repoSelectLabel', 'repoNone', 'repoTitle',
-      'navAria', 'navLevels', 'navRules', 'navComponents', 'navGithub',
+      'navAria', 'navLevels', 'navMemory', 'navRules', 'navComponents', 'navGithub',
+      'memoryTitle', 'memoryWorkspaceLabel', 'memoryNone', 'memoryDir', 'memoryEntries',
+      'memoryIndex', 'memoryPromises', 'memoryRecent', 'memoryNoEntries', 'memoryOver',
+      'memoryReload', 'memoryRebuild', 'memoryDream', 'memoryFailed', 'memoryLoadFailed',
+      'memoryForeign', 'memoryDrift', 'memoryQuarantine',
       'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
       'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
       'vialLoading', 'vialClose',
@@ -1152,7 +1161,7 @@ test('the workspace block stays on the rules page and says there is no workspace
   const nodes = renderSection('rules', { workspaceRules: workspaceRulesPayload([]) })
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
   // Four pages, always: an empty registry is a state, not a missing page.
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'memory', 'rules', 'components', 'github'])
   const content = nodes.find((node) => String(node.props.className || '') === 'ct-content')
   assert.match(deepText(content), /workspaceRulesTitle/)
   assert.match(deepText(content), /workspaceNone/)
@@ -1184,8 +1193,8 @@ test('the panel is a shell: one navigation rail and one page at a time', () => {
   assert.equal(nav.type, 'nav')
   assert.equal(nav.props['aria-label'], 'navAria')
   const items = nodes.filter((node) => String(node.props.className || '') === 'ct-nav-item')
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
-  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navRules', 'navComponents', 'navGithub'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'memory', 'rules', 'components', 'github'])
+  assert.deepEqual(items.map((node) => deepText(node)), ['navLevels', 'navMemory', 'navRules', 'navComponents', 'navGithub'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1, 'exactly one page is current')
   assert.equal(current[0].props['data-section'], 'components')
@@ -1334,7 +1343,7 @@ test('the appearance page is gone: no rail entry and no palette controls', () =>
   // An old bookmark to the page falls back to the first page instead of a blank.
   const nodes = renderSection('appearance')
   const items = nodes.filter((node) => hasClass(node, 'ct-nav-item'))
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'memory', 'rules', 'components', 'github'])
   assert.equal(nodes.some((node) => node.props.role === 'radio' && hasClass(node, 'ct-swatch')), false)
   assert.equal(nodes.some((node) => node.props.role === 'radio' && hasClass(node, 'ct-segment')), false)
   assert.equal(buttonOf(nodes, 'appearanceArt'), null, 'the art switch went with the page')
@@ -1481,7 +1490,7 @@ test('the composer stats line moves into the vial', () => {
 test('a four-page rail keeps every page in the navigation', () => {
   const nodes = renderSection('components')
   const items = nodes.filter((node) => hasClass(node, 'ct-nav-item'))
-  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'rules', 'components', 'github'])
+  assert.deepEqual(items.map((node) => node.props['data-section']), ['levels', 'memory', 'rules', 'components', 'github'])
   const current = items.filter((node) => node.props['aria-current'] === 'page')
   assert.equal(current.length, 1)
   assert.equal(current[0].props['data-section'], 'components')
@@ -2422,4 +2431,104 @@ test('the dock mounts the effort bridge but renders nothing itself', () => {
   assert.ok(bridge, 'the bridge is mounted on the dock row')
   assert.equal(bridge.props.motion, 'full')
   assert.equal(bridge.type(bridge.props), null, 'the bridge renders no markup of its own')
+})
+
+/** One memory payload, as `/api/memory` returns it for a registered workspace. */
+function memoryState(overrides) {
+  return {
+    ok: true,
+    workspaces: [{ id: 'game', title: 'Game', path: 'C:/game' }],
+    workspace: 'game',
+    memory: {
+      root: 'C:/game',
+      dir: 'C:/game/memory',
+      exists: true,
+      entries: 6,
+      byKind: { rule: 2, fact: 4 },
+      promises: {
+        open: [{ id: 'prom-1', claim: '先接通全部接口', deadline: '2026-12-01' }],
+        overdue: [],
+        done: 1,
+        dropped: 0,
+      },
+      index: {
+        path: 'C:/game/memory/MEMORY.md',
+        exists: true,
+        lines: 42,
+        bytes: 1200,
+        over: false,
+        foreign: false,
+        maxLines: 200,
+        maxBytes: 25000,
+      },
+      drift: { missingEvidence: [{ id: 'fact-1', path: 'docs/x.md' }], expired: [] },
+      duplicates: [],
+      conflicts: [],
+      quarantine: 2,
+      invalid: 0,
+      badLines: 0,
+      limits: { maxEntries: 5000, maxIndexLines: 200, maxIndexBytes: 25000 },
+      recent: [{ id: 'rule-1', kind: 'rule', claim: '三视图先剪影', at: '2026-11-28T10:00:00.000Z' }],
+      questions: [],
+      ...(overrides || {}),
+    },
+  }
+}
+
+test('the memory page shows the store, its injected-index budget and three constant actions', () => {
+  const nodes = renderSection('memory', { memory: memoryState(), memoryWorkspace: 'game' })
+  assert.deepEqual(nodes.filter((node) => node.type === 'h3').map((node) => textOf(node)), ['memoryTitle'])
+  const notes = nodes.filter((node) => hasClass(node, 'ct-note')).map((node) => deepText(node)).join('\n')
+  assert.match(notes, /C:\/game\/memory/, 'the store directory is shown')
+  assert.match(notes, /42 \/ 200/, 'the index budget is shown')
+  assert.match(notes, /memoryEvidenceMissing 1/, 'evidence drift is shown')
+  assert.match(notes, /memoryQuarantine 2/, 'the quarantine is shown')
+  const recent = nodes.filter((node) => hasClass(node, 'ct-item-name')).map((node) => deepText(node))
+  assert.deepEqual(recent, ['三视图先剪影'])
+  for (const action of ['memoryReload', 'memoryIndex', 'memoryDream']) {
+    const button = buttonOf(nodes, action)
+    assert.ok(button, `${action} is always rendered`)
+    assert.equal(button.props.disabled, false)
+  }
+  const picker = pickerOf(nodes)
+  assert.ok(picker, 'the workspace picker is the shared self-drawn component')
+  assert.deepEqual(picker.props.items.map((item) => item.value), ['game'])
+})
+
+test('a memory page with no registered workspace keeps its buttons and says so', () => {
+  const nodes = renderSection('memory', {
+    memory: { ok: true, workspaces: [], workspace: '', memory: null },
+    memoryWorkspace: '',
+  })
+  const text = nodes.map((node) => deepText(node)).join('\n')
+  assert.match(text, /memoryNone/)
+  for (const action of ['memoryReload', 'memoryIndex', 'memoryDream']) {
+    const button = buttonOf(nodes, action)
+    assert.ok(button, `${action} stays rendered`)
+    assert.equal(button.props.disabled, true)
+  }
+})
+
+test('the memory page surfaces an over-budget or hand-written index instead of hiding it', () => {
+  const nodes = renderSection('memory', {
+    memory: memoryState({
+      index: {
+        path: 'C:/game/memory/MEMORY.md',
+        exists: true,
+        lines: 240,
+        bytes: 30000,
+        over: true,
+        foreign: true,
+        maxLines: 200,
+        maxBytes: 25000,
+      },
+      recent: [],
+    }),
+    memoryWorkspace: 'game',
+  })
+  const notes = nodes.filter((node) => hasClass(node, 'ct-note')).map((node) => deepText(node)).join('\n')
+  assert.match(notes, /memoryOver/)
+  assert.match(notes, /memoryForeign/)
+  const text = nodes.map((node) => deepText(node)).join('\n')
+  assert.match(text, /memoryNoEntries/)
 })

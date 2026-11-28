@@ -1,15 +1,15 @@
 # Compression tiers & workbench
 
-> DSH plugin `dsh-harness-toolbox` · version **2.8.2** · `GPL-3.0-only` · [repository](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
+> DSH plugin `dsh-harness-toolbox` · version **2.9.0** · `GPL-3.0-only` · [repository](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
 
-Five context compression tiers plus the workbench around them: a context vial above the input, a local usage board for blank sessions, six managed components and one local model, one palette that follows the host theme, global and per-workspace rules, and per-session repository publishing.
+Five context compression tiers plus the workbench around them: a context vial above the input, a local usage board for blank sessions, six managed components and one local model, one palette that follows the host theme, global and per-workspace rules, project memory, and per-session repository publishing.
 
 ## Table of contents
 
 - [What it is](#what-it-is)
 - [Three screens](#three-screens)
-- [Four pages](#four-pages)
-- [Four tools](#four-tools)
+- [Five pages](#five-pages)
+- [Eight tools](#eight-tools)
 - [Install](#install)
 - [Boundaries and license](#boundaries-and-license)
 
@@ -30,7 +30,7 @@ DSH already ships five compaction tiers and automatic pressure compaction, but n
   <img src="screenshots/hero.png" width="100%" alt="The context vial popover and the repository pill above the input, obsidian palette" />
 </p>
 
-**The panel: glass shell, four pages** — it hangs off the sidebar row "compression tiers" and shows one page at a time. Every action button is always rendered: an unavailable one is disabled with the reason in its `title` rather than disappearing. The picture shows the models and components page: two lists in one card, two buttons at each row's trailing edge, path / progress / errors spanning the row.
+**The panel: glass shell, five pages** — it hangs off the sidebar row "compression tiers" and shows one page at a time. Every action button is always rendered: an unavailable one is disabled with the reason in its `title` rather than disappearing. The picture shows the models and components page: two lists in one card, two buttons at each row's trailing edge, path / progress / errors spanning the row.
 
 <p align="center">
   <img src="screenshots/panel.png" width="100%" alt="The models and components page: the page rail on the left, six components and the local model in one card list" />
@@ -42,11 +42,12 @@ DSH already ships five compaction tiers and automatic pressure compaction, but n
   <img src="screenshots/heat.png" width="100%" alt="The local usage board in a blank session" />
 </p>
 
-## Four pages
+## Five pages
 
 | Page | What it does |
 | :--- | :--- |
 | **Tiers** | five buttons — `gentle` / `light` / `standard` / `aggressive` / `max`; one click writes every mounted engine |
+| **Memory** | the selected workspace's `<project>/memory/` health, index budget, promises and drift, plus three constant actions: re-check / rebuild index / consolidate |
 | **Rules** | the upper card edits the whole global `AGENTS.md`; the lower card edits the managed block at the top of the selected workspace's `AGENTS.md`, leaving the rest of the file untouched and hidden |
 | **Models and components** | six rows (GitHub CLI / git / ffmpeg+ffprobe / Python / ComfyUI / ComfyUI MCP) plus one local model, FLUX.2 [klein] 4B, and the shared download root below them |
 | **GitHub** | account and token scopes, the `gh` device-code login, the network probe; the plugin never reads or stores credentials |
@@ -61,7 +62,7 @@ Tier parameters (official formula `floor(min(W × thresholdRatio, W − O − 65
 | `aggressive` | 50% | 10% |
 | `max` | 40% | 6% |
 
-## Four tools
+## Eight tools
 
 | Tool | What it does |
 | :--- | :--- |
@@ -69,10 +70,14 @@ Tier parameters (official formula `floor(min(W × thresholdRatio, W − O − 65
 | `compression_context` | reads the live occupancy, this tier's threshold and the remaining room |
 | `compression_compact` | queues one manual compaction that runs after this turn and resumes automatically; a human message cancels the queue |
 | `github_push` | publishes the current workspace: probe → secret scan → 60-second push → failure classification |
+| `memory_write` | stores one project memory behind dedupe, near-duplicate and contradicting-rule gates; external sources go to quarantine |
+| `memory_search` | term / CJK-bigram search, filterable by kind and scope |
+| `memory_reconcile` | read-only health check: overdue promises, index budget, evidence drift, expired entries, duplicates, conflicts, quarantine |
+| `memory_dream` | merges near-duplicates offline, retires expired entries, rebuilds `MEMORY.md`; preview by default |
 
 ## Install
 
-DSH → **Plugins → Add plugin**, enter `dsh-harness-toolbox` (pin it with `dsh-harness-toolbox@2.8.2`), then open a new session and the "compression tiers" panel is in the sidebar. Requires Node.js ≥ 24.9 and a DSH runtime between `0.2.2-rc.3` (inclusive) and `0.3.0` (exclusive). The full install, upgrade, component and model documentation is in the [README](README.en.md); per-release notes are in the [CHANGELOG](CHANGELOG.md).
+DSH → **Plugins → Add plugin**, enter `dsh-harness-toolbox` (pin it with `dsh-harness-toolbox@2.9.0`), then open a new session and the "compression tiers" panel is in the sidebar. Requires Node.js ≥ 24.9 and a DSH runtime between `0.2.2-rc.3` (inclusive) and `0.3.0` (exclusive). The full install, upgrade, component and model documentation is in the [README](README.en.md); per-release notes are in the [CHANGELOG](CHANGELOG.md).
 
 ## Boundaries and license
 
