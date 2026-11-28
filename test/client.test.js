@@ -178,6 +178,7 @@ const HOOK_ORDER = [
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
   'memory', 'memoryWorkspace', 'memoryMessage', 'memoryBusy',
+  'memoryDream', 'dreamEnabled', 'dreamInterval', 'dreamMessage', 'dreamBusy',
   'section',
 ]
 
@@ -211,6 +212,11 @@ const BASE_PAGE = {
   memoryWorkspace: '',
   memoryMessage: '',
   memoryBusy: false,
+  memoryDream: null,
+  dreamEnabled: false,
+  dreamInterval: '24',
+  dreamMessage: '',
+  dreamBusy: false,
   section: 'levels',
 }
 
@@ -501,6 +507,11 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'memoryIndex', 'memoryPromises', 'memoryRecent', 'memoryNoEntries', 'memoryOver',
       'memoryReload', 'memoryRebuild', 'memoryDream', 'memoryFailed', 'memoryLoadFailed',
       'memoryForeign', 'memoryDrift', 'memoryQuarantine',
+      'memoryDreamTitle', 'memoryDreamEnabled', 'memoryDreamDisabled', 'memoryDreamEnable',
+      'memoryDreamDisable', 'memoryDreamInterval', 'memoryDreamNext', 'memoryDreamLast',
+      'memoryDreamNever', 'memoryDreamRunning', 'memoryDreamSave', 'memoryDreamRun',
+      'memoryDreamCancel', 'memoryDreamSaved', 'memoryDreamClean', 'memoryDreamFailed',
+      'memoryDreamRoots', 'memoryDreamMerged', 'memoryDreamExpired', 'memoryDreamCompute',
       'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
       'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
       'vialLoading', 'vialClose',
@@ -2531,4 +2542,64 @@ test('the memory page surfaces an over-budget or hand-written index instead of h
   assert.match(notes, /memoryForeign/)
   const text = nodes.map((node) => deepText(node)).join('\n')
   assert.match(text, /memoryNoEntries/)
+})
+
+/** The `/api/memory/dream` payload, as the panel receives it. */
+function dreamState(overrides) {
+  return {
+    enabled: true,
+    intervalHours: 24,
+    lastRunAt: '2026-11-28T00:00:00.000Z',
+    nextAt: '2026-11-29T00:00:00.000Z',
+    running: false,
+    lastReport: { ranAt: '2026-11-28T00:00:00.000Z', totals: { roots: 2, merged: 3, expired: 1 } },
+    reportText: '',
+    limits: { minIntervalHours: 1, maxIntervalHours: 168, checkMs: 300000 },
+    ...(overrides || {}),
+  }
+}
+
+test('the memory page schedules nightly dreaming and keeps all four actions', () => {
+  const nodes = renderSection('memory', {
+    memory: memoryState(),
+    memoryWorkspace: 'game',
+    memoryDream: dreamState(),
+    dreamEnabled: true,
+    dreamInterval: '24',
+  })
+  assert.ok(nodes.some((node) => node.type === 'h4' && textOf(node) === 'memoryDreamTitle'))
+  for (const action of ['memoryDreamToggle', 'memoryDreamSave', 'memoryDreamRun', 'memoryDreamCancel']) {
+    const button = buttonOf(nodes, action)
+    assert.ok(button, `${action} is always rendered`)
+  }
+  assert.equal(buttonOf(nodes, 'memoryDreamRun').props.disabled, false)
+  assert.equal(buttonOf(nodes, 'memoryDreamSave').props.disabled, true, 'a clean schedule cannot be saved')
+  assert.equal(buttonOf(nodes, 'memoryDreamCancel').props.disabled, true, 'nothing to cancel while idle')
+  const input = nodes.find((node) => node.type === 'input' && node.props.className === 'ct-input')
+  assert.ok(input, 'the interval field is rendered')
+  assert.equal(input.props.value, '24')
+  assert.equal(input.props.min, '1')
+  assert.equal(input.props.max, '168')
+  const text = nodes.map((node) => deepText(node)).join('\n')
+  assert.match(text, /memoryDreamLast/)
+  assert.match(text, /memoryDreamRoots/)
+})
+
+test('a running nightly pass disables save and run but allows cancelling the rest', () => {
+  const nodes = renderSection('memory', {
+    memory: memoryState(),
+    memoryDream: dreamState({ running: true }),
+    dreamInterval: '24',
+  })
+  assert.equal(buttonOf(nodes, 'memoryDreamRun').props.disabled, true)
+  assert.equal(buttonOf(nodes, 'memoryDreamCancel').props.disabled, false)
+})
+
+test('nightly dreaming cannot be run before a workspace is registered', () => {
+  const nodes = renderSection('memory', {
+    memory: { ok: true, workspaces: [], workspace: '', memory: null },
+    memoryDream: dreamState({ enabled: false, lastRunAt: null, nextAt: null, lastReport: null }),
+  })
+  assert.equal(buttonOf(nodes, 'memoryDreamRun').props.disabled, true)
+  assert.equal(buttonOf(nodes, 'memoryDreamToggle').props.disabled, false)
 })

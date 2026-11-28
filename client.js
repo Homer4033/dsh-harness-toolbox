@@ -24,8 +24,9 @@ window.__ModuleLoader__.load({
     const TOOLS_API = '/compression-tiers/api/tools'
     const USAGE_API = '/compression-tiers/api/usage'
 const MEMORY_API = '/compression-tiers/api/memory'
+const DREAM_API = '/compression-tiers/api/memory/dream'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.9.0'
+    const PLUGIN_VERSION = '2.10.0'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -503,6 +504,26 @@ const MEMORY_API = '/compression-tiers/api/memory'
         memoryDone: '已更新',
         memoryFailed: '操作失败：',
         memoryLoadFailed: '读取记忆失败：',
+        memoryDreamTitle: '夜间做梦',
+        memoryDreamEnabled: '已启用',
+        memoryDreamDisabled: '已停用',
+        memoryDreamEnable: '启用',
+        memoryDreamDisable: '停用',
+        memoryDreamInterval: '间隔（小时）',
+        memoryDreamNext: '下次',
+        memoryDreamLast: '上次',
+        memoryDreamNever: '还没运行过',
+        memoryDreamRunning: '运行中…',
+        memoryDreamSave: '保存计划',
+        memoryDreamRun: '立即做梦',
+        memoryDreamCancel: '取消剩余',
+        memoryDreamSaved: '计划已保存',
+        memoryDreamClean: '计划没有改动',
+        memoryDreamFailed: '夜间做梦失败：',
+        memoryDreamRoots: '工作区',
+        memoryDreamMerged: '归并',
+        memoryDreamExpired: '退役',
+        memoryDreamCompute: '下次自动运行',
         workspaceRulesLabel: '补充规则（置于 AGENTS.md 开头）',
         workspaceRulesPlaceholder: '例如：本工作区只改 src/；提交前跑测试。',
         workspaceRulesMissing: '不存在，保存后创建。',
@@ -692,6 +713,26 @@ const MEMORY_API = '/compression-tiers/api/memory'
         memoryDone: 'Updated',
         memoryFailed: 'Action failed: ',
         memoryLoadFailed: 'Could not read memory: ',
+        memoryDreamTitle: 'Nightly dreaming',
+        memoryDreamEnabled: 'On',
+        memoryDreamDisabled: 'Off',
+        memoryDreamEnable: 'Enable',
+        memoryDreamDisable: 'Disable',
+        memoryDreamInterval: 'Interval (hours)',
+        memoryDreamNext: 'Next',
+        memoryDreamLast: 'Last',
+        memoryDreamNever: 'never',
+        memoryDreamRunning: 'Running…',
+        memoryDreamSave: 'Save schedule',
+        memoryDreamRun: 'Run now',
+        memoryDreamCancel: 'Cancel rest',
+        memoryDreamSaved: 'Schedule saved',
+        memoryDreamClean: 'No schedule change',
+        memoryDreamFailed: 'Nightly dreaming failed: ',
+        memoryDreamRoots: 'roots',
+        memoryDreamMerged: 'merged',
+        memoryDreamExpired: 'retired',
+        memoryDreamCompute: 'next automatic run',
         workspaceRulesLabel: 'Supplemental rules (placed at the top of AGENTS.md)',
         workspaceRulesPlaceholder: 'For example: this workspace only touches src/; run the tests before committing.',
         workspaceRulesMissing: 'missing; saving creates it.',
@@ -4864,6 +4905,12 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [memoryWorkspace, setMemoryWorkspace] = React.useState('')
       const [memoryMessage, setMemoryMessage] = React.useState('')
       const [memoryBusy, setMemoryBusy] = React.useState(false)
+      // Nightly dreaming: schedule draft plus the last bounded batch report.
+      const [memoryDream, setMemoryDream] = React.useState(null)
+      const [dreamEnabled, setDreamEnabled] = React.useState(false)
+      const [dreamInterval, setDreamInterval] = React.useState('24')
+      const [dreamMessage, setDreamMessage] = React.useState('')
+      const [dreamBusy, setDreamBusy] = React.useState(false)
       // Which page of the shell is open. Declared last so the hook order above
       // stays stable for the test harness.
       const [section, setSection] = React.useState('levels')
@@ -4881,10 +4928,18 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
         loadNetwork()
         loadWorkspaceRules()
         loadMemory()
+        loadDream()
         return function () {
           mounted.current = false
         }
       }, [])
+
+      const dreamRunningPoll = Boolean(memoryDream && memoryDream.running === true)
+      React.useEffect(function () {
+        if (!dreamRunningPoll) return undefined
+        const timer = window.setInterval(function () { loadDream(true) }, 1500)
+        return function () { window.clearInterval(timer) }
+      }, [dreamRunningPoll])
 
       const loggingIn = login ? login.active === true : false
       React.useEffect(function () {
@@ -5023,6 +5078,71 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           })
       }
 
+      function applyDream(body, syncDraft) {
+        const dream = body && body.dream ? body.dream : null
+        setMemoryDream(dream)
+        if (dream && syncDraft !== false) {
+          setDreamEnabled(dream.enabled === true)
+          setDreamInterval(String(dream.intervalHours))
+        }
+        if (body && body.error) setDreamMessage(t('memoryDreamFailed') + body.error)
+      }
+
+      function loadDream(quiet) {
+        fetch(DREAM_API, { credentials: 'same-origin' })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            applyDream(body, quiet !== true)
+            if (!quiet) setDreamMessage('')
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setDreamMessage(t('memoryDreamFailed') + messageOf(error))
+          })
+      }
+
+      function dreamRequest(payload, label) {
+        setDreamBusy(true)
+        setDreamMessage(t('memoryBusy'))
+        fetch(DREAM_API, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then(readJson)
+          .then(function (body) {
+            if (!mounted.current) return
+            applyDream(body, payload.action === 'save')
+            setDreamMessage(label)
+            if (payload.action === 'run') loadDream(true)
+          })
+          .catch(function (error) {
+            if (!mounted.current) return
+            setDreamMessage(t('memoryDreamFailed') + messageOf(error))
+          })
+          .then(function () {
+            if (mounted.current) setDreamBusy(false)
+          })
+      }
+
+      function saveDream() {
+        dreamRequest({ action: 'save', enabled: dreamEnabled, intervalHours: Number(dreamInterval) }, t('memoryDreamSaved'))
+      }
+
+      function runDreamNow() {
+        dreamRequest({ action: 'run' }, t('memoryBusy'))
+      }
+
+      function cancelDream() {
+        dreamRequest({ action: 'cancel' }, t('memoryBusy'))
+      }
+
+      function toggleDream() {
+        setDreamEnabled(function (value) { return !value })
+        setDreamMessage('')
+      }
       function loadWorkspaceRules() {
         fetch(WORKSPACE_RULES_API, { credentials: 'same-origin' })
           .then(readJson)
@@ -5853,6 +5973,66 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
             h('div', { className: 'ct-item-path' }, row.at ? timeLabel(row.at) : ''))
         })
         : [h('p', { className: 'ct-note', key: 'memory-empty' }, memoryStore ? t('memoryNoEntries') : '')]
+      const dreamInfo = memoryDream && typeof memoryDream === 'object' ? memoryDream : null
+      const dreamLimits = dreamInfo && dreamInfo.limits ? dreamInfo.limits : { minIntervalHours: 1, maxIntervalHours: 168 }
+      const dreamOn = dreamInfo ? dreamInfo.enabled === true : dreamEnabled
+      const dreamRunning = dreamInfo ? dreamInfo.running === true : false
+      const dreamDirty = Boolean(dreamInfo) && (
+        (dreamInfo.enabled === true) !== dreamEnabled
+        || String(dreamInfo.intervalHours) !== String(dreamInterval)
+      )
+      const dreamNote = !dreamInfo
+        ? t('loading')
+        : (dreamOn ? t('memoryDreamEnabled') : t('memoryDreamDisabled'))
+          + t('sep') + t('memoryDreamInterval') + t('sep') + dreamInfo.intervalHours + 'h'
+      const dreamSchedule = dreamInfo
+        ? t('memoryDreamLast') + t('sep') + (dreamInfo.lastRunAt ? timeLabel(dreamInfo.lastRunAt) : t('memoryDreamNever'))
+          + ' · ' + t('memoryDreamCompute') + t('sep') + (dreamInfo.nextAt ? timeLabel(dreamInfo.nextAt) : '—')
+          + (dreamRunning ? ' · ' + t('memoryDreamRunning') : '')
+        : ''
+      const dreamTotals = dreamInfo && dreamInfo.lastReport && dreamInfo.lastReport.totals
+        ? t('memoryDreamRoots') + t('sep') + (dreamInfo.lastReport.totals.roots || 0)
+          + ' · ' + t('memoryDreamMerged') + ' ' + (dreamInfo.lastReport.totals.merged || 0)
+          + ' · ' + t('memoryDreamExpired') + ' ' + (dreamInfo.lastReport.totals.expired || 0)
+        : ''
+      const dreamSection = h('div', { className: 'ct-section', 'data-dream': true, key: 'dream' },
+        h('h4', { className: 'ct-list-head' }, t('memoryDreamTitle')),
+        h('p', { className: 'ct-note', role: 'status' }, dreamNote),
+        dreamSchedule ? h('p', { className: 'ct-note' }, dreamSchedule) : null,
+        dreamTotals ? h('p', { className: 'ct-note' }, dreamTotals) : null,
+        h('label', { className: 'ct-field' },
+          h('span', null, t('memoryDreamInterval')),
+          h('input', {
+            className: 'ct-input',
+            type: 'number',
+            min: String(dreamLimits.minIntervalHours),
+            max: String(dreamLimits.maxIntervalHours),
+            value: dreamInterval,
+            disabled: dreamBusy || dreamRunning,
+            onChange: function (event) { setDreamInterval(event.target.value) },
+          })),
+        actionRow([
+          actionButton('memoryDreamToggle', dreamEnabled ? t('memoryDreamDisable') : t('memoryDreamEnable'), {
+            disabled: dreamBusy,
+            onClick: toggleDream,
+          }),
+          actionButton('memoryDreamSave', t('memoryDreamSave'), {
+            disabled: dreamBusy || !dreamDirty,
+            title: dreamDirty ? '' : t('memoryDreamClean'),
+            onClick: saveDream,
+          }),
+          actionButton('memoryDreamRun', t('memoryDreamRun'), {
+            disabled: dreamBusy || dreamRunning || memoryEmpty,
+            title: memoryEmpty ? t('memoryNone') : '',
+            onClick: runDreamNow,
+            primary: true,
+          }),
+          actionButton('memoryDreamCancel', t('memoryDreamCancel'), {
+            disabled: !dreamRunning,
+            onClick: cancelDream,
+          }),
+        ]),
+        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, dreamMessage))
       const memoryPanel = h('section', { className: 'ct-panel', key: 'memory' },
         h('div', { className: 'ct-rules-head' },
           h('h3', null, t('memoryTitle')),
@@ -5895,7 +6075,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
             primary: true,
           }),
         ]),
-        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, memoryMessage))
+        h('p', { className: 'ct-status', role: 'status', 'aria-live': 'polite' }, memoryMessage),
+        dreamSection)
 
       // Navigation rail: every page is always listed, so a page never disappears
       // just because its data is empty.

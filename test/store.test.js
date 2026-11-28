@@ -201,3 +201,37 @@ test('appearance is gone from the schema and dropped on read', () => {
     rmSync(home, { recursive: true, force: true })
   }
 })
+
+test('nightly dream settings are stored, normalized and default to disabled', () => {
+  const home = tempHome()
+  try {
+    const fresh = readSettings(home)
+    assert.equal(fresh.settings.memory.dream.enabled, false)
+    assert.equal(fresh.settings.memory.dream.intervalHours, 24)
+    assert.equal(fresh.settings.memory.dream.lastReport, null)
+    const saved = writeSettings(home, {
+      settings: {
+        memory: {
+          dream: {
+            enabled: true,
+            intervalHours: 999,
+            lastRunAt: '2026-11-28T00:00:00.000Z',
+            lastReport: { ranAt: '2026-11-28T00:00:00.000Z', totals: { roots: 1 }, roots: [] },
+          },
+        },
+      },
+    })
+    assert.equal(saved.settings.memory.dream.enabled, true)
+    assert.equal(saved.settings.memory.dream.intervalHours, 168)
+    assert.equal(saved.settings.memory.dream.lastRunAt, '2026-11-28T00:00:00.000Z')
+    assert.equal(saved.settings.memory.dream.lastReport.totals.roots, 1)
+    // An upgraded settings file written before 2.10.0 has no `memory` block.
+    writeFileSync(settingsPaths(home).settings, JSON.stringify({ level: 'max' }))
+    const legacy = readSettings(home)
+    assert.equal(legacy.settings.level, 'max')
+    assert.equal(legacy.settings.memory.dream.enabled, false)
+    assert.equal(legacy.settings.memory.dream.intervalHours, 24)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+})

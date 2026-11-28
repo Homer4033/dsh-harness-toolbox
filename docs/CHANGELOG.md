@@ -2,6 +2,11 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.10.0 — 2026-11-28
+
+- **夜间做梦：可调度的批量整理 + 漂移对账报告**（用户：「接着 ②」）：新增 `src/memory-dream.js`——`normalizeDreamSettings()`（默认停用、间隔钳到 1–168 小时）、`dreamDue()` / `nextDreamAt()`、`dreamProjects()`（对所有已注册工作区逐个 `dream(apply) + reconcile`，单个目录缺失或坏库只记一条错误；`shouldStop` 在项目之间生效）、`dreamReportText()` 与 `compactReport()`（≤50 个工作区、≤8KB，报告写回 `settings.json` 的 `memory.dream.lastReport`）。`src/store.js` 新增 `memory.dream` 默认值与归一化，旧配置无该块时按默认值补齐。宿主半区新增调度：每 5 分钟检查是否到期，激活后 10 秒起跑，`setImmediate` 执行避免阻塞激活；新增 `GET/POST /compression-tiers/api/memory/dream`（`save` / `run` / `cancel`，运行中重复 run 返回 409）。`memory_dream` 工具增加 `all: true` 批量模式并返回批量报告。面板「记忆」卡片底部新增计划区：启用/停用、间隔输入、上次/下次、保存计划 / 立即做梦 / 取消剩余四个常显按钮；运行中每 1.5 秒轮询状态，轮询不回写间隔草稿。
+- 测试 **287 → 297**：新增 `test/memory-dream.test.js` 6 条（默认与钳位、到期/下次、批量含坏项目、`shouldStop`、报告截断、状态 payload），`test/store.test.js` 1 条（记忆计划默认与旧配置补齐），`test/client.test.js` 3 条（四个按钮、运行中禁用保存/运行、无工作区禁止运行）与 `HOOK_ORDER` / 字典键同步。
+- 文档同步：AGENTS.md 事实来源与第 24 条、验证要求、文档索引；README 与英文版新增夜间做梦段、工具表、目录树与版本；[docs/UI.md](UI.md) 记忆页计划区；详情页；locale；`package.json` 2.10.0。**渲染未在装好 2.10.0 的窗口里复验；调度器只有单测，未在真实宿主上跑过一轮夜间任务**。
 ## 2.9.0 — 2026-11-28
 
 - **新增「记忆」分页与四个记忆工具**（用户：「产出一版 v1.1，做成加入插件『记忆』功能」）：按 v1.1 的 7 处修正落地——索引硬上限、三道写入闸、外部来源隔离、单写者/tombstone、承诺台账、面板只读状态、确定性检索。`src/memory.js`：`entries.jsonl` / `quarantine.jsonl` 只追加，`tombstone` 记录取代 / 过期 / 完成；`rebuildIndex()` 生成带 `INDEX_MARKER` 的 `MEMORY.md`（`MAX_INDEX_LINES` 200 / `MAX_INDEX_BYTES` 25,000，超限报 `over`，手写文件先改名 `.foreign-<ts>` 保留）；`writeMemory()` 闸门为完全重复、Jaccard ≥ `NEAR_DUPLICATE` 0.8 的近似重复、`rule`/`decision` 否定矛盾，`source: 'external'` 只进隔离区；`settlePromise()` 只能结算一次；`atomicWrite()` 对 Windows `EPERM` 重试退避后回退原地写。工具四个：`memory_write` / `memory_search` / `memory_reconcile` / `memory_dream`；路由 `GET/POST /compression-tiers/api/memory`；面板第 2 个分页「记忆」（工作区选择器 + 条目/承诺/索引预算/漂移/隔离区状态行 + 最近记忆列表 + 常显「重新检测 / 重建索引 / 做梦整理」）。`SECTIONS` 回到 5 项，字典 +26 键，`__test` 无新增。

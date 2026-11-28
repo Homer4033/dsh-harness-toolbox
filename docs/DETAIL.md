@@ -1,6 +1,6 @@
 # Compression tiers & workbench
 
-> DSH plugin `dsh-harness-toolbox` · version **2.9.0** · `GPL-3.0-only` · [repository](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
+> DSH plugin `dsh-harness-toolbox` · version **2.10.0** · `GPL-3.0-only` · [repository](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
 
 Five context compression tiers plus the workbench around them: a context vial above the input, a local usage board for blank sessions, six managed components and one local model, one palette that follows the host theme, global and per-workspace rules, project memory, and per-session repository publishing.
 
@@ -47,7 +47,7 @@ DSH already ships five compaction tiers and automatic pressure compaction, but n
 | Page | What it does |
 | :--- | :--- |
 | **Tiers** | five buttons — `gentle` / `light` / `standard` / `aggressive` / `max`; one click writes every mounted engine |
-| **Memory** | the selected workspace's `<project>/memory/` health, index budget, promises and drift, plus three constant actions: re-check / rebuild index / consolidate |
+| **Memory** | the selected workspace's `<project>/memory/` health, index budget, promises and drift, plus three constant actions: re-check / rebuild index / consolidate; the card footer holds the nightly schedule (enable, interval, last/next, save / run now / cancel rest) |
 | **Rules** | the upper card edits the whole global `AGENTS.md`; the lower card edits the managed block at the top of the selected workspace's `AGENTS.md`, leaving the rest of the file untouched and hidden |
 | **Models and components** | six rows (GitHub CLI / git / ffmpeg+ffprobe / Python / ComfyUI / ComfyUI MCP) plus one local model, FLUX.2 [klein] 4B, and the shared download root below them |
 | **GitHub** | account and token scopes, the `gh` device-code login, the network probe; the plugin never reads or stores credentials |
@@ -77,7 +77,7 @@ Tier parameters (official formula `floor(min(W × thresholdRatio, W − O − 65
 
 ## Install
 
-DSH → **Plugins → Add plugin**, enter `dsh-harness-toolbox` (pin it with `dsh-harness-toolbox@2.9.0`), then open a new session and the "compression tiers" panel is in the sidebar. Requires Node.js ≥ 24.9 and a DSH runtime between `0.2.2-rc.3` (inclusive) and `0.3.0` (exclusive). The full install, upgrade, component and model documentation is in the [README](README.en.md); per-release notes are in the [CHANGELOG](CHANGELOG.md).
+DSH → **Plugins → Add plugin**, enter `dsh-harness-toolbox` (pin it with `dsh-harness-toolbox@2.10.0`), then open a new session and the "compression tiers" panel is in the sidebar. Requires Node.js ≥ 24.9 and a DSH runtime between `0.2.2-rc.3` (inclusive) and `0.3.0` (exclusive). The full install, upgrade, component and model documentation is in the [README](README.en.md); per-release notes are in the [CHANGELOG](CHANGELOG.md).
 
 ## Boundaries and license
 

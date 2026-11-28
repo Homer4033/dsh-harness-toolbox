@@ -15,6 +15,7 @@ import { COMPONENT_ORDER, componentRows } from './src/component-rows.js'
 import { MODEL_IDS, modelDownloadRunning, modelsStatus, startModelDownload } from './src/models.js'
 import { usageHeatmap } from './src/usage-heatmap.js'
 import { dream, memoryStatus, rebuildIndex, reconcile, searchMemory, searchText, writeMemory } from './src/memory.js'
+import { DREAM_CHECK_MS, dreamDue, dreamProjects, dreamReportText, dreamStatus } from './src/memory-dream.js'
 import { migrateTools, parseToolsPath, resolveToolsPath, toolsStatus } from './src/tools-path.js'
 import { pushFlow, pushReportText, resolvePushCwd, sessionTarget } from './src/push-flow.js'
 import { dirname, join } from 'node:path'
@@ -608,14 +609,29 @@ export function apply(ctx) {
 
   ctx.effect(() => ctx.tools.register(defineTool({
     name: 'memory_dream',
-    description: 'Consolidate this project\'s memory offline, the way sleep consolidates: merge near-duplicate entries (newest/highest-confidence kept), retire entries past expiresAt, report contradicting rules for a human to settle, and rebuild the injected index. Without apply it only previews. It never invents text and never resolves a contradiction on its own.',
+    description: 'Consolidate project memory offline, the way sleep consolidates: merge near-duplicates (newest/highest-confidence kept), retire entries past expiresAt, report contradicting rules for a human to settle, and rebuild the injected index. Without apply it previews. With all: true it runs one pass over every registered workspace and returns the batch report. It never invents text and never resolves a contradiction on its own.',
     parameters: {
       apply: { type: 'boolean', description: 'Write the merge, the tombstones and the rebuilt index. Omit for a dry run.' },
+      all: { type: 'boolean', description: 'Run one scheduled-style pass over every registered workspace instead of this session\'s project; always applies and returns the batch report.' },
     },
     output: toolOutput(),
     async execute(args, exec) {
+      if (args.all === true) {
+        try {
+          const report = dreamProjects(listWorkspaces(homeDir()), { trigger: 'manual' })
+          return {
+            ok: true,
+            all: true,
+            totals: report.totals,
+            roots: report.roots.map((root) => ({ id: root.id, ok: root.ok, merged: root.merged, expired: root.expired, error: root.error })),
+            text: dreamReportText(report),
+          }
+        } catch (error) {
+          return { ok: false, text: `memory_dream --all failed: ${error instanceof Error ? error.message : String(error)}` }
+        }
+      }
       const root = memoryProject(exec)
-      if (!root) return { ok: false, text: 'memory_dream needs a session working directory.' }
+      if (!root) return { ok: false, text: 'memory_dream needs a session working directory, or pass all: true.' }
       try {
         const result = dream(root, { apply: args.apply === true })
         return {
@@ -632,6 +648,56 @@ export function apply(ctx) {
       }
     },
   })), 'compression-tiers: memory dream tool')
+  // Nightly maintenance: due when the interval elapsed since the recorded run.
+  // The timer only checks; the pass itself is deferred so activation never
+  // blocks on disk work, and the bounded report is persisted into settings.
+  const dreamRuntime = { running: false, cancel: false, lastError: '' }
+
+  function dreamSettingsNow() {
+    return readSettings(homeDir()).settings.memory.dream
+  }
+
+  function runDreamBatch(trigger) {
+    if (dreamRuntime.running) return false
+    dreamRuntime.running = true
+    dreamRuntime.cancel = false
+    dreamRuntime.lastError = ''
+    const projects = listWorkspaces(homeDir())
+    setImmediate(() => {
+      try {
+        const report = dreamProjects(projects, { trigger, shouldStop: () => dreamRuntime.cancel })
+        const current = dreamSettingsNow()
+        writeSettings(homeDir(), {
+          settings: { memory: { dream: { ...current, lastRunAt: report.ranAt, lastReport: report } } },
+        })
+      } catch (error) {
+        dreamRuntime.lastError = error instanceof Error ? error.message : String(error)
+        trace('memory-dream:failed', dreamRuntime.lastError)
+      } finally {
+        dreamRuntime.running = false
+      }
+    })
+    return true
+  }
+
+  function maybeDream() {
+    const dream = dreamSettingsNow()
+    if (!dream.enabled || dreamRuntime.running) return
+    if (!dreamDue(dream.lastRunAt, dream.intervalHours, new Date())) return
+    runDreamBatch('schedule')
+  }
+
+  ctx.effect(() => {
+    const timer = setInterval(maybeDream, DREAM_CHECK_MS)
+    if (timer && typeof timer.unref === 'function') timer.unref()
+    // Give activation and the engine reconciler room before touching projects.
+    const kick = setTimeout(maybeDream, 10_000)
+    if (kick && typeof kick.unref === 'function') kick.unref()
+    return () => {
+      clearInterval(timer)
+      clearTimeout(kick)
+    }
+  })
 
   ctx.inject(['webServer', 'connection'], (child) => {
     child.effect(() => child.webServer.register({
@@ -833,6 +899,56 @@ export function apply(ctx) {
     }), 'compression-tiers: memory route')
   })
 
+  // Nightly dreaming: read the schedule, save it, run a pass now or cancel the
+  // remaining projects of a pass that is already running.
+  ctx.inject(['webServer', 'connection'], (child) => {
+    child.effect(() => child.webServer.register({
+      kind: 'exact',
+      path: '/compression-tiers/api/memory/dream',
+      handler: async (req, res) => {
+        if (guard(child, req, res)) return
+        try {
+          const current = dreamSettingsNow()
+          if (req.method === 'GET') {
+            sendJson(res, 200, {
+              ok: true,
+              dream: dreamStatus(current, { running: dreamRuntime.running }),
+              error: dreamRuntime.lastError || undefined,
+            })
+            return
+          }
+          if (req.method === 'POST') {
+            const body = await readBody(req)
+            const action = typeof body.action === 'string' ? body.action : ''
+            if (action === 'save') {
+              const enabled = body.enabled === undefined ? current.enabled : body.enabled === true
+              const intervalHours = body.intervalHours === undefined ? current.intervalHours : body.intervalHours
+              const saved = writeSettings(homeDir(), {
+                settings: { memory: { dream: { ...current, enabled, intervalHours } } },
+              })
+              sendJson(res, 200, { ok: true, dream: dreamStatus(saved.settings.memory.dream, { running: dreamRuntime.running }) })
+              return
+            }
+            if (action === 'run') {
+              if (dreamRuntime.running) throw httpError(409, 'a dreaming pass is already running')
+              runDreamBatch('manual')
+              sendJson(res, 202, { ok: true, dream: dreamStatus(current, { running: true }) })
+              return
+            }
+            if (action === 'cancel') {
+              dreamRuntime.cancel = true
+              sendJson(res, 202, { ok: true, dream: dreamStatus(current, { running: dreamRuntime.running }) })
+              return
+            }
+            throw httpError(400, 'unknown action: save, run or cancel')
+          }
+          sendJson(res, 405, { error: 'GET or POST' })
+        } catch (error) {
+          sendJson(res, errorStatus(error), { error: error instanceof Error ? error.message : String(error) })
+        }
+      },
+    }), 'compression-tiers: memory dream route')
+  })
   // GitHub CLI: managed download, PATH detection and the gh device-code login.
   ctx.inject(['webServer', 'connection'], (child) => {
     const register = (path, handler, label) => child.effect(() => child.webServer.register({ kind: 'exact', path, handler }), `compression-tiers: ${label}`)

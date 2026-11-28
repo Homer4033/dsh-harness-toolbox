@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { DEFAULT_LEVEL, compactLevel } from './levels.js'
 import { normalizeRoutes } from './routes.js'
 import { normalizeToolsPath } from './tools-path.js'
+import { defaultDreamSettings, normalizeDreamSettings } from './memory-dream.js'
 
 /**
  * Plugin-owned state. The selected tier and the optional per-route overrides
@@ -37,6 +38,8 @@ export function defaultSettings() {
     // Shared download root for the managed gh and ffmpeg installs. Empty means
     // `<DSH home>/compression-tiers`, which is where earlier versions put them.
     toolsPath: '',
+    // Nightly memory maintenance (2.10.0): schedule plus the last bounded report.
+    memory: { dream: defaultDreamSettings() },
   }
 }
 
@@ -87,6 +90,10 @@ export function normalizeSettings(value) {
   // A relative or unparsable toolsPath would resolve against the process CWD;
   // drop it so the shared root falls back to the default directory.
   next.toolsPath = normalizeToolsPath(next.toolsPath)
+  // The nightly pass keeps only a bounded report; an upgraded install without
+  // this block starts disabled at the default interval.
+  const memory = value && typeof value === 'object' && value.memory && typeof value.memory === 'object' ? value.memory : {}
+  next.memory = { dream: normalizeDreamSettings(memory.dream) }
   return next
 }
 
