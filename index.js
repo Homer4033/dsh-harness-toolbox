@@ -618,7 +618,7 @@ export function apply(ctx) {
     async execute(args, exec) {
       if (args.all === true) {
         try {
-          const report = dreamProjects(listWorkspaces(homeDir()), { trigger: 'manual' })
+          const report = await dreamProjects(listWorkspaces(homeDir()), { trigger: 'manual' })
           return {
             ok: true,
             all: true,
@@ -663,21 +663,26 @@ export function apply(ctx) {
     dreamRuntime.cancel = false
     dreamRuntime.lastError = ''
     const projects = listWorkspaces(homeDir())
-    setImmediate(() => {
-      try {
-        const report = dreamProjects(projects, { trigger, shouldStop: () => dreamRuntime.cancel })
-        const current = dreamSettingsNow()
-        writeSettings(homeDir(), {
-          settings: { memory: { dream: { ...current, lastRunAt: report.ranAt, lastReport: report } } },
-        })
-      } catch (error) {
-        dreamRuntime.lastError = error instanceof Error ? error.message : String(error)
-        trace('memory-dream:failed', dreamRuntime.lastError)
-      } finally {
-        dreamRuntime.running = false
-      }
-    })
+    setImmediate(() => { void runDreamPass(projects, trigger) })
     return true
+  }
+
+  // The pass pauses between projects, so a cancel POST is actually read while
+  // the batch is still going. The project in flight always finishes.
+  async function runDreamPass(projects, trigger) {
+    try {
+      const report = await dreamProjects(projects, { trigger, shouldStop: () => dreamRuntime.cancel })
+      const current = dreamSettingsNow()
+      writeSettings(homeDir(), {
+        settings: { memory: { dream: { ...current, lastRunAt: report.ranAt, lastReport: report } } },
+      })
+    } catch (error) {
+      dreamRuntime.lastError = error instanceof Error ? error.message : String(error)
+      trace('memory-dream:failed', dreamRuntime.lastError)
+    } finally {
+      dreamRuntime.running = false
+      dreamRuntime.cancel = false
+    }
   }
 
   function maybeDream() {
@@ -909,10 +914,14 @@ export function apply(ctx) {
         if (guard(child, req, res)) return
         try {
           const current = dreamSettingsNow()
+          const statusNow = (settings) => dreamStatus(settings, {
+            running: dreamRuntime.running,
+            cancelRequested: dreamRuntime.cancel,
+          })
           if (req.method === 'GET') {
             sendJson(res, 200, {
               ok: true,
-              dream: dreamStatus(current, { running: dreamRuntime.running }),
+              dream: statusNow(current),
               error: dreamRuntime.lastError || undefined,
             })
             return
@@ -926,18 +935,21 @@ export function apply(ctx) {
               const saved = writeSettings(homeDir(), {
                 settings: { memory: { dream: { ...current, enabled, intervalHours } } },
               })
-              sendJson(res, 200, { ok: true, dream: dreamStatus(saved.settings.memory.dream, { running: dreamRuntime.running }) })
+              sendJson(res, 200, { ok: true, dream: statusNow(saved.settings.memory.dream) })
               return
             }
             if (action === 'run') {
               if (dreamRuntime.running) throw httpError(409, 'a dreaming pass is already running')
               runDreamBatch('manual')
-              sendJson(res, 202, { ok: true, dream: dreamStatus(current, { running: true }) })
+              sendJson(res, 202, { ok: true, dream: statusNow(current) })
               return
             }
             if (action === 'cancel') {
-              dreamRuntime.cancel = true
-              sendJson(res, 202, { ok: true, dream: dreamStatus(current, { running: dreamRuntime.running }) })
+              // Cancelling a pass that already ended is a no-op, not an error: the
+              // button is disabled in that state, and a race must not print a 409.
+              const applied = dreamRuntime.running
+              if (applied) dreamRuntime.cancel = true
+              sendJson(res, applied ? 202 : 200, { ok: true, applied, dream: statusNow(current) })
               return
             }
             throw httpError(400, 'unknown action: save, run or cancel')

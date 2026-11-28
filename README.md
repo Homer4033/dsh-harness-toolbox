@@ -12,7 +12,7 @@
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.10.0-0f172a?style=flat-square" alt="Version 2.10.0" />
+  <img src="https://img.shields.io/badge/Version-2.10.1-0f172a?style=flat-square" alt="Version 2.10.1" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Tests-297%20passing-16a34a?style=flat-square" alt="297 tests passing" />
@@ -120,7 +120,7 @@
 
 ### 方式一：从 npm 安装（推荐）
 
-1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.10.0`）；
+1. DSH → **插件 → 添加插件**，输入包名 `dsh-harness-toolbox`（要锁版本就写 `dsh-harness-toolbox@2.10.1`）；
 2. 安装完成后打开新会话 → 左侧栏出现 **压缩分档** 面板；
 3. 面板第一页就是五个档位按钮，选一个即可。
 
@@ -156,8 +156,8 @@ git clone https://github.com/Homer4033/dsh-harness-toolbox.git
 - **2.7.4 → 2.7.5**：看板不再跟着宿主那一块下移——`placeHeatLayer()` 测量前先把位移变量清零，卡片按宿主原始座位算位置，于是只有「欢迎语 + 输入卡」往下走、热力图留在原地。顺带修掉「窗口一 resize 整块弹回原位」的测量顺序 bug；变更记录文件从根目录移到 `docs/CHANGELOG.md`。
 - **2.7.5 → 2.7.6**：看板只在宿主标成空白的会话里出现——以前用「没有上下文读数」推断空白，切换会话时新读数还没到，卡片会闪一下、还连带把宿主那一段推下去；现在读宿主自己的 `session.blank`，有消息的会话永远只画输入框上方那一行。
 - **2.7.6 → 2.7.7**：只有文档与截图。README 改成一页三图（对话 / 面板 / 用量看板），并新增英文版 [docs/README.en.md](docs/README.en.md)；详情页从「一张图」改写成「目录 + 正文」；截图全部由离线渲染舞台按 2.7.6 的界面重拍，2.5.0 已删除的像素伙伴、已下线的旧配色与旧分页都不再出现在图里。代码、接口、设置与已下好的文件全都不动。
-- **2.10.0**：新增夜间做梦——按 settings.json 的计划（默认关闭、间隔 1–168 小时）在后台对**所有已注册工作区**批量整理，报告写回设置并显示在「记忆」页；不会调模型、只写各项目自己的 memory/。memory_dream 增加 ll: true 批量模式。
-pm test 从 287 升到 297。旧配置无 memory 块时按默认值（停用、24 小时）补齐。
+- **2.10.1**：修掉「取消剩余」实际上按不动的问题——整批整理原来是一段同步循环，跑起来就把事件循环占住，取消请求要等整批跑完才读得到。现在每整理完一个工作区就让出一次事件循环，取消会停在「还没轮到的」那些工作区上（正在整理的那个照旧做完）；请求发出后按钮置灰、`title` 写明原因，接口 `cancel` 在没有批次在跑时回 200 + `applied: false`（不再回 409）。
+- **2.10.0**：新增夜间做梦——按 settings.json 的计划（默认关闭、间隔 1–168 小时）在后台对**所有已注册工作区**批量整理，报告写回设置并显示在「记忆」页；不会调模型、只写各项目自己的 memory/。`memory_dream` 增加 `all: true` 批量模式。`npm test` 从 287 升到 297。旧配置无 memory 块时按默认值（停用、24 小时）补齐。
 - **2.9.0**：新增「记忆」分页与四个记忆工具（`memory_write` / `memory_search` / `memory_reconcile` / `memory_dream`）。记忆存在所选工作区的 `<项目>/memory/`（append-only JSONL + 插件生成的 `MEMORY.md` 索引，硬上限 200 行 / 25KB），面板可重建索引与做梦整理；外部来源只进隔离区，永远不能写成规则。不迁移任何旧数据，不装即无影响。
 - **2.8.2**：外观页取消，配色跟着 DSH 的深色 / 浅色自动切换（深空黑曜 / 白昼冷晶），「跟随宿主」与动效档位、光学外观开关一并删除；输入卡上的银白流光边按用户要求取消。旧 `settings.json` 里的 `appearance` 块读取时直接丢弃，下次写入不再保留；不需要改任何配置。
 - **许可证**：2.0.0 起整包改为 **GPL-3.0-only**（因为移植了上游 GPL 代码）；`1.10.3` 及更早的版本仍是 MIT。
@@ -194,6 +194,8 @@ pm test 从 287 升到 297。旧配置无 memory 块时按默认值（停用、2
 四个工具读写这份记忆，`memory_write` 只存「以后会重新推导一遍」的东西：决策与理由、被否方案、验证过的规则、失败根因、承诺、待决问题。写之前过三道闸——完全重复直接返回原条目（不写第二份）；近似重复（词/字符二元组重叠 ≥ 0.8）要么 `supersedes` 旧条目、要么显式 `force`；与既有规则矛盾的必须取代旧条目，否则拒绝。`source: "external"`（网页、素材站、第三方 PR）只能进隔离区，**永远不能成为 rule / decision**，也不进索引。`memory_search` 按词与字符二元组重叠打分，`memory_reconcile` 报逾期承诺、证据路径消失、过期条目、近重复、矛盾与隔离区，`memory_dream` 离线归并近重复、按 `expiresAt` 退役、重建索引——默认只预览，`apply: true` 才写。
 
 面板只做三件事：切工作区、看状态（条目数、承诺、索引行数/字节、漂移、隔离区）、触发「重新检测 / 重建索引 / 做梦整理」。条目本身只由工具写，面板不会替人编一条记忆。接口是 `GET/POST /compression-tiers/api/memory`。
+
+卡片最后一节是**夜间做梦计划**（2.10.0）：启用 / 停用、间隔 1–168 小时（默认 24）、上次与下次运行、最近一轮的总量，动作行四个按钮常显（启用·停用 / 保存计划 / 立即做梦 / 取消剩余）。计划存在 `settings.json` 的 `memory.dream`；启用后宿主每 5 分钟查一次到期（激活后 10 秒起跑，避开引擎重建），每轮对**所有已注册工作区**逐个 `dream(apply) + reconcile`，一个坏项目只失败它自己。整批在项目之间**让出事件循环**（2.10.1），所以「取消剩余」按得动：它只停还没轮到的工作区，正在整理的那个会做完，请求发出后按钮置灰直到本轮结束。每轮把 `lastRunAt` 与一份有界报告（≤50 个工作区、≤8 KB：归并 / 退役 / 矛盾 / 索引超限 / 外部写入 / 证据漂移 / 逾期承诺）写回设置。接口 `GET/POST /compression-tiers/api/memory/dream`（`save` / `run` / `cancel`），工具侧对应 `memory_dream` 的 `all: true`。
 
 ### 配色：深色深空黑曜，浅色白昼冷晶
 
@@ -326,10 +328,10 @@ pm test 从 287 升到 297。旧配置无 memory 块时按默认值（停用、2
 <details>
 <summary><strong>分层、试管物理、阈值、配色跟随与安全边界（点击展开）</strong></summary>
 
-**版本 `2.10.0`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
+**版本 `2.10.1`** 不改宿主的压缩算法、不碰宿主平面上的 `compaction-basic` 行，只通过官方 slot、官方投影与预设隔离域工作：
 
 - **Host / Client 两个半区**：`index.js` 注册八个工具、系统提示摘要、HTTP 路由与 reconciler（把档位同步进预设隔离域里的压缩引擎）；`client.js` 只拿 `ctx.slots` / `ctx.locale` / `ctx.effect` 与主题 token 渲染侧栏面板与输入框上方那一行。面板不 import 宿主的 Client 包，下拉、菜单、按钮全部自绘。
-- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.10.0` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个。
+- **普通 `<script>` 加载移植模块**：`vial-core.js`（约 75 KB）是上游 1.0.8-beta.1 的脚本，走同源路由 `GET /compression-tiers/vendor/<name>`（白名单只有这一个文件名，`text/javascript; charset=utf-8`，`cache-control: public, max-age=3600`，URL 带 `?v=2.10.1` 防止旧缓存跨版本存活）。这样 `client.js` 不用背 UMD 内容，也不用 `eval`。2.4.6 撤掉地平线渲染器、2.5.0 删除像素伙伴装配之后，白名单从三个名字收成一个。
 - **试管是物理的**：`vial-core.js` 导出 `createWaterVialPhysics` 与 `mountPhysicalWaterVial`，在 96×220 的 canvas 上跑 24 节点浅水波、阻尼与表面张力；宿主负责驱动 RAF 与 `step(dt)`，`isSettled()` 为真时停止重绘。液面比例与阈值刻度由面板按官方公式算好后传给物理层——物理层不认识 token。
 - **数字来自官方投影**：占用与窗口来自 `useProjection('contextPressure')`，三段构成来自 `useProjection('contextBreakdown')`。没有任何读数时（新会话的第一条消息之前）整支试管不渲染——宿主自己那时也不画 `ContextMeter`，所以不摆一个点不动的灰「—」；试管浮窗的环境（端口、主题、`reducedMotion`）由客户端传进去，移植模块不读宿主全局。
 - **换肤是两条腿**：插件自己的面板 / dock / 弹层用 `.ct-skin[data-palette='…']` 上的 token（宿主界面不受影响，主题服务缺席时也不至于没皮肤）；整个 DSH 界面则由 `ctx.theme.overrideTokens('compression-tiers', tokens)` 叠一层，宿主把它写成 `<body>` 上的内联 CSS 变量。每个 token 必须是 `{ light, dark }` 成对值（服务故意拒绝裸字符串），两套模式都齐备——这正是「皮肤跟随 DSH 深浅」的实现方式：宿主自己挑用哪一半。

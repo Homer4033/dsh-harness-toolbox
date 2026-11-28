@@ -178,7 +178,7 @@ const HOOK_ORDER = [
   'login', 'auth', 'ghMessage', 'ghBusy', 'network',
   'workspaceRules', 'workspaceId', 'workspaceText', 'workspaceMessage', 'workspaceBusy',
   'memory', 'memoryWorkspace', 'memoryMessage', 'memoryBusy',
-  'memoryDream', 'dreamEnabled', 'dreamInterval', 'dreamMessage', 'dreamBusy',
+  'memoryDream', 'dreamEnabled', 'dreamInterval', 'dreamMessage', 'dreamBusy', 'dreamCancelSent',
   'section',
 ]
 
@@ -217,6 +217,7 @@ const BASE_PAGE = {
   dreamInterval: '24',
   dreamMessage: '',
   dreamBusy: false,
+  dreamCancelSent: false,
   section: 'levels',
 }
 
@@ -510,7 +511,7 @@ test('the client factory registers a sidebar panel and a composer dock entry', (
       'memoryDreamTitle', 'memoryDreamEnabled', 'memoryDreamDisabled', 'memoryDreamEnable',
       'memoryDreamDisable', 'memoryDreamInterval', 'memoryDreamNext', 'memoryDreamLast',
       'memoryDreamNever', 'memoryDreamRunning', 'memoryDreamSave', 'memoryDreamRun',
-      'memoryDreamCancel', 'memoryDreamSaved', 'memoryDreamClean', 'memoryDreamFailed',
+      'memoryDreamCancel', 'memoryDreamCancelSent', 'memoryDreamSaved', 'memoryDreamClean', 'memoryDreamFailed',
       'memoryDreamRoots', 'memoryDreamMerged', 'memoryDreamExpired', 'memoryDreamCompute',
       'vialTitle', 'vialAria', 'vialUsed', 'vialWindow', 'vialThreshold', 'vialRetain',
       'vialUntil', 'vialLevel', 'vialSystem', 'vialTools', 'vialMessages', 'vialUnavailable',
@@ -2593,6 +2594,35 @@ test('a running nightly pass disables save and run but allows cancelling the res
   })
   assert.equal(buttonOf(nodes, 'memoryDreamRun').props.disabled, true)
   assert.equal(buttonOf(nodes, 'memoryDreamCancel').props.disabled, false)
+})
+
+test('a cancelled pass stops offering the cancel until it actually ends', () => {
+  // The host reports the armed flag, so a remount keeps the button disabled.
+  const armed = renderSection('memory', {
+    memory: memoryState(),
+    memoryDream: dreamState({ running: true, cancelRequested: true }),
+    dreamInterval: '24',
+  })
+  const button = buttonOf(armed, 'memoryDreamCancel')
+  assert.equal(button.props.disabled, true)
+  assert.equal(button.props.title, 'memoryDreamCancelSent')
+  // The click itself arms it before the next status refresh arrives.
+  const clicked = renderSection('memory', {
+    memory: memoryState(),
+    memoryDream: dreamState({ running: true }),
+    dreamInterval: '24',
+    dreamCancelSent: true,
+  })
+  assert.equal(buttonOf(clicked, 'memoryDreamCancel').props.disabled, true)
+  // Once the pass ends the flag clears and the button is merely idle-disabled.
+  const idle = renderSection('memory', {
+    memory: memoryState(),
+    memoryDream: dreamState({ running: false }),
+    dreamInterval: '24',
+  })
+  const idleButton = buttonOf(idle, 'memoryDreamCancel')
+  assert.equal(idleButton.props.disabled, true)
+  assert.equal(idleButton.props.title, '')
 })
 
 test('nightly dreaming cannot be run before a workspace is registered', () => {

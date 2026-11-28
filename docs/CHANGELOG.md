@@ -2,9 +2,16 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.10.1 — 2026-11-28
+
+- **修掉「取消剩余」按不动的问题**（用户问「『取消剩余』干什么的？」）：2.10.0 把整批整理写成一段**同步循环**（`dreamProjects()` 一个 `for` 跑完所有工作区），跑起来就把宿主事件循环占住——取消请求要等整批结束才读得到，那时已经没有「剩余」可停，按钮实际上按不出任何效果，面板的 `running` 轮询同样拿不到中间状态。现在 `dreamProjects()` 是 `async`，**每整理完一个工作区就让出一次事件循环**（`yieldToHost()` = `setImmediate`），`shouldStop` 仍然只在两个项目之间检查，正在整理的那个照旧做完；只在「后面还有项目」时暂停，最后一个是直接出报告。`options.pause` 可替换那次让出，用例用它把取消塞进间隙。
+- **接口与面板状态**：`POST { action: 'cancel' }` 在没有批次在跑时回 200 + `applied: false`（不再回 409 —— 按钮本来就是置灰的，抢跑不该弹英文错误）；`run` 的 202 现在带真实 `running: true`；`dreamStatus()` 多一个 `cancelRequested`（只在 `running` 时才可能为 true）。面板新增 `dreamCancelSent` 状态：点过取消后按钮置灰、`title` 写「已请求取消，当前工作区做完就停」，本轮结束后自动复位；接口回 `applied: false` 时不写这句话，只清掉状态行。字典新增 `memoryDreamCancelSent`（中英各一条）。
+- 测试 **297 → 300**：`test/memory-dream.test.js` 改成 `async` 用例并新增 2 条（取消落在项目之间的间隙里：只暂停一次、只处理第一个工作区、被碰到的那轮不中断、`stopped` 为真；默认让出真的把事件循环交回去——排在前面的 `setImmediate` 会在整批结束前跑掉），`dreamStatus` 补 `cancelRequested` 断言（没有 `running` 时永远 false）；`test/client.test.js` 新增 1 条（`cancelRequested` 或本地已点都让按钮置灰且 `title` 一致，空闲时只是 `disabled` 而没有 `title`），`HOOK_ORDER` / `BASE_PAGE` / 字典键同步。
+- 文档同步：AGENTS.md 第 24 条与验证要求、变更记录（2.10.0 条目移入 [docs/HISTORY.md](HISTORY.md)，归档范围改为 1.0 – 2.10.0）；README、[docs/README.en.md](README.en.md) 补中文计划区段落与取消语义；[docs/UI.md](UI.md) 新增「记忆页的计划区」一条（占位、四个常显按钮、取消后置灰）；顺手修掉 README 2.10.0 条目里上一次 PowerShell 反引号事故留下的 `memory_dream 增加 ll: true`（应为 `all: true`）与断行的 `npm test`。**面板渲染与真实夜间调度仍未在宿主里复验**。
+
 ## 2.10.0 — 2026-11-28
 
-- **夜间做梦：可调度的批量整理 + 漂移对账报告**（用户：「接着 ②」）：新增 `src/memory-dream.js`——`normalizeDreamSettings()`（默认停用、间隔钳到 1–168 小时）、`dreamDue()` / `nextDreamAt()`、`dreamProjects()`（对所有已注册工作区逐个 `dream(apply) + reconcile`，单个目录缺失或坏库只记一条错误；`shouldStop` 在项目之间生效）、`dreamReportText()` 与 `compactReport()`（≤50 个工作区、≤8KB，报告写回 `settings.json` 的 `memory.dream.lastReport`）。`src/store.js` 新增 `memory.dream` 默认值与归一化，旧配置无该块时按默认值补齐。宿主半区新增调度：每 5 分钟检查是否到期，激活后 10 秒起跑，`setImmediate` 执行避免阻塞激活；新增 `GET/POST /compression-tiers/api/memory/dream`（`save` / `run` / `cancel`，运行中重复 run 返回 409）。`memory_dream` 工具增加 `all: true` 批量模式并返回批量报告。面板「记忆」卡片底部新增计划区：启用/停用、间隔输入、上次/下次、保存计划 / 立即做梦 / 取消剩余四个常显按钮；运行中每 1.5 秒轮询状态，轮询不回写间隔草稿。
+- **夜间做梦：可调度的批量整理 + 漂移对账报告**（用户：「接着 ②」）：新增 `src/memory-dream.js`——`normalizeDreamSettings()`（默认停用、间隔钳到 1–168 小时）、`dreamDue()` / `nextDreamAt()`、`dreamProjects()`（对所有已注册工作区逐个 `dream(apply) + reconcile`，单个目录缺失或坏库只记一条错误；`shouldStop` 在项目之间生效——但 2.10.0 的整批是同步循环，取消请求要等整批跑完才读得到，见 2.10.1）、`dreamReportText()` 与 `compactReport()`（≤50 个工作区、≤8KB，报告写回 `settings.json` 的 `memory.dream.lastReport`）。`src/store.js` 新增 `memory.dream` 默认值与归一化，旧配置无该块时按默认值补齐。宿主半区新增调度：每 5 分钟检查是否到期，激活后 10 秒起跑，`setImmediate` 执行避免阻塞激活；新增 `GET/POST /compression-tiers/api/memory/dream`（`save` / `run` / `cancel`，运行中重复 run 返回 409）。`memory_dream` 工具增加 `all: true` 批量模式并返回批量报告。面板「记忆」卡片底部新增计划区：启用/停用、间隔输入、上次/下次、保存计划 / 立即做梦 / 取消剩余四个常显按钮；运行中每 1.5 秒轮询状态，轮询不回写间隔草稿。
 - 测试 **287 → 297**：新增 `test/memory-dream.test.js` 6 条（默认与钳位、到期/下次、批量含坏项目、`shouldStop`、报告截断、状态 payload），`test/store.test.js` 1 条（记忆计划默认与旧配置补齐），`test/client.test.js` 3 条（四个按钮、运行中禁用保存/运行、无工作区禁止运行）与 `HOOK_ORDER` / 字典键同步。
 - 文档同步：AGENTS.md 事实来源与第 24 条、验证要求、文档索引；README 与英文版新增夜间做梦段、工具表、目录树与版本；[docs/UI.md](UI.md) 记忆页计划区；详情页；locale；`package.json` 2.10.0。**渲染未在装好 2.10.0 的窗口里复验；调度器只有单测，未在真实宿主上跑过一轮夜间任务**。
 ## 2.9.0 — 2026-11-28

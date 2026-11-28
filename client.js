@@ -26,7 +26,7 @@ window.__ModuleLoader__.load({
 const MEMORY_API = '/compression-tiers/api/memory'
 const DREAM_API = '/compression-tiers/api/memory/dream'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.10.0'
+    const PLUGIN_VERSION = '2.10.1'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),
@@ -517,6 +517,7 @@ const DREAM_API = '/compression-tiers/api/memory/dream'
         memoryDreamSave: '保存计划',
         memoryDreamRun: '立即做梦',
         memoryDreamCancel: '取消剩余',
+        memoryDreamCancelSent: '已请求取消，当前工作区做完就停',
         memoryDreamSaved: '计划已保存',
         memoryDreamClean: '计划没有改动',
         memoryDreamFailed: '夜间做梦失败：',
@@ -726,6 +727,7 @@ const DREAM_API = '/compression-tiers/api/memory/dream'
         memoryDreamSave: 'Save schedule',
         memoryDreamRun: 'Run now',
         memoryDreamCancel: 'Cancel rest',
+        memoryDreamCancelSent: 'Cancel requested: stops after the current workspace',
         memoryDreamSaved: 'Schedule saved',
         memoryDreamClean: 'No schedule change',
         memoryDreamFailed: 'Nightly dreaming failed: ',
@@ -4911,6 +4913,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const [dreamInterval, setDreamInterval] = React.useState('24')
       const [dreamMessage, setDreamMessage] = React.useState('')
       const [dreamBusy, setDreamBusy] = React.useState(false)
+      // A cancel only stops the projects that have not started yet; until the
+      // running pass ends the button stays disabled instead of re-arming.
+      const [dreamCancelSent, setDreamCancelSent] = React.useState(false)
       // Which page of the shell is open. Declared last so the hook order above
       // stays stable for the test harness.
       const [section, setSection] = React.useState('levels')
@@ -5081,6 +5086,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       function applyDream(body, syncDraft) {
         const dream = body && body.dream ? body.dream : null
         setMemoryDream(dream)
+        if (dream && dream.running !== true) setDreamCancelSent(false)
         if (dream && syncDraft !== false) {
           setDreamEnabled(dream.enabled === true)
           setDreamInterval(String(dream.intervalHours))
@@ -5102,7 +5108,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
           })
       }
 
-      function dreamRequest(payload, label) {
+      function dreamRequest(payload, label, onOk) {
         setDreamBusy(true)
         setDreamMessage(t('memoryBusy'))
         fetch(DREAM_API, {
@@ -5116,6 +5122,7 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
             if (!mounted.current) return
             applyDream(body, payload.action === 'save')
             setDreamMessage(label)
+            if (typeof onOk === 'function') onOk(body)
             if (payload.action === 'run') loadDream(true)
           })
           .catch(function (error) {
@@ -5136,7 +5143,13 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       }
 
       function cancelDream() {
-        dreamRequest({ action: 'cancel' }, t('memoryBusy'))
+        dreamRequest({ action: 'cancel' }, t('memoryDreamCancelSent'), function (body) {
+          const armed = Boolean(body && body.applied === true)
+          setDreamCancelSent(armed)
+          // A pass that ended before the click is not a cancel: say nothing
+          // instead of claiming one.
+          if (!armed) setDreamMessage('')
+        })
       }
 
       function toggleDream() {
@@ -5977,6 +5990,9 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
       const dreamLimits = dreamInfo && dreamInfo.limits ? dreamInfo.limits : { minIntervalHours: 1, maxIntervalHours: 168 }
       const dreamOn = dreamInfo ? dreamInfo.enabled === true : dreamEnabled
       const dreamRunning = dreamInfo ? dreamInfo.running === true : false
+      // Either our own click or a status refresh may have armed the cancel; the
+      // button must not fire a second one that the host would answer with 409.
+      const dreamCancelPending = dreamCancelSent || Boolean(dreamInfo && dreamInfo.cancelRequested === true)
       const dreamDirty = Boolean(dreamInfo) && (
         (dreamInfo.enabled === true) !== dreamEnabled
         || String(dreamInfo.intervalHours) !== String(dreamInterval)
@@ -6028,7 +6044,8 @@ body[data-ds-dark-theme] .ct-effort-star-dot {
             primary: true,
           }),
           actionButton('memoryDreamCancel', t('memoryDreamCancel'), {
-            disabled: !dreamRunning,
+            disabled: !dreamRunning || dreamCancelPending,
+            title: dreamCancelPending ? t('memoryDreamCancelSent') : '',
             onClick: cancelDream,
           }),
         ]),

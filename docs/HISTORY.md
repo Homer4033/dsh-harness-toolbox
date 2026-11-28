@@ -1,4 +1,4 @@
-# 变更记录归档（1.0 – 2.9.0）
+# 变更记录归档（1.0 – 2.10.0）
 
 > AGENTS.md 的「变更记录」只保留最近几个版本；更早的历史在这里逐条保留，格式与原文一致。
 
@@ -120,3 +120,5 @@
 - 2026-11-27：**2.8.0 把上游输入卡的四种光效加入插件**（用户：「…这4个效果加入插件」，按棱镜流光边 / 停止按钮彩虹环 / 升空彩虹环 / 焦散扫光实现，不做阵营弧光）：`ComposerOptics` 把只读的 `.ct-optics-layer` portal 到 `<body>`，宿主输入卡不改样式或子节点；开关沿用 `art` / `motion`（`full` 全开、`subtle` 两项、`off` 全关），`prefers-reduced-motion` 下停转并隐藏两个瞬时效果。`test/client.test.js` 新增 10 条（273 → 283）。2.7.6 / 2.7.7 移入 [docs/HISTORY.md](docs/HISTORY.md)。
 
 - 2026-11-28：**2.9.0 加入「记忆」分页与四个记忆工具**（用户：「产出一版 v1.1，做成加入插件'记忆'功能」，按 v1.1 的 7 处修正落地）：新增 `src/memory.js`（只追加 JSONL + 生成的 `MEMORY.md`，200 行 / 25KB 上限；完全重复返回、Jaccard ≥ 0.8 需取代或强制、规则否定矛盾需取代、外部来源只进隔离区、`EPERM` 重试后退化原地写）、14 条单测、`memory_write` / `memory_search` / `memory_reconcile` / `memory_dream`、`/compression-tiers/api/memory` 与面板第 2 个分页「记忆」。测试 270 → **287**。第 22 / 24 条、事实来源、验证要求、README、UI 规范、详情页、locale 与 `package.json` 同步。**渲染未在装好 2.9.0 的窗口复验；工具与路由只有单测**。
+
+- 2026-11-28：**2.10.0 夜间做梦（可调度批量整理）**：新增 `src/memory-dream.js` 与 `memory.dream` 设置、宿主调度（5 分钟查到期、激活后 10 秒起跑）、`GET/POST /api/memory/dream`、`memory_dream` 的 `all` 与面板计划区；测试 287 → **297**。细节见 [docs/CHANGELOG.md](CHANGELOG.md#2100--2026-11-28)。**渲染与真实夜间调度未复验**。

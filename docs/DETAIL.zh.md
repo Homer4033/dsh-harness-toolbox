@@ -1,6 +1,6 @@
 # 压缩分档与综合工作台
 
-> DSH 插件 `dsh-harness-toolbox` · 版本 **2.10.0** · `GPL-3.0-only` · [仓库](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
+> DSH 插件 `dsh-harness-toolbox` · 版本 **2.10.1** · `GPL-3.0-only` · [仓库](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
 
 五档上下文压缩，加上一整套围着它的工作台：输入框上方的上下文试管、空白会话的本机用量看板、六套托管组件与一个本地模型、一套跟着 DSH 深浅自动切换的配色、全局与工作区规则、项目记忆，以及按会话绑定的仓库发布。
 
@@ -77,7 +77,7 @@ DSH 自己已经有五档压缩与自动压力压缩，但没有一个地方把�
 
 ## 安装
 
-DSH → **插件 → 添加插件**，输入 `dsh-harness-toolbox`（要锁版本写 `dsh-harness-toolbox@2.10.0`），装完打开新会话即可在左侧栏看到「压缩分档」。要求 Node.js ≥ 24.9、DSH 运行时 `0.2.2-rc.3`（含）到 `0.3.0`（不含）。完整的安装、升级、组件与模型说明见 [README](../README.md)，逐版本变更见 [CHANGELOG](CHANGELOG.md)。
+DSH → **插件 → 添加插件**，输入 `dsh-harness-toolbox`（要锁版本写 `dsh-harness-toolbox@2.10.1`），装完打开新会话即可在左侧栏看到「压缩分档」。要求 Node.js ≥ 24.9、DSH 运行时 `0.2.2-rc.3`（含）到 `0.3.0`（不含）。完整的安装、升级、组件与模型说明见 [README](../README.md)，逐版本变更见 [CHANGELOG](CHANGELOG.md)。
 
 ## 边界与许可
 

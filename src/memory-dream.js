@@ -7,6 +7,14 @@
  * going when one project is broken, and a bounded report that can be persisted
  * into `settings.json` and painted in the panel without growing forever.
  *
+ * The batch is asynchronous even though every step of it is synchronous work:
+ * one pass can touch fifty projects, and a single blocking loop would starve the
+ * host's event loop for its whole duration — a "cancel the rest" request could
+ * not even be read until the pass it wanted to stop had already finished. The
+ * pass therefore yields to the event loop between projects, never inside one,
+ * so the project being consolidated is still finished before the next
+ * `shouldStop` check.
+ *
  * No model is called and nothing is written outside the projects' own
  * `memory/` directories; the report is the only new state.
  */
@@ -141,22 +149,34 @@ function entryOf(project, outcome, error) {
   }
 }
 
+/** Hand the event loop back once, letting a pending request be served. */
+export function yieldToHost() {
+  return new Promise((resolve) => { setImmediate(resolve) })
+}
+
 /**
  * One maintenance pass over many projects. A missing directory or a corrupt
  * store fails that project alone; the rest still run. `shouldStop` is checked
  * between projects so a manual cancel stops the remaining work without
  * interrupting the project currently being consolidated.
+ *
+ * Resolves to the bounded report. `options.pause` replaces the default
+ * `yieldToHost` between projects (tests use it to land a cancel inside the gap).
  */
-export function dreamProjects(projects, options = {}) {
+export async function dreamProjects(projects, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date()
   const list = Array.isArray(projects) ? projects.filter((item) => item && typeof item === 'object') : []
+  const shouldStop = typeof options.shouldStop === 'function' ? options.shouldStop : null
+  const pause = typeof options.pause === 'function' ? options.pause : yieldToHost
+  const queue = list.slice(0, MAX_REPORT_ROOTS * 2)
   const entries = []
   let stopped = false
-  for (const project of list.slice(0, MAX_REPORT_ROOTS * 2)) {
-    if (typeof options.shouldStop === 'function' && options.shouldStop()) {
+  for (let index = 0; index < queue.length; index += 1) {
+    if (shouldStop && shouldStop()) {
       stopped = true
       break
     }
+    const project = queue[index]
     try {
       memoryRoot(project.path)
       const outcome = dream(project.path, { apply: true, now })
@@ -165,6 +185,9 @@ export function dreamProjects(projects, options = {}) {
     } catch (error) {
       entries.push(entryOf(project, null, error))
     }
+    // Only pause while another project is left: the last one is followed by the
+    // report write, and there is nothing a cancel could still stop.
+    if (index + 1 < queue.length) await pause()
   }
   const totals = entries.reduce((acc, entry) => {
     acc.roots += 1
@@ -239,6 +262,9 @@ export function dreamStatus(settings, options = {}) {
     lastRunAt: normalized.lastRunAt,
     nextAt: normalized.enabled ? nextDreamAt(normalized.lastRunAt, normalized.intervalHours, now) : null,
     running: options.running === true,
+    // A cancel stops the projects that have not started yet; the panel keeps the
+    // button disabled until the pass actually ends.
+    cancelRequested: options.running === true && options.cancelRequested === true,
     lastReport: normalized.lastReport,
     reportText: dreamReportText(normalized.lastReport),
     limits: {

@@ -55,14 +55,14 @@ test('due and next-run arithmetic never runs more often than the interval', () =
   assert.equal(nextDreamAt('2020-01-01T00:00:00.000Z', 1, NOW), NOW.toISOString())
 })
 
-test('a batch consolidates every healthy project and isolates the broken one', () => {
+test('a batch consolidates every healthy project and isolates the broken one', async () => {
   const good = tempProject()
   const bad = join(tmpdir(), 'compression-tiers-dream-missing-does-not-exist')
   try {
     writeMemory(good, { kind: 'fact', claim: '美术命名一律小写加下划线' }, { now: NOW })
     writeMemory(good, { kind: 'fact', claim: '美术命名一律小写加下划线（重复）', force: true }, { now: NOW })
     writeMemory(good, { kind: 'fact', claim: '季度评审临时事实', expiresAt: '2026-11-01' }, { now: NOW })
-    const report = dreamProjects([
+    const report = await dreamProjects([
       { id: 'good', title: 'Good', path: good },
       { id: 'bad', title: 'Missing', path: bad },
     ], { now: NOW, trigger: 'schedule' })
@@ -89,12 +89,12 @@ test('a batch consolidates every healthy project and isolates the broken one', (
   }
 })
 
-test('shouldStop cancels the rest of the batch without touching the current project', () => {
+test('shouldStop cancels the rest of the batch without touching the current project', async () => {
   const first = tempProject()
   const second = tempProject()
   try {
     let calls = 0
-    const report = dreamProjects([
+    const report = await dreamProjects([
       { id: 'a', title: 'A', path: first },
       { id: 'b', title: 'B', path: second },
     ], {
@@ -107,6 +107,57 @@ test('shouldStop cancels the rest of the batch without touching the current proj
     assert.equal(report.stopped, true)
     assert.equal(report.totals.roots, 1)
     assert.match(dreamReportText(report), /手动取消/)
+  } finally {
+    rmSync(first, { recursive: true, force: true })
+    rmSync(second, { recursive: true, force: true })
+  }
+})
+
+test('a cancel that arrives between projects stops the rest of the pass', async () => {
+  const first = tempProject()
+  const second = tempProject()
+  const third = tempProject()
+  try {
+    // The gap between two projects is exactly where a cancel POST is served, so
+    // the pause is where the test arms it — the project already running must not
+    // be interrupted, and the two behind it must not start.
+    let cancel = false
+    let pauses = 0
+    const report = await dreamProjects([
+      { id: 'a', title: 'A', path: first },
+      { id: 'b', title: 'B', path: second },
+      { id: 'c', title: 'C', path: third },
+    ], {
+      now: NOW,
+      shouldStop: () => cancel,
+      pause: async () => {
+        pauses += 1
+        await new Promise((resolve) => { setImmediate(resolve) })
+        cancel = true
+      },
+    })
+    assert.equal(pauses, 1, 'the pass pauses only while another project is left')
+    assert.equal(report.stopped, true)
+    assert.equal(report.totals.roots, 1)
+    assert.equal(report.roots[0].id, 'a', 'the project in flight still finished')
+    assert.equal(report.totals.failed, 0)
+  } finally {
+    for (const dir of [first, second, third]) rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('the default pause really hands the event loop back between projects', async () => {
+  const first = tempProject()
+  const second = tempProject()
+  try {
+    const order = []
+    setImmediate(() => { order.push('host') })
+    const report = await dreamProjects([
+      { id: 'a', title: 'A', path: first },
+      { id: 'b', title: 'B', path: second },
+    ], { now: NOW })
+    assert.deepEqual(order, ['host'], 'a scheduled host task runs before the pass ends')
+    assert.equal(report.totals.ok, 2)
   } finally {
     rmSync(first, { recursive: true, force: true })
     rmSync(second, { recursive: true, force: true })
@@ -149,6 +200,11 @@ test('status payload reports schedule, next run and the last report text', () =>
   assert.match(disabled.reportText, /还没有运行过/)
   const enabled = dreamStatus({ enabled: true, lastRunAt: NOW.toISOString(), intervalHours: 12 }, { now: NOW, running: true })
   assert.equal(enabled.running, true)
+  assert.equal(enabled.cancelRequested, false)
   assert.equal(enabled.nextAt, new Date(NOW.getTime() + 12 * 3_600_000).toISOString())
   assert.equal(enabled.limits.maxIntervalHours, DREAM_MAX_INTERVAL_HOURS)
+  const cancelling = dreamStatus({ enabled: true }, { now: NOW, running: true, cancelRequested: true })
+  assert.equal(cancelling.cancelRequested, true)
+  // The flag alone is not a state: an idle pass cannot be "cancelling".
+  assert.equal(dreamStatus({ enabled: true }, { now: NOW, cancelRequested: true }).cancelRequested, false)
 })
