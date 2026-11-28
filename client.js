@@ -26,7 +26,7 @@ window.__ModuleLoader__.load({
 const MEMORY_API = '/compression-tiers/api/memory'
 const DREAM_API = '/compression-tiers/api/memory/dream'
     const VENDOR_BASE = '/compression-tiers/vendor/'
-    const PLUGIN_VERSION = '2.10.1'
+    const PLUGIN_VERSION = '2.10.2'
     // `conversation.input.dock` is a list slot rendered top-to-bottom by
     // ascending `order`. Rows that belong to the conversation itself stay
     // closest to the input card: the agent's todo/task bar (`todo`, order 0),

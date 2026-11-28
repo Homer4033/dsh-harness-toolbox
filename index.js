@@ -14,7 +14,7 @@ import { COMPONENT_IDS, componentBinDirs, componentDownloadRunning, componentSta
 import { COMPONENT_ORDER, componentRows } from './src/component-rows.js'
 import { MODEL_IDS, modelDownloadRunning, modelsStatus, startModelDownload } from './src/models.js'
 import { usageHeatmap } from './src/usage-heatmap.js'
-import { dream, memoryStatus, rebuildIndex, reconcile, searchMemory, searchText, writeMemory } from './src/memory.js'
+import { dream, memoryStatus, rebuildIndex, reconcile, reconcileText, searchMemory, searchText, writeMemory } from './src/memory.js'
 import { DREAM_CHECK_MS, dreamDue, dreamProjects, dreamReportText, dreamStatus } from './src/memory-dream.js'
 import { migrateTools, parseToolsPath, resolveToolsPath, toolsStatus } from './src/tools-path.js'
 import { pushFlow, pushReportText, resolvePushCwd, sessionTarget } from './src/push-flow.js'

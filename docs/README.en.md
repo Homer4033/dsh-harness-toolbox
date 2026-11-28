@@ -12,7 +12,7 @@ Five tiers · a moving context vial · a local usage board for blank sessions ·
 
 <p>
   <a href="https://www.npmjs.com/package/dsh-harness-toolbox"><img src="https://img.shields.io/npm/v/dsh-harness-toolbox?style=flat-square&color=3186ff&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Version-2.10.1-0f172a?style=flat-square" alt="Version 2.10.1" />
+  <img src="https://img.shields.io/badge/Version-2.10.2-0f172a?style=flat-square" alt="Version 2.10.2" />
   <img src="https://img.shields.io/badge/DSH-0.2.2--rc.3%20~%200.3.0-1e293b?style=flat-square" alt="DSH runtime range" />
   <a href="https://github.com/Homer4033/dsh-harness-toolbox/actions"><img src="https://img.shields.io/github/actions/workflow/status/Homer4033/dsh-harness-toolbox/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
   <img src="https://img.shields.io/badge/Tests-297%20passing-16a34a?style=flat-square" alt="297 tests passing" />
@@ -120,7 +120,7 @@ Requires **Node.js ≥ 24.9** and a DSH runtime between **`0.2.2-rc.3` (inclusiv
 
 ### Way one: from npm (recommended)
 
-1. DSH → **Plugins → Add plugin**, enter the package name `dsh-harness-toolbox` (pin a version with `dsh-harness-toolbox@2.10.1`);
+1. DSH → **Plugins → Add plugin**, enter the package name `dsh-harness-toolbox` (pin a version with `dsh-harness-toolbox@2.10.2`);
 2. after it installs, open a new session — a **compression tiers** panel shows up in the sidebar;
 3. the first page is the five tier buttons; pick one.
 
@@ -324,10 +324,10 @@ The six managed components live under one configurable root. The first four are 
 <details>
 <summary><strong>Halves, vial physics, thresholds, palette plumbing and safety boundaries</strong></summary>
 
-**Version `2.10.1`** changes neither the host's compaction algorithm nor the `compaction-basic` row on the host plane; it works only through official slots, official projections and the preset scope:
+**Version `2.10.2`** changes neither the host's compaction algorithm nor the `compaction-basic` row on the host plane; it works only through official slots, official projections and the preset scope:
 
 - **Two halves, Host and Client**: `index.js` registers the eight tools, the system-prompt summary, the HTTP routes and a reconciler that syncs the tier into the compaction engine inside the preset scope; `client.js` renders the sidebar panel and the row above the input using only `ctx.slots`, `ctx.locale`, `ctx.effect` and theme tokens. The panel imports no host client package — dropdowns, menus and buttons are all self-drawn.
-- **The ported module loads as a plain `<script>`**: `vial-core.js` (about 75 KB) is the upstream 1.0.8-beta.1 script served from the same-origin route `GET /compression-tiers/vendor/<name>` (a whitelist of exactly this one file name, `text/javascript; charset=utf-8`, `cache-control: public, max-age=3600`, with `?v=2.10.1` in the URL so a stale cache cannot outlive a release). That keeps the UMD body out of `client.js` and avoids `eval`. After the 2.4.6 horizon renderer and the 2.5.0 companion rig were removed, the whitelist went from three names to one.
+- **The ported module loads as a plain `<script>`**: `vial-core.js` (about 75 KB) is the upstream 1.0.8-beta.1 script served from the same-origin route `GET /compression-tiers/vendor/<name>` (a whitelist of exactly this one file name, `text/javascript; charset=utf-8`, `cache-control: public, max-age=3600`, with `?v=2.10.2` in the URL so a stale cache cannot outlive a release). That keeps the UMD body out of `client.js` and avoids `eval`. After the 2.4.6 horizon renderer and the 2.5.0 companion rig were removed, the whitelist went from three names to one.
 - **The vial is physical**: `vial-core.js` exports `createWaterVialPhysics` and `mountPhysicalWaterVial`, running a 24-node shallow-water simulation with damping and surface tension on a 96×220 canvas; the host drives RAF and `step(dt)` and stops redrawing when `isSettled()` is true. The fill ratio and the threshold tick are computed by the panel from the official formula — the physics layer knows nothing about tokens.
 - **Numbers come from official projections**: occupancy and window from `useProjection('contextPressure')`, the three-part split from `useProjection('contextBreakdown')`. With no reading at all (before the first message of a new session) the vial is not rendered — the host does not paint its own `ContextMeter` then either, so there is no dead grey "—". The popover environment (port, theme, `reducedMotion`) is passed in by the client; the ported module reads no host globals.
 - **Repainting has two legs**: the plugin's own panel, dock and popovers use the tokens declared on `.ct-skin[data-palette='…']` (so the host UI is unaffected and the plugin still has a skin when the theme service is missing); the whole DSH interface is repainted by layering `ctx.theme.overrideTokens('compression-tiers', tokens)`, which the host writes as inline CSS variables on `<body>`. Every token must be a `{ light, dark }` pair (the service deliberately rejects bare strings) and both modes must be complete — that is exactly how the skin follows DSH's light/dark: the host picks which half to use.

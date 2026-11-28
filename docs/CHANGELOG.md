@@ -2,6 +2,13 @@
 
 > 版本号以 `package.json` 为准，每个发布版本对应一个 `vX.Y.Z` tag。安装方可以锁 `git+https://github.com/Homer4033/dsh-harness-toolbox.git#v2.5.0`。
 
+## 2.10.2 — 2026-11-28
+
+- **修 `memory_reconcile` 工具必然失败**（用户：「最新的插件安装了，测试一下」——装好 2.10.1 后第一次真调用就报 `memory_reconcile failed: reconcileText is not defined`）：`index.js` 的成功路径调 `reconcileText(report)`，但 2.9.0 引入这个工具时 import 列表漏了 `reconcileText`，于是**只要对账成功就抛 ReferenceError**，该工具从 2.9.0 起一直不可用；`src/memory.js` 里的函数本身没问题（单测直接 import 它，所以 287 条用例全绿也照不出来）。修法是补 import，并新增 `test/wiring.test.js`：扫 `src/*.js` 的导出名，凡是 `index.js` 里以 `name(` 形式调用的，必须出现在它的 `import` 或本地声明里——这类「接线漏一手」不是类型错误，只有真正跑到才会炸。
+- **同一轮在真实安装副本上验证了 2.10.1 的取消语义**（独立 node 进程，临时目录，不碰用户记忆）：`defaultYield.hostTickRanBeforeFinish = true`（先排的 `setImmediate` 在整批结束前跑掉，说明批量真的让出了事件循环）、3 个工作区 `ok 3 / failed 0 / merged 1 / expired 1`、`options.pause` 里置取消得到 `pauses 1 / stopped true / roots 1 / 第一个工作区 ok true`、`dreamStatus()` 的 `cancelRequested` 运行时为真、空闲为假。
+- 测试 **300 → 301**（新增 `test/wiring.test.js` 1 条；它第一次跑正好只报一个违规：`reconcileText`）。
+- 文档：AGENTS.md 验证要求新增这条接线检查、变更记录（2.10.1 条目移入 [docs/HISTORY.md](HISTORY.md)）；README、英文版、详情页版本号同步；`package.json` 与 `PLUGIN_VERSION` 2.10.2。**面板渲染仍未在装好的窗口里复验**（本机 Web 帧源未启用，`browser_capabilities` 返回 `ADAPTER_DISABLED`）。
+
 ## 2.10.1 — 2026-11-28
 
 - **修掉「取消剩余」按不动的问题**（用户问「『取消剩余』干什么的？」）：2.10.0 把整批整理写成一段**同步循环**（`dreamProjects()` 一个 `for` 跑完所有工作区），跑起来就把宿主事件循环占住——取消请求要等整批结束才读得到，那时已经没有「剩余」可停，按钮实际上按不出任何效果，面板的 `running` 轮询同样拿不到中间状态。现在 `dreamProjects()` 是 `async`，**每整理完一个工作区就让出一次事件循环**（`yieldToHost()` = `setImmediate`），`shouldStop` 仍然只在两个项目之间检查，正在整理的那个照旧做完；只在「后面还有项目」时暂停，最后一个是直接出报告。`options.pause` 可替换那次让出，用例用它把取消塞进间隙。

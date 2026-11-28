@@ -1,6 +1,6 @@
 {
   "name": "dsh-harness-toolbox",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "private": false,
   "type": "module",
   "description": "A DeepSeek Harness workbench built around five-tier context compaction: the optical context vial above the composer, one adaptive palette that follows the host light/dark theme, global and workspace rules editing, project memory for multi-session agents (append-only store, a 200-line / 25 KB injected index, write gates, quarantine for external sources, offline consolidation), managed installs for gh / git / ffmpeg / Python below one migratable root, a local FLUX.2 [klein] 4B download kept in its own models folder, per-session repository publishing, and a nightly memory pass scheduled in settings.",

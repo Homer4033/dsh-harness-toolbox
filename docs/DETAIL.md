@@ -1,6 +1,6 @@
 # Compression tiers & workbench
 
-> DSH plugin `dsh-harness-toolbox` · version **2.10.1** · `GPL-3.0-only` · [repository](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
+> DSH plugin `dsh-harness-toolbox` · version **2.10.2** · `GPL-3.0-only` · [repository](https://github.com/Homer4033/dsh-harness-toolbox) · [npm](https://www.npmjs.com/package/dsh-harness-toolbox)
 
 Five context compression tiers plus the workbench around them: a context vial above the input, a local usage board for blank sessions, six managed components and one local model, one palette that follows the host theme, global and per-workspace rules, project memory, and per-session repository publishing.
 
@@ -77,7 +77,7 @@ Tier parameters (official formula `floor(min(W × thresholdRatio, W − O − 65
 
 ## Install
 
-DSH → **Plugins → Add plugin**, enter `dsh-harness-toolbox` (pin it with `dsh-harness-toolbox@2.10.1`), then open a new session and the "compression tiers" panel is in the sidebar. Requires Node.js ≥ 24.9 and a DSH runtime between `0.2.2-rc.3` (inclusive) and `0.3.0` (exclusive). The full install, upgrade, component and model documentation is in the [README](README.en.md); per-release notes are in the [CHANGELOG](CHANGELOG.md).
+DSH → **Plugins → Add plugin**, enter `dsh-harness-toolbox` (pin it with `dsh-harness-toolbox@2.10.2`), then open a new session and the "compression tiers" panel is in the sidebar. Requires Node.js ≥ 24.9 and a DSH runtime between `0.2.2-rc.3` (inclusive) and `0.3.0` (exclusive). The full install, upgrade, component and model documentation is in the [README](README.en.md); per-release notes are in the [CHANGELOG](CHANGELOG.md).
 
 ## Boundaries and license
 
